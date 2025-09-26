@@ -484,7 +484,6 @@ const SearchResultsPage: React.FC = () => {
         {/* Search Bar */}
         <div style={{ marginBottom: '1.5rem' }}>
           <AdvancedSearch 
-            onResultSelect={handleResultSelect}
             placeholder={`Search for "${query}" in blocks, transfers, deployments...`}
           />
         </div>
