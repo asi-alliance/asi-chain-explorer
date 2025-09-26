@@ -72,14 +72,6 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                             }}
                         >
                             <AdvancedSearch
-                                onResultSelect={(result) => {
-                                    // Navigate to search results page with the query
-                                    navigate(
-                                        `/search?q=${encodeURIComponent(
-                                            result.title
-                                        )}`
-                                    );
-                                }}
                                 embedded={true}
                                 placeholder="Search blocks, transfers, addresses..."
                             />

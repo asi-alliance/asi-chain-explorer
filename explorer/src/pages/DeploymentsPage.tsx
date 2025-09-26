@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useQuery } from '@apollo/client';
 import { Link } from 'react-router-dom';
 import { gql } from '@apollo/client';
 import { formatDistanceToNow } from 'date-fns';
+import { useGlobalSearch } from '../services/searchService';
 
 const GET_DEPLOYMENTS = gql`
   query GetDeployments($limit: Int!, $offset: Int!, $search: String) {
@@ -62,6 +63,15 @@ const DeploymentsPage: React.FC = () => {
   const [searchInput, setSearchInput] = useState('');
   const [expandedDeployments, setExpandedDeployments] = useState<Set<string>>(new Set());
   const deploymentsPerPage = 20;
+
+  const { currentSearchQuery } = useGlobalSearch();
+
+  useEffect(() => {
+    if (!!currentSearchQuery) {
+      setSearchInput(currentSearchQuery);
+      setSearchQuery(currentSearchQuery);
+    } 
+  }, [])
 
   const { data: queryData, loading, error, refetch } = useQuery(GET_DEPLOYMENTS, {
     variables: { 
