@@ -32,12 +32,12 @@ jobs:
       id: login-ecr
       uses: aws-actions/amazon-ecr-login@v2
 
-    - name: Build, tag, and push space-service image
-      id: build-space-service
+    - name: Build, tag, and push indexer image
+      id: build-indexer
       env:
         ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
       run: |
-        docker build -t $ECR_REGISTRY/${{ env.ECR_REPOSITORY_INDEXER }}:$IMAGE_TAG -f asi-chain-indexer-policy/Dockerfile.rust .
+        docker build -t $ECR_REGISTRY/${{ env.ECR_REPOSITORY_INDEXER }}:$IMAGE_TAG -f indexer/Dockerfile.rust .
         docker push $ECR_REGISTRY/${{ env.ECR_REPOSITORY_INDEXER }}:$IMAGE_TAG
         echo "image=$ECR_REGISTRY/${{ env.ECR_REPOSITORY_INDEXER }}:$IMAGE_TAG" >> $GITHUB_OUTPUT
     
