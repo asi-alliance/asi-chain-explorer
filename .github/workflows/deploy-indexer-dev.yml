@@ -55,7 +55,7 @@ jobs:
             export ECR_REGISTRY=${{ steps.login-ecr.outputs.registry }} && \
             export IMAGE_TAG=${{ github.sha }} && \
             aws ecr get-login-password --region ${{ env.AWS_REGION }} | docker login --username AWS --password-stdin \$ECR_REGISTRY && \
-            docker compose pull && \
+            docker compose -f docker-compose.deploy.yml pull --quiet && \
             docker compose -f docker-compose.deploy.yml up -d\"
           ]")
         if [ -z "$COMMAND_ID" ]; then
