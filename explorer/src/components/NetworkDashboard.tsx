@@ -39,6 +39,7 @@ import {
 import { format, subHours, subDays } from 'date-fns';
 import { useQuery } from '@apollo/client';
 import { GET_NETWORK_STATS, GET_LATEST_BLOCKS, GET_ALL_TRANSFERS } from '../graphql/queries';
+import { CURRENT_TOKEN } from '../utils/constants';
 
 interface MetricCard {
   title: string;
@@ -239,7 +240,7 @@ const NetworkDashboard: React.FC = () => {
       },
       {
         title: 'Total Stake',
-        value: `${totalStake.toLocaleString()} REV`,
+        value: `${totalStake.toLocaleString()} ${CURRENT_TOKEN}`,
         change: 0,
         changeType: 'increase',
         icon: <DollarSign size={20} />,

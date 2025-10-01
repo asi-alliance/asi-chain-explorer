@@ -5,6 +5,7 @@ import { formatDistanceToNow } from 'date-fns';
 import { Activity, Clock, Zap, Database, TrendingUp } from 'lucide-react';
 import { useQuery } from '@apollo/client';
 import { GET_LATEST_BLOCKS, GET_LATEST_TRANSFERS, GET_LATEST_DEPLOYMENTS } from '../graphql/queries';
+import { CURRENT_TOKEN } from '../utils/constants';
 
 interface ActivityItem {
   id: string;
@@ -77,7 +78,7 @@ const RealtimeActivityFeed: React.FC<RealtimeActivityFeedProps> = ({
       newActivities.push({
         id: `transfer-${transfer.id}`,
         type: 'transfer',
-        title: `Transfer: ${transfer.amount_rev || '0'} REV`,
+        title: `Transfer: ${transfer.amount_rev || '0'} ${CURRENT_TOKEN}`,
         description: `From ${transfer.from_address?.slice(0, 8) || 'Unknown'}... to ${transfer.to_address?.slice(0, 8) || 'Unknown'}...`,
         timestamp: transfer.created_at ? new Date(transfer.created_at).getTime() : Date.now(),
         data: transfer,

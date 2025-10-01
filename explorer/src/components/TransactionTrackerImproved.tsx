@@ -20,6 +20,7 @@ import {
   Info
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
+import { CURRENT_TOKEN } from '../utils/constants';
 
 // GraphQL Queries
 const GET_TRANSACTION_COUNTS = gql`
@@ -138,7 +139,7 @@ const TransactionTrackerImproved: React.FC<TransactionTrackerImprovedProps> = ({
           ...transfer,
           type: 'transfer',
           id: transfer.id,
-          displayTitle: `Transfer ${transfer.amount_rev} REV`,
+          displayTitle: `Transfer ${transfer.amount_rev} ${CURRENT_TOKEN}`,
           displayTime: transfer.created_at,
           isError: transfer.status !== 'success'
         });

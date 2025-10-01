@@ -2,6 +2,8 @@
  * Utility to parse genesis wallet funding from RevGenerator deployment
  */
 
+import { CURRENT_TOKEN } from "./constants";
+
 export interface GenesisFunding {
   wallet_address: string;
   amount_dust: number;
@@ -55,11 +57,11 @@ export function parseGenesisFunding(deploymentTerm: string, deployId: string, ti
  */
 export function formatGenesisFunding(amount: number): string {
   if (amount >= 1000000) {
-    return (amount / 1000000).toFixed(1) + 'M REV';
+    return (amount / 1000000).toFixed(1) + `M ${CURRENT_TOKEN}`;
   } else if (amount >= 1000) {
-    return (amount / 1000).toFixed(1) + 'K REV';
+    return (amount / 1000).toFixed(1) + `K ${CURRENT_TOKEN}`;
   } else {
-    return amount.toFixed(2) + ' REV';
+    return amount.toFixed(2) + ` ${CURRENT_TOKEN}`;
   }
 }
 
