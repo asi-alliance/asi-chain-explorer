@@ -7,7 +7,7 @@ const TransactionsPage: React.FC = () => {
 
   const handleTransactionSelect = (transaction: any) => {
     // Navigate to the transaction detail page
-    navigate(`/transaction/${transaction.id || transaction.deploy_id}`);
+    navigate(`/transaction/${transaction.deploy_id}`);
   };
 
   return (

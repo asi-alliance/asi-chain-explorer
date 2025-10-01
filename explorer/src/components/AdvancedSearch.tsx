@@ -359,26 +359,17 @@ const AdvancedSearch: React.FC<AdvancedSearchProps> = ({
         setIsOpen(false);
         setSelectedResult(-1);
 
-        // Default navigation behavior
         switch (result.type) {
             case "block":
                 navigate(`/block/${(result.data as Block).block_number}`);
                 break;
             case "transfer":
-                // Navigate to transfer or deployment detail page
                 const transfer = result.data as Transfer;
-                if (transfer.deploy_id) {
-                    setCurrentSearchQuery(transfer.deploy_id);
-                    navigate(`/transfers`);
-                }
+                navigate(`/transaction/${transfer.deploy_id}`);
                 break;
             case "deployment":
-                const transfer1 = result.data as Transfer;
-                if (transfer1.deploy_id) {
-                    setCurrentSearchQuery(transfer1.deploy_id);
-                    navigate(`/deployments`);
-                }
-                navigate("/deployments");
+                const deploy = result.data as Transfer;                
+                navigate(`/transaction/${deploy.deploy_id}`);
                 break;
         }
     };
