@@ -6,6 +6,7 @@ import { Transfer, GenesisFunding } from '../types';
 import { formatDistanceToNow } from 'date-fns';
 import { useGenesisFunding } from '../hooks/useGenesisFunding';
 import { formatGenesisFunding } from '../utils/parseGenesisFunding';
+import { CURRENT_TOKEN } from '../utils/constants';
 
 const TransfersPage: React.FC = () => {
   const [currentPage, setCurrentPage] = useState(1);
@@ -132,7 +133,7 @@ const TransfersPage: React.FC = () => {
   return (
     <section className="asi-card">
       <div className="section-header">
-        <h2>REV Distribution & Transfers</h2>
+        <h2>{CURRENT_TOKEN} Distribution & Transfers</h2>
         <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
             <span className="status-indicator" style={{ background: 'var(--asi-lime)' }}></span>
@@ -154,7 +155,7 @@ const TransfersPage: React.FC = () => {
           <strong>Error:</strong> {error.message}
         </div>
       ) : allTransferEvents.length === 0 ? (
-        <p className="text-center text-muted">No REV transfers found</p>
+        <p className="text-center text-muted">No {CURRENT_TOKEN} transfers found</p>
       ) : (
         <div>
           {allTransferEvents.map((event: Transfer | GenesisFunding) => {
@@ -255,7 +256,7 @@ const TransfersPage: React.FC = () => {
                   marginBottom: '0.75rem' 
                 }}>
                   <h4 style={{ margin: 0, color: 'var(--asi-lime)', fontSize: '1.1rem' }}>
-                    {formatRevAmount(transfer.amount_rev)} REV
+                    {formatRevAmount(transfer.amount_rev)} {CURRENT_TOKEN}
                   </h4>
                   {(transfer.block || transfer.block_number) && (
                     <Link 

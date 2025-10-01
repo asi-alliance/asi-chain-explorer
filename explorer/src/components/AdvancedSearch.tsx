@@ -15,6 +15,7 @@ import { useNavigate } from "react-router-dom";
 import { Block, Transfer, Deployment } from "../types";
 import { gql } from "@apollo/client";
 import { useGlobalSearch } from "../services/searchService";
+import { CURRENT_TOKEN } from "../utils/constants";
 
 const QUICK_SEARCH = gql`
     query QuickSearch($query: String!) {
@@ -289,7 +290,7 @@ const AdvancedSearch: React.FC<AdvancedSearchProps> = ({
                     type: "transfer",
                     data: transfer,
                     id: `transfer-${transfer.id}`,
-                    title: `Transfer: ${transfer.amount_rev} REV`,
+                    title: `Transfer: ${transfer.amount_rev} ${CURRENT_TOKEN}`,
                     description: `From ${transfer.from_address.slice(
                         0,
                         12
@@ -852,7 +853,7 @@ const AdvancedSearch: React.FC<AdvancedSearchProps> = ({
                                         />
                                         <input
                                             type="number"
-                                            placeholder="Min amount (REV)"
+                                            placeholder={`Min amount (${CURRENT_TOKEN})`}
                                             value={filters.minAmount}
                                             onChange={(e) =>
                                                 handleFilterChange(
@@ -871,7 +872,7 @@ const AdvancedSearch: React.FC<AdvancedSearchProps> = ({
                                         />
                                         <input
                                             type="number"
-                                            placeholder="Max amount (REV)"
+                                            placeholder={`Max amount (${CURRENT_TOKEN})`}
                                             value={filters.maxAmount}
                                             onChange={(e) =>
                                                 handleFilterChange(
