@@ -6,9 +6,9 @@ import Layout from "./components/Layout";
 import HomePage from "./pages/HomePage";
 import BlocksPage from "./pages/BlocksPage";
 import BlockDetailPage from "./pages/BlockDetailPage";
-import TransfersPage from "./pages/TransfersPage";
+// import TransfersPage from "./pages/TransfersPage";
 import ValidatorsPage from "./pages/ValidatorsPage";
-import DeploymentsPage from "./pages/DeploymentsPage";
+// import DeploymentsPage from "./pages/DeploymentsPage";
 import StatisticsPage from "./pages/StatisticsPage";
 import IndexerStatusPage from "./pages/IndexerStatusPage";
 import ValidatorHistoryPage from "./pages/ValidatorHistoryPage";
@@ -38,14 +38,14 @@ function App() {
                                 path="/block/:blockNumber"
                                 element={<BlockDetailPage />}
                             />
-                            <Route
+                            {/* <Route
                                 path="/transfers"
                                 element={<TransfersPage />}
-                            />
-                            <Route
+                            /> */}
+                            {/* <Route
                                 path="/deployments"
                                 element={<DeploymentsPage />}
-                            />
+                            /> */}
                             <Route
                                 path="/validators"
                                 element={<ValidatorsPage />}

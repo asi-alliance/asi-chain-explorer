@@ -1,23 +1,17 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { motion } from "framer-motion";
 import { AnimatePresence } from "./AnimatePresenceWrapper";
-import { useQuery, useLazyQuery } from "@apollo/client";
+import { useLazyQuery } from "@apollo/client";
 import {
     Search,
     Filter,
     X,
-    Calendar,
     Hash,
-    User,
-    Activity,
     FileText,
-    ChevronDown,
-    Clock,
     TrendingUp,
     Database,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { formatDistanceToNow, parseISO } from "date-fns";
 import { Block, Transfer, Deployment } from "../types";
 import { gql } from "@apollo/client";
 import { useGlobalSearch } from "../services/searchService";
@@ -29,7 +23,6 @@ const QUICK_SEARCH = gql`
             where: {
                 _or: [
                     { block_hash: { _ilike: $query } }
-                    # { block_number: { _eq: $query } }
                 ]
             }
             limit: 5
@@ -82,9 +75,24 @@ const QUICK_SEARCH = gql`
     }
 `;
 
+const BLOCK_SEARCH_BY_NUMBER = gql`
+    query QuickSearchByNumber($query: bigint) {
+        blocks(
+            where: { block_number: { _eq: $query } }
+            limit: 5
+            order_by: { block_number: desc }
+        ) {
+            block_number
+            block_hash
+            proposer
+            timestamp
+        }
+    }
+`;
+
 interface SearchFilters {
     searchType: "all" | "blocks" | "transfers" | "deployments";
-    query: string;
+    query: string | number;
 
     // Block filters
     proposer: string;
@@ -133,6 +141,7 @@ const AdvancedSearch: React.FC<AdvancedSearchProps> = ({
     const [isOpen, setIsOpen] = useState(false);
     const [showFilters, setShowFilters] = useState(false);
     const [isSearching, setIsSearching] = useState(false);
+    const [isCombinedSearchUsed, setIsCombinedSearchUsed] = useState(false);
     const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
     const [selectedResult, setSelectedResult] = useState<number>(0);
     const [currentPage, setCurrentPage] = useState(1);
@@ -168,22 +177,40 @@ const AdvancedSearch: React.FC<AdvancedSearchProps> = ({
         { data: quickSearchData, loading: quickSearchLoading },
     ] = useLazyQuery(QUICK_SEARCH);
 
+    const [
+        quickSearchByBlockNumber,
+        {data: quickSearchByBLockNumberData, loading: quickSearchByBLockNumberLoading },
+    ] = useLazyQuery(BLOCK_SEARCH_BY_NUMBER);
+
     // Debounced search function
     const debounceRef = useRef<NodeJS.Timeout | undefined>(undefined);
 
     const performSearch = async (
-        searchQuery: string,
+        searchQuery: string | number,
         searchFilters: SearchFilters
     ) => {
-        if (!searchQuery.trim() && !hasActiveFilters(searchFilters)) {
+        if (!searchQuery.toString().trim() && !hasActiveFilters(searchFilters)) {
             setSearchResults([]);
             return;
         }
 
+        setIsCombinedSearchUsed(false);
         setIsSearching(true);
 
         try {
-            if (searchQuery.trim() && !hasActiveFilters(searchFilters)) {
+            if (typeof searchQuery === 'number' || typeof searchQuery === 'bigint') {
+                setIsCombinedSearchUsed(true);
+
+                await quickSearchByBlockNumber(
+                    {
+                        variables: {
+                            query: `${BigInt(searchQuery)}`,
+                        }
+                    }
+                );
+            }
+
+            if (searchQuery.toString().trim() && !hasActiveFilters(searchFilters)) {
                 // Quick search when only query is provided
                 await quickSearch({
                     variables: {
@@ -218,7 +245,7 @@ const AdvancedSearch: React.FC<AdvancedSearchProps> = ({
     };
 
     const debouncedSearch = useCallback(
-        (searchQuery: string, searchFilters: SearchFilters) => {
+        (searchQuery: string | number, searchFilters: SearchFilters) => {
             if (debounceRef.current) {
                 clearTimeout(debounceRef.current);
             }
@@ -289,10 +316,24 @@ const AdvancedSearch: React.FC<AdvancedSearchProps> = ({
         // Sort results by timestamp (newest first)
         results.sort((a, b) => b.timestamp - a.timestamp);
 
-        console.log(results);
+        if (quickSearchByBLockNumberData && isCombinedSearchUsed) {
+            quickSearchByBLockNumberData.blocks?.forEach((block: Block) => {
+                results.unshift({
+                    type: "block",
+                    data: block,
+                    id: `block-${block.block_number}`,
+                    title: `Block #${block.block_number}`,
+                    description: `Proposed by ${block.proposer.slice(
+                        0,
+                        12
+                    )}...`,
+                    timestamp: block.timestamp,
+                });
+            });
+        }
 
         setSearchResults(results);
-    }, [quickSearchData]);
+    }, [quickSearchData, quickSearchByBLockNumberData]);
 
     useEffect(() => {
       if (filters.query === "") {
@@ -300,9 +341,11 @@ const AdvancedSearch: React.FC<AdvancedSearchProps> = ({
       }
     }, [filters.query])
 
-    const handleInputChange = (value: string) => {
-        setFilters((prev) => ({ ...prev, query: value }));
-        debouncedSearch(value, filters);
+    const handleInputChange = (value: string | number) => {
+        const newValue = value === "" ? "" : (isNaN(+value) ? value : +value);
+         
+        setFilters((prev) => ({ ...prev, query: newValue }));
+        debouncedSearch(newValue, filters);
         setIsOpen(true);
     };
 
@@ -316,26 +359,17 @@ const AdvancedSearch: React.FC<AdvancedSearchProps> = ({
         setIsOpen(false);
         setSelectedResult(-1);
 
-        // Default navigation behavior
         switch (result.type) {
             case "block":
                 navigate(`/block/${(result.data as Block).block_number}`);
                 break;
             case "transfer":
-                // Navigate to transfer or deployment detail page
                 const transfer = result.data as Transfer;
-                if (transfer.deploy_id) {
-                    setCurrentSearchQuery(transfer.deploy_id);
-                    navigate(`/transfers`);
-                }
+                navigate(`/transaction/${transfer.deploy_id}`);
                 break;
             case "deployment":
-                const transfer1 = result.data as Transfer;
-                if (transfer1.deploy_id) {
-                    setCurrentSearchQuery(transfer1.deploy_id);
-                    navigate(`/deployments`);
-                }
-                navigate("/deployments");
+                const deploy = result.data as Transfer;                
+                navigate(`/transaction/${deploy.deploy_id}`);
                 break;
         }
     };
@@ -465,7 +499,7 @@ const AdvancedSearch: React.FC<AdvancedSearchProps> = ({
                     }}
                 >
                     {/* {(isSearching || quickSearchLoading || blocksLoading || transfersLoading || deploymentsLoading) && ( */}
-                    {(isSearching || quickSearchLoading) && (
+                    {(isSearching || quickSearchLoading || quickSearchByBLockNumberLoading) && (
                         <div
                             className="loading"
                             style={{ width: "16px", height: "16px" }}

@@ -21,8 +21,8 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     const navigation = [
         { name: "Blocks", href: "/" },
         { name: "Transactions", href: "/transactions" },
-        { name: "REV Transfers", href: "/transfers" },
-        { name: "Deployments", href: "/deployments" },
+        // { name: "REV Transfers", href: "/transfers" },
+        // { name: "Deployments", href: "/deployments" },
         { name: "Validators", href: "/validators" },
         { name: "Statistics", href: "/statistics" },
         { name: "Indexer", href: "/indexer-status" },
@@ -31,7 +31,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     const goHome = () => {
         navigate("/");
     };
-
+    
     return (
         <div className="container">
             <header>
