@@ -6,22 +6,14 @@ import React, {
 import { useQuery, gql, useLazyQuery } from "@apollo/client";
 import { motion } from "framer-motion";
 import {
-  Search,
-  Filter,
-  Download,
   RefreshCw,
   ChevronLeft,
   ChevronRight,
   FileText,
   ArrowRightLeft,
-  Clock,
   Activity,
-  TrendingUp,
-  Zap,
   CheckCircle,
   XCircle,
-  AlertCircle,
-  Info
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { CURRENT_TOKEN } from '../utils/constants';
@@ -50,10 +42,9 @@ const SEARCH_TRANSACTIONS = gql`
                     { from_address: { _ilike: $query } }
                     { to_address: { _ilike: $query } }
                     { deploy_id: { _ilike: $query } }
-                    { block_hash: { _ilike: $query } }
                 ]
             }
-            limit: 5
+            limit: 30
             order_by: { created_at: desc }
         ) {
             id
@@ -74,7 +65,7 @@ const SEARCH_TRANSACTIONS = gql`
                     { block_hash: { _ilike: $query } }
                 ]
             }
-            limit: 5
+            limit: 30
             order_by: { timestamp: desc }
         ) {
             deploy_id
@@ -191,7 +182,6 @@ const TransactionTrackerImproved: React.FC<TransactionTrackerImprovedProps> = ({
     const {
         data: transactionData,
         loading,
-        refetch,
     } = useQuery(GET_PAGINATED_TRANSACTIONS, {
         variables: {
             deploymentLimit,
@@ -221,17 +211,59 @@ const TransactionTrackerImproved: React.FC<TransactionTrackerImprovedProps> = ({
       debouncedSearch(value);
     }
 
-    // const searchResults = useMemo(() => {
-      
-    // }, [transactionsSearchData,  activeTab, searchQuery])
+    const searchResults = useMemo(() => {
+
+      const results: any[] = [];
+
+      if (activeTab === "deployments") {
+            transactionsSearchData?.deployments?.forEach((deployment: any) => {
+                results.push({
+                    ...deployment,
+                    type: "deployment",
+                    id: deployment.deploy_id,
+                    displayTitle: `Deploy by ${deployment.deployer.slice(
+                        0,
+                        8
+                    )}...`,
+                    displayTime: deployment.timestamp,
+                    isError: deployment.errored,
+                });
+            });
+        }
+
+        // if (activeTab === 'all' || activeTab === 'transfers') {
+        if (activeTab === "transfers") {
+            transactionsSearchData?.transfers?.forEach((transfer: any) => {
+                results.push({
+                    ...transfer,
+                    type: "transfer",
+                    id: transfer.id,
+                    displayTitle: `Transfer ${transfer.amount_rev} ${CURRENT_TOKEN}`,
+                    displayTime: transfer.created_at,
+                    isError: transfer.status !== "success",
+                });
+            });
+        }
+
+      return results.sort((a, b) => {
+            const timeA = parseInt(a.displayTime);
+            const timeB = parseInt(b.displayTime);
+            return timeB - timeA;
+      });
+    }, [transactionsSearchData, activeTab])
 
     const transactions = useMemo(() => {
 
-        if (!transactionData || !transactionData?.length) return [];
+        if (searchQuery) {
+          return searchResults;
+        }
+
+        if (!transactionData){
+          return []
+        }
 
         const results: any[] = [];
 
-        // Add deployments
         // if (activeTab === 'all' || activeTab === 'deployments') {
         if (activeTab === "deployments") {
             transactionData.deployments?.forEach((deployment: any) => {
@@ -249,7 +281,6 @@ const TransactionTrackerImproved: React.FC<TransactionTrackerImprovedProps> = ({
             });
         }
 
-        // Add transfers
         // if (activeTab === 'all' || activeTab === 'transfers') {
         if (activeTab === "transfers") {
             transactionData.transfers?.forEach((transfer: any) => {
@@ -257,20 +288,19 @@ const TransactionTrackerImproved: React.FC<TransactionTrackerImprovedProps> = ({
                     ...transfer,
                     type: "transfer",
                     id: transfer.id,
-                    displayTitle: `Transfer ${transfer.amount_rev} REV`,
+                    displayTitle: `Transfer ${transfer.amount_rev} ${CURRENT_TOKEN}`,
                     displayTime: transfer.created_at,
                     isError: transfer.status !== "success",
                 });
             });
         }
 
-        // Sort by time
         return results.sort((a, b) => {
             const timeA = parseInt(a.displayTime);
             const timeB = parseInt(b.displayTime);
             return timeB - timeA;
         });
-    }, [transactionData, activeTab]);
+    }, [searchQuery, searchResults, transactionData, activeTab]);
 
     // Calculate pagination info
     const totalItemsForTab =
@@ -419,7 +449,7 @@ const TransactionTrackerImproved: React.FC<TransactionTrackerImprovedProps> = ({
                 <div style={{ display: "flex", gap: "0.5rem" }}>
                     <input
                         type="text"
-                        placeholder="Search by ID, address, or block number..."
+                        placeholder="Search by ID, address, or block hash..."
                         value={searchQuery}
                         onChange={(e) => {handleSearchQueryChange(e.target.value)}}
                         style={{
