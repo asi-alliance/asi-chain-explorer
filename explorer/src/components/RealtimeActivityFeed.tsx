@@ -165,10 +165,10 @@ const RealtimeActivityFeed: React.FC<RealtimeActivityFeedProps> = ({
             {activities.map(activity => (
               <motion.div
                 key={activity.id}
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: 20 }}
-                transition={{ duration: 0.3 }}
+                // initial={{ opacity: 0, x: -20 }}
+                // animate={{ opacity: 1, x: 0 }}
+                // exit={{ opacity: 0, x: 20 }}
+                // transition={{ duration: 0.3 }}
                 style={{
                   display: 'flex',
                   alignItems: 'flex-start',
@@ -278,10 +278,10 @@ const RealtimeActivityFeed: React.FC<RealtimeActivityFeedProps> = ({
           {activities.map(activity => (
             <motion.div
               key={activity.id}
-              initial={{ opacity: 0, y: -20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: 20 }}
-              transition={{ duration: 0.4 }}
+              // initial={{ opacity: 0, y: -20 }}
+              // animate={{ opacity: 1, y: 0 }}
+              // exit={{ opacity: 0, y: 20 }}
+              // transition={{ duration: 0.4 }}
               style={{
                 display: 'flex',
                 alignItems: 'flex-start',

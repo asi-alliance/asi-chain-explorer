@@ -14,7 +14,6 @@ import {
 import { useNavigate } from "react-router-dom";
 import { Block, Transfer, Deployment } from "../types";
 import { gql } from "@apollo/client";
-import { useGlobalSearch } from "../services/searchService";
 import { CURRENT_TOKEN } from "../utils/constants";
 
 const QUICK_SEARCH = gql`
@@ -147,7 +146,6 @@ const AdvancedSearch: React.FC<AdvancedSearchProps> = ({
     const [selectedResult, setSelectedResult] = useState<number>(0);
     const [currentPage, setCurrentPage] = useState(1);
     const [totalResults, setTotalResults] = useState(0);
-    const { setCurrentSearchQuery } = useGlobalSearch();
 
     const searchInputRef = useRef<HTMLInputElement>(null);
     const searchContainerRef = useRef<HTMLDivElement>(null);
@@ -335,13 +333,7 @@ const AdvancedSearch: React.FC<AdvancedSearchProps> = ({
 
         setSearchResults(results);
     }, [quickSearchData, quickSearchByBLockNumberData]);
-
-    useEffect(() => {
-      if (filters.query === "") {
-        setCurrentSearchQuery("");
-      }
-    }, [filters.query])
-
+    
     const handleInputChange = (value: string | number) => {
         const newValue = value === "" ? "" : (isNaN(+value) ? value : +value);
          
