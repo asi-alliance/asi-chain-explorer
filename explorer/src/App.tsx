@@ -1,4 +1,3 @@
-import React, { useState } from "react";
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import { ApolloProvider } from "@apollo/client";
 import apolloClient from "./apollo-client";
@@ -15,69 +14,56 @@ import ValidatorHistoryPage from "./pages/ValidatorHistoryPage";
 import SearchResultsPage from "./pages/SearchResultsPage";
 import TransactionDetailPage from "./pages/TransactionDetailPage";
 import TransactionsPage from "./pages/TransactionsPage";
-import GlobalSearchContext from "./services/searchService";
 
 import "./styles/global.css";
 function App() {
-    const [currentSearchQuery, setCurrentSearchQuery] = useState<string>("");
-
     return (
         <ApolloProvider client={apolloClient}>
-            <GlobalSearchContext.Provider
-                value={{
-                    currentSearchQuery,
-                    setCurrentSearchQuery,
-                }}
-            >
-                <Router>
-                    <Layout>
-                        <Routes>
-                            <Route path="/" element={<HomePage />} />
-                            <Route path="/blocks" element={<BlocksPage />} />
-                            <Route
-                                path="/block/:blockNumber"
-                                element={<BlockDetailPage />}
-                            />
-                            {/* <Route
+            <Router>
+                <Layout>
+                    <Routes>
+                        <Route path="/" element={<HomePage />} />
+                        <Route path="/blocks" element={<BlocksPage />} />
+                        <Route
+                            path="/block/:blockNumber"
+                            element={<BlockDetailPage />}
+                        />
+                        {/* <Route
                                 path="/transfers"
                                 element={<TransfersPage />}
                             /> */}
-                            {/* <Route
+                        {/* <Route
                                 path="/deployments"
                                 element={<DeploymentsPage />}
                             /> */}
-                            <Route
-                                path="/validators"
-                                element={<ValidatorsPage />}
-                            />
-                            <Route
-                                path="/validator-history"
-                                element={<ValidatorHistoryPage />}
-                            />
-                            <Route
-                                path="/statistics"
-                                element={<StatisticsPage />}
-                            />
-                            <Route
-                                path="/indexer-status"
-                                element={<IndexerStatusPage />}
-                            />
-                            <Route
-                                path="/search"
-                                element={<SearchResultsPage />}
-                            />
-                            <Route
-                                path="/transactions"
-                                element={<TransactionsPage />}
-                            />
-                            <Route
-                                path="/transaction/:transactionId"
-                                element={<TransactionDetailPage />}
-                            />
-                        </Routes>
-                    </Layout>
-                </Router>
-            </GlobalSearchContext.Provider>
+                        <Route
+                            path="/validators"
+                            element={<ValidatorsPage />}
+                        />
+                        <Route
+                            path="/validator-history"
+                            element={<ValidatorHistoryPage />}
+                        />
+                        <Route
+                            path="/statistics"
+                            element={<StatisticsPage />}
+                        />
+                        <Route
+                            path="/indexer-status"
+                            element={<IndexerStatusPage />}
+                        />
+                        <Route path="/search" element={<SearchResultsPage />} />
+                        <Route
+                            path="/transactions"
+                            element={<TransactionsPage />}
+                        />
+                        <Route
+                            path="/transaction/:transactionId"
+                            element={<TransactionDetailPage />}
+                        />
+                    </Routes>
+                </Layout>
+            </Router>
         </ApolloProvider>
     );
 }
