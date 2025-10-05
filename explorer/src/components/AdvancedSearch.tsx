@@ -180,12 +180,41 @@ const dateQueryStatements = {
     endDate: (date: string) =>({ timestamp: { _lte: dateStringToUnix(date)}}),
 }
 
+// const dateTransactionsQueryStatements = {
+//     startDate: (date: string) => ({ created_at: { _gte: dateStringToUnix(date)}}),
+//     endDate: (date: string) =>({ created_at: { _lte: dateStringToUnix(date)}}),
+// }
+
+
 const blocksQueryStatements = {
-    query: (value: string | number) => ({ _or: [{ block_hash: { _ilike: `${value}` }},  { proposer: { _ilike: `${value}` }}]}),
     proposer: (proposer: string) => ({ proposer: { _ilike: proposer }}),
     minBlockNumber: (block_number: string) => ({ block_number: { _gte: block_number }}),
     maxBlockNumber: (block_number: string) => ({ block_number: { _lte: block_number }}),
 }
+
+    //    { _or: [
+    //       { deployer: { _ilike: $deployment_search } },
+    //       { deploy_id: { _ilike: $deployment_search } }
+    //     ] }
+
+// const deploymentsQueryStatements = {
+//         { deployer: { _ilike: $deployment_deployer } }
+//         { phlo_cost: { _gte: $deployment_minPhloCost } },
+//         { phlo_cost: { _lte: $deployment_maxPhloCost } },
+// }
+
+        // { _or: [
+        //   { from_address: { _ilike: $transfer_search } },
+        //   { to_address: { _ilike: $transfer_search } },
+        //   { deploy_id: { _ilike: $transfer_search } }
+        // ] }
+
+// const transferQueryStatements = {
+//             { from_address: { _ilike: $transfer_fromAddress } },
+//         { to_address: { _ilike: $transfer_toAddress } },
+//                 { amount_rev: { _gte: $transfer_minAmount } },
+//         { amount_rev: { _lte: $transfer_maxAmount } },
+// }
 
 const constructBlocksWhere = (searchQuery: string | number, filters: SearchFilters) => {
     console.log(filters);
@@ -297,12 +326,6 @@ const AdvancedSearch: React.FC<AdvancedSearchProps> = ({
         { data: quickSearchData, loading: quickSearchLoading },
     ] = useLazyQuery(QUICK_SEARCH);
 
-    // const [
-    //     quickSearchByBlockNumber,
-    //     {data: quickSearchByBLockNumberData, loading: quickSearchByBLockNumberLoading },
-    // ] = useLazyQuery(BLOCK_SEARCH_BY_NUMBER);
-
-    // Debounced search function
     const debounceRef = useRef<NodeJS.Timeout | undefined>(undefined);
 
     const performSearch = async (
