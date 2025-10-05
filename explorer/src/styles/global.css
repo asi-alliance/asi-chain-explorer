@@ -357,6 +357,10 @@ input::placeholder, textarea::placeholder {
     color: var(--text-tertiary);
 }
 
+input:disabled {
+    opacity: .5;
+}
+
 /* Code/Monospace Text */
 code, .code {
     font-family: 'Fira Mono', monospace;

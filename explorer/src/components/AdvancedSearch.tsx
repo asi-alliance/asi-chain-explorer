@@ -78,7 +78,7 @@ const QUICK_SEARCH = gql`
         blocks(
             where: $blocks_where
             limit: 5
-            order_by: { block_number: desc }
+            order_by: { block_number: asc }
         ) {
             block_number
             block_hash
@@ -114,10 +114,6 @@ const QUICK_SEARCH = gql`
         }
     }
 `;
-
-const IGNORE_BLOCKS_WHERE = { block_hash: { _ilike: '' }};
-const IGNORE_TRANSFERS_WHERE =  { from_address: { _ilike: '' }}
-const IGNORE_DEPLOYMENTS_WHERE = { deploy_id: { _ilike: '' } }
 
 interface SearchFilters {
     searchType: "all" | "blocks" | "transfers" | "deployments";
@@ -159,17 +155,41 @@ interface AdvancedSearchProps {
     placeholder?: string;
 }
 
-// const dateQueryStatements = {
+const IGNORE_BLOCKS_WHERE = { block_hash: { _ilike: '' }};
+const IGNORE_TRANSFERS_WHERE =  { from_address: { _ilike: '' }}
+const IGNORE_DEPLOYMENTS_WHERE = { deploy_id: { _ilike: '' }}
 
-// }
+const applyFilters = (accumulator: object[], filters: SearchFilters, statementsMap: any) => {
+    for (const [key, value] of Object.entries(filters)) {
+        if (!value) {
+            continue;
+        }
 
-// const blocksQueryStatements = {
-//     proposer
-//     minBlockNumber
-//     maxBlockNumber
-// }
+        if (!(key in statementsMap)) {
+            continue;
+        }
+
+        accumulator.push(statementsMap[key](value));
+    }
+}
+
+const dateStringToUnix = (date: string) => Math.floor(new Date(date).getTime());
+
+const dateQueryStatements = {
+    startDate: (date: string) => ({ timestamp: { _gte: dateStringToUnix(date)}}),
+    endDate: (date: string) =>({ timestamp: { _lte: dateStringToUnix(date)}}),
+}
+
+const blocksQueryStatements = {
+    query: (value: string | number) => ({ _or: [{ block_hash: { _ilike: `${value}` }},  { proposer: { _ilike: `${value}` }}]}),
+    proposer: (proposer: string) => ({ proposer: { _ilike: proposer }}),
+    minBlockNumber: (block_number: string) => ({ block_number: { _gte: block_number }}),
+    maxBlockNumber: (block_number: string) => ({ block_number: { _lte: block_number }}),
+}
 
 const constructBlocksWhere = (searchQuery: string | number, filters: SearchFilters) => {
+    console.log(filters);
+    
     if (typeof searchQuery === 'number' || typeof searchQuery === 'bigint') {
         return { block_number: { _eq: `${BigInt(searchQuery)}` } }
     }
@@ -178,9 +198,22 @@ const constructBlocksWhere = (searchQuery: string | number, filters: SearchFilte
         return IGNORE_BLOCKS_WHERE;
     }
 
-    const andStatementsArr = [];
+    const andStatementsArr: object[] = [];
 
-    return IGNORE_BLOCKS_WHERE;
+    searchQuery && andStatementsArr.push({ _or: [{ block_hash: { _ilike: `%${searchQuery}%` }},  { proposer: { _ilike: `%${searchQuery}%` }}]});
+    
+    applyFilters(andStatementsArr, filters, blocksQueryStatements);
+    // applyFilters(andStatementsArr, filters, dateQueryStatements);
+
+    if (andStatementsArr.length === 1) {
+        return andStatementsArr[0];
+    }
+
+    if (!andStatementsArr.length) {
+        return IGNORE_BLOCKS_WHERE;
+    }
+
+    return {_and: andStatementsArr};
 }
 
 const constructTransfersWhere = (searchQuery: string | number, filters: SearchFilters) => {
@@ -681,6 +714,7 @@ const AdvancedSearch: React.FC<AdvancedSearchProps> = ({
                                         Start Date
                                     </label>
                                     <input
+                                        disabled
                                         type="date"
                                         value={filters.startDate}
                                         onChange={(e) =>
@@ -713,6 +747,7 @@ const AdvancedSearch: React.FC<AdvancedSearchProps> = ({
                                         End Date
                                     </label>
                                     <input
+                                        disabled
                                         type="date"
                                         value={filters.endDate}
                                         onChange={(e) =>
