@@ -1,0 +1,121 @@
+# Combined advanced search query for blocks, transfers, and deployments
+query CombinedAdvancedSearch(
+  # Block filters
+  $block_search: String,
+  $block_proposer: String,
+  $block_minBlockNumber: bigint,
+  $block_maxBlockNumber: bigint,
+  $block_startDate: timestamptz,
+  $block_endDate: timestamptz,
+  $block_limit: Int,
+  $block_offset: Int,
+
+  # Transfer filters
+  $transfer_search: String,
+  $transfer_fromAddress: String,
+  $transfer_toAddress: String,
+  $transfer_minAmount: bigint,
+  $transfer_maxAmount: bigint,
+  $transfer_status: String,
+  $transfer_startDate: timestamptz,
+  $transfer_endDate: timestamptz,
+  $transfer_limit: Int,
+  $transfer_offset: Int,
+
+  # Deployment filters
+  $deployment_search: String,
+  $deployment_deployer: String,
+  $deployment_type: String,
+  $deployment_status: String,
+  $deployment_errored: Boolean,
+  $deployment_minPhloCost: bigint,
+  $deployment_maxPhloCost: bigint,
+  $deployment_startDate: timestamptz,
+  $deployment_endDate: timestamptz,
+  $deployment_limit: Int,
+  $deployment_offset: Int
+) {
+  blocks(
+    where: {
+      _and: [
+        { block_number: { _gte: $block_minBlockNumber } },
+        { block_number: { _lte: $block_maxBlockNumber } },
+        { proposer: { _ilike: $block_proposer } },
+        { timestamp: { _gte: $block_startDate } },
+        { timestamp: { _lte: $block_endDate } },
+        { _or: [
+          { block_hash: { _ilike: $block_search } },
+          { proposer: { _ilike: $block_search } }
+        ] }
+      ]
+    },
+    limit: $block_limit,
+    offset: $block_offset,
+    order_by: { block_number: desc }
+  ) {
+    block_number
+    block_hash
+    proposer
+    timestamp
+  }
+
+  transfers(
+    where: {
+      _and: [
+        { from_address: { _ilike: $transfer_fromAddress } },
+        { to_address: { _ilike: $transfer_toAddress } },
+        { amount_rev: { _gte: $transfer_minAmount } },
+        { amount_rev: { _lte: $transfer_maxAmount } },
+        { status: { _eq: $transfer_status } },
+        { created_at: { _gte: $transfer_startDate } },
+        { created_at: { _lte: $transfer_endDate } },
+        { _or: [
+          { from_address: { _ilike: $transfer_search } },
+          { to_address: { _ilike: $transfer_search } },
+          { deploy_id: { _ilike: $transfer_search } }
+        ] }
+      ]
+    },
+    limit: $transfer_limit,
+    offset: $transfer_offset,
+    order_by: { created_at: desc }
+  ) {
+    id
+    deploy_id
+    from_address
+    to_address
+    amount_rev
+    status
+    created_at
+  }
+
+  deployments(
+    where: {
+      _and: [
+        { deployer: { _ilike: $deployment_deployer } },
+        { deployment_type: { _ilike: $deployment_type } },
+        { status: { _eq: $deployment_status } },
+        { errored: { _eq: $deployment_errored } },
+        { phlo_cost: { _gte: $deployment_minPhloCost } },
+        { phlo_cost: { _lte: $deployment_maxPhloCost } },
+        { timestamp: { _gte: $deployment_startDate } },
+        { timestamp: { _lte: $deployment_endDate } },
+        { _or: [
+          { deployer: { _ilike: $deployment_search } },
+          { deploy_id: { _ilike: $deployment_search } }
+        ] }
+      ]
+    },
+    limit: $deployment_limit,
+    offset: $deployment_offset,
+    order_by: { timestamp: desc }
+  ) {
+    deploy_id
+    deployer
+    deployment_type
+    status
+    errored
+    phlo_cost
+    timestamp
+  }
+}
