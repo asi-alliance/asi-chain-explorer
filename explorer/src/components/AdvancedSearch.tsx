@@ -16,59 +16,6 @@ import { Block, Transfer, Deployment } from "../types";
 import { gql } from "@apollo/client";
 import { CURRENT_TOKEN } from "../utils/constants";
 
-// const QUICK_SEARCH = gql`
-//     query QuickSearch($where: blocks_bool_exp!) {
-//         blocks(
-//             where: $where
-//             limit: 5
-//             order_by: { block_number: desc }
-//         ) {
-//             block_number
-//             block_hash
-//             proposer
-//             timestamp
-//         }
-
-//         transfers(
-//             where: {
-//                 _or: [
-//                     { from_address: { _ilike: $query } }
-//                     { to_address: { _ilike: $query } }
-//                     { deploy_id: { _ilike: $query } }
-//                 ]
-//             }
-//             limit: 5
-//             order_by: { created_at: desc }
-//         ) {
-//             id
-//             deploy_id
-//             from_address
-//             to_address
-//             amount_rev
-//             status
-//             created_at
-//         }
-
-//         # Search deployments by deployer or deploy_id
-//         deployments(
-//             where: {
-//                 _or: [
-//                     { deployer: { _ilike: $query } }
-//                     { deploy_id: { _ilike: $query } }
-//                 ]
-//             }
-//             limit: 5
-//             order_by: { timestamp: desc }
-//         ) {
-//             deploy_id
-//             deployer
-//             deployment_type
-//             timestamp
-//             errored
-//         }
-//     }
-// `;
-
 const QUICK_SEARCH = gql`
     query QuickSearch(
         $blocks_where: blocks_bool_exp!
