@@ -56,7 +56,8 @@ jobs:
             export IMAGE_TAG=${{ github.sha }} && \
             aws ecr get-login-password --region ${{ env.AWS_REGION }} | docker login --username AWS --password-stdin \$ECR_REGISTRY && \
             docker compose -f docker-compose.deploy.yml pull --quiet && \
-            bash deploy-auto.sh\"
+            bash deploy-auto.sh\
+            docker image prune -a -f"
           ]")
         if [ -z "$COMMAND_ID" ]; then
           echo "::error::Failed to send command to SSM."
