@@ -1,5 +1,4 @@
-name: Dev Frontend Explorer Deployment
-
+name: Deploy Frontend Explorer Backend Dev
 on:
   push:
     branches:
