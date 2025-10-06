@@ -151,20 +151,20 @@ const transferQueryStatements = {
 }
 
 const constructBlocksWhere = (searchQuery: string | number, filters: SearchFilters) => {    
-    if (typeof searchQuery === 'number' || typeof searchQuery === 'bigint') {
-        return { block_number: { _eq: `${BigInt(searchQuery)}` } }
-    }
-
     if (filters.searchType !== 'blocks' && filters.searchType !== 'all') {
         return IGNORE_BLOCKS_WHERE;
     }
 
     const andStatementsArr: object[] = [];
 
-    searchQuery && andStatementsArr.push({ _or: [
-        { block_hash: { _ilike: `%${searchQuery}%` }},
-        { proposer: { _ilike: `%${searchQuery}%` }}
-    ]});
+    if (typeof searchQuery === 'number' || typeof searchQuery === 'bigint') {
+        andStatementsArr.push({ block_number: { _eq: `${BigInt(searchQuery)}` }})
+    } else {
+        searchQuery && andStatementsArr.push({ _or: [
+            { block_hash: { _ilike: `%${searchQuery}%` }},
+            { proposer: { _ilike: `%${searchQuery}%` }}
+        ]});
+    }
     
     applyFilters(andStatementsArr, filters, blocksQueryStatements);
     applyFilters(andStatementsArr, filters, dateQueryStatements);
@@ -676,7 +676,7 @@ const AdvancedSearch: React.FC<AdvancedSearchProps> = ({
                             {/* Date Range Filters */}
                             <div
                                 style={{
-                                    display: "grid",
+                                    display: "none",
                                     gridTemplateColumns:
                                         "repeat(auto-fit, minmax(200px, 1fr))",
                                     gap: "1rem",
