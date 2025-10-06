@@ -129,7 +129,6 @@ interface SearchFilters {
     toAddress: string;
     minAmount: string;
     maxAmount: string;
-    transferStatus: string;
 
     // Deployment filters
     deployer: string;
@@ -180,45 +179,31 @@ const dateQueryStatements = {
     endDate: (date: string) =>({ timestamp: { _lte: dateStringToUnix(date)}}),
 }
 
-// const dateTransactionsQueryStatements = {
-//     startDate: (date: string) => ({ created_at: { _gte: dateStringToUnix(date)}}),
-//     endDate: (date: string) =>({ created_at: { _lte: dateStringToUnix(date)}}),
-// }
-
+const dateTransactionsQueryStatements = {
+    startDate: (date: string) => ({ created_at: { _gte: dateStringToUnix(date)}}),
+    endDate: (date: string) =>({ created_at: { _lte: dateStringToUnix(date)}}),
+}
 
 const blocksQueryStatements = {
     proposer: (proposer: string) => ({ proposer: { _ilike: proposer }}),
-    minBlockNumber: (block_number: string) => ({ block_number: { _gte: block_number }}),
-    maxBlockNumber: (block_number: string) => ({ block_number: { _lte: block_number }}),
+    minBlockNumber: (blockNumber: string) => ({ block_number: { _gte: blockNumber }}),
+    maxBlockNumber: (blockNumber: string) => ({ block_number: { _lte: blockNumber }}),
 }
 
-    //    { _or: [
-    //       { deployer: { _ilike: $deployment_search } },
-    //       { deploy_id: { _ilike: $deployment_search } }
-    //     ] }
+const deploymentsQueryStatements = {
+    deployer: (deployer: string) => ({ deployer: { _ilike: deployer }}),
+    minPhloCost: (minPhloCost: string) => ({ phlo_cost: { _gte: minPhloCost }}),
+    maxPhloCost: (maxPhloCost: string) => ({ phlo_cost: { _lte: maxPhloCost }}),
+}
 
-// const deploymentsQueryStatements = {
-//         { deployer: { _ilike: $deployment_deployer } }
-//         { phlo_cost: { _gte: $deployment_minPhloCost } },
-//         { phlo_cost: { _lte: $deployment_maxPhloCost } },
-// }
+const transferQueryStatements = {
+    fromAddress: (fromAddress: string) => ({ from_address: { _ilike: fromAddress }}),
+    toAddress: (toAddress: string) => ({ to_address: { _ilike: toAddress }}),
+    minAmount: (minAmount: string) => ({ amount_rev: { _gte: minAmount }}),
+    maxAmount: (maxAmount: string) => ({ amount_rev: { _lte: maxAmount }}),
+}
 
-        // { _or: [
-        //   { from_address: { _ilike: $transfer_search } },
-        //   { to_address: { _ilike: $transfer_search } },
-        //   { deploy_id: { _ilike: $transfer_search } }
-        // ] }
-
-// const transferQueryStatements = {
-//             { from_address: { _ilike: $transfer_fromAddress } },
-//         { to_address: { _ilike: $transfer_toAddress } },
-//                 { amount_rev: { _gte: $transfer_minAmount } },
-//         { amount_rev: { _lte: $transfer_maxAmount } },
-// }
-
-const constructBlocksWhere = (searchQuery: string | number, filters: SearchFilters) => {
-    console.log(filters);
-    
+const constructBlocksWhere = (searchQuery: string | number, filters: SearchFilters) => {    
     if (typeof searchQuery === 'number' || typeof searchQuery === 'bigint') {
         return { block_number: { _eq: `${BigInt(searchQuery)}` } }
     }
@@ -229,10 +214,13 @@ const constructBlocksWhere = (searchQuery: string | number, filters: SearchFilte
 
     const andStatementsArr: object[] = [];
 
-    searchQuery && andStatementsArr.push({ _or: [{ block_hash: { _ilike: `%${searchQuery}%` }},  { proposer: { _ilike: `%${searchQuery}%` }}]});
+    searchQuery && andStatementsArr.push({ _or: [
+        { block_hash: { _ilike: `%${searchQuery}%` }},
+        { proposer: { _ilike: `%${searchQuery}%` }}
+    ]});
     
     applyFilters(andStatementsArr, filters, blocksQueryStatements);
-    // applyFilters(andStatementsArr, filters, dateQueryStatements);
+    applyFilters(andStatementsArr, filters, dateQueryStatements);
 
     if (andStatementsArr.length === 1) {
         return andStatementsArr[0];
@@ -246,45 +234,67 @@ const constructBlocksWhere = (searchQuery: string | number, filters: SearchFilte
 }
 
 const constructTransfersWhere = (searchQuery: string | number, filters: SearchFilters) => {
-    if (typeof searchQuery === 'number' || typeof searchQuery === 'bigint') {
-        return IGNORE_TRANSFERS_WHERE;
-    }
+    // if (typeof searchQuery === 'number' || typeof searchQuery === 'bigint') {
+    //     return IGNORE_TRANSFERS_WHERE;
+    // }
 
     if (filters.searchType !== 'transfers' && filters.searchType !== 'all') {
         return IGNORE_TRANSFERS_WHERE;
     }
 
-    return IGNORE_TRANSFERS_WHERE;
+    const andStatementsArr: object[] = [];
+
+    searchQuery && andStatementsArr.push({ _or: [
+        { from_address: { _ilike: `%${searchQuery}%` }}, 
+        { to_address: { _ilike: `%${searchQuery}%` }},
+        { deploy_id: { _ilike: `%${searchQuery}%` }}
+    ]});
+
+    applyFilters(andStatementsArr, filters, transferQueryStatements);
+    applyFilters(andStatementsArr, filters, dateTransactionsQueryStatements);
+    
+    if (andStatementsArr.length === 1) {
+        return andStatementsArr[0];
+    }
+
+    if (!andStatementsArr.length) {
+        return IGNORE_TRANSFERS_WHERE;
+    }
+
+    return {_and: andStatementsArr};
 }
 
 const constructDeploymentsWhere = (searchQuery: string | number, filters: SearchFilters) => {
-    if (typeof searchQuery === 'number' || typeof searchQuery === 'bigint') {
-        return IGNORE_DEPLOYMENTS_WHERE;
-    }
 
     if (filters.searchType !== 'deployments' && filters.searchType !== 'all') {
         return IGNORE_DEPLOYMENTS_WHERE;
     }
 
-    return IGNORE_DEPLOYMENTS_WHERE;
+    const andStatementsArr: object[] = [];
+
+    searchQuery && andStatementsArr.push({ _or: [
+        { deployer: { _ilike: `%${searchQuery}%` }},
+        { deploy_id: { _ilike: `%${searchQuery}%` }}
+    ]});
+
+    applyFilters(andStatementsArr, filters, deploymentsQueryStatements);
+    applyFilters(andStatementsArr, filters, dateQueryStatements);
+
+    if (andStatementsArr.length === 1) {
+        return andStatementsArr[0];
+    }
+
+    if (!andStatementsArr.length) {
+        return IGNORE_DEPLOYMENTS_WHERE;
+    }
+
+    return {_and: andStatementsArr};
 }
 
 const constructSearchQuery = (searchQuery: string | number, filters: SearchFilters) => {
     const blocks_where = constructBlocksWhere(searchQuery, filters);
     const deployments_where = constructDeploymentsWhere(searchQuery, filters);
     const transfers_where = constructTransfersWhere(searchQuery, filters);
-
-    // if (typeof searchQuery === 'string' && searchQuery.trim() !== '') {
-    //     orArr.push({ block_hash: { _ilike: `%${searchQuery}%` } });
-    // }
-    // if (typeof searchQuery === 'number' || typeof searchQuery === 'bigint') {
-    //     orArr.push({ block_number: { _eq: `${BigInt(searchQuery)}` } });
-    // }
-    // if (orArr.length === 1) {
-    //     where = orArr[0];
-    // } else if (orArr.length > 1) {
-    //     where._or = orArr;
-    // }
 
     return { variables: { blocks_where, transfers_where, deployments_where }}
 }
@@ -306,17 +316,20 @@ const AdvancedSearch: React.FC<AdvancedSearchProps> = ({
     const [filters, setFilters] = useState<SearchFilters>({
         searchType: "all",
         query: "",
+
         proposer: "",
         minBlockNumber: "",
         maxBlockNumber: "",
+
         fromAddress: "",
         toAddress: "",
         minAmount: "",
         maxAmount: "",
-        transferStatus: "",
+
         deployer: "",
         minPhloCost: "",
         maxPhloCost: "",
+
         startDate: "",
         endDate: "",
     });
@@ -418,7 +431,7 @@ const AdvancedSearch: React.FC<AdvancedSearchProps> = ({
         }
 
         // Sort results by timestamp (newest first)
-        results.sort((a, b) => b.timestamp - a.timestamp);
+        // results.sort((a, b) => b.timestamp - a.timestamp);
 
         setSearchResults(results);
     }, [quickSearchData]);
@@ -496,7 +509,6 @@ const AdvancedSearch: React.FC<AdvancedSearchProps> = ({
             toAddress: "",
             minAmount: "",
             maxAmount: "",
-            transferStatus: "",
             deployer: "",
             minPhloCost: "",
             maxPhloCost: "",
@@ -969,7 +981,7 @@ const AdvancedSearch: React.FC<AdvancedSearchProps> = ({
                                                 color: "#fff",
                                             }}
                                         />
-                                        <select
+                                        { /*<select
                                             value={filters.transferStatus}
                                             onChange={(e) =>
                                                 handleFilterChange(
@@ -996,7 +1008,7 @@ const AdvancedSearch: React.FC<AdvancedSearchProps> = ({
                                             <option value="failed">
                                                 Failed
                                             </option>
-                                        </select>
+                                        </select> */}
                                     </div>
                                 </div>
                             )}
