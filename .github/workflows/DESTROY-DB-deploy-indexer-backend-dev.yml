@@ -1,0 +1,98 @@
+name: DESTROY DB Deploy Indexer Backend Dev
+
+on:
+  workflow_dispatch:
+
+env:
+  ECR_REPOSITORY_INDEXER: asi-chain-indexer-dev
+  AWS_REGION: us-east-1
+  EC2_INSTANCE_ID: ${{ secrets.AWS_INSTANCE_ID_DEV }}
+  APP_PATH: /home/ubuntu/indexer 
+  IMAGE_TAG: ${{ github.sha }}
+
+jobs:
+  build-and-deploy:
+    name: Build and Deploy to Dev AND DESTROY DB
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+    - name: Check out code
+      uses: actions/checkout@v4
+
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        role-to-assume: arn:aws:iam::533793137436:role/asi-chain-indexer-dev-github-actions-ecr-push-role 
+        aws-region: ${{ env.AWS_REGION }}
+
+    - name: Login to Amazon ECR
+      id: login-ecr
+      uses: aws-actions/amazon-ecr-login@v2
+
+    - name: Build, tag, and push indexer image
+      id: build-indexer
+      env:
+        ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+      run: |
+        docker build -t $ECR_REGISTRY/${{ env.ECR_REPOSITORY_INDEXER }}:$IMAGE_TAG -f indexer/Dockerfile.rust indexer/
+        docker push $ECR_REGISTRY/${{ env.ECR_REPOSITORY_INDEXER }}:$IMAGE_TAG
+        echo "image=$ECR_REGISTRY/${{ env.ECR_REPOSITORY_INDEXER }}:$IMAGE_TAG" >> $GITHUB_OUTPUT
+    
+    - name: Deploy on EC2 and Get Logs
+      run: |
+        # Send the command and get its ID
+        COMMAND_ID=$(aws ssm send-command \
+          --document-name "AWS-RunShellScript" \
+          --targets "Key=instanceids,Values=${{ env.EC2_INSTANCE_ID }}" \
+          --comment "Deploy commit ${{ github.sha }}" \
+          --query "Command.CommandId" \
+          --output text \
+          --parameters "commands=[
+            \"cd /home/ubuntu/indexer && \
+            export ECR_REGISTRY=${{ steps.login-ecr.outputs.registry }} && \
+            export IMAGE_TAG=${{ github.sha }} && \
+            aws ecr get-login-password --region ${{ env.AWS_REGION }} | docker login --username AWS --password-stdin \$ECR_REGISTRY && \
+            docker compose -f docker-compose.deploy.yml pull --quiet && \
+            bash deploy-auto.sh \
+            docker image prune -a -f \"
+          ]")
+        if [ -z "$COMMAND_ID" ]; then
+          echo "::error::Failed to send command to SSM."
+          exit 1
+        fi
+        echo "Command sent. CommandId: $COMMAND_ID. Waiting for completion..."
+        # Wait loop with a 3-minute timeout
+        SECONDS=0
+        TIMEOUT=180
+        STATUS="Pending"
+        while [ "$STATUS" = "Pending" ] || [ "$STATUS" = "InProgress" ]; do
+          if [ $SECONDS -gt $TIMEOUT ]; then
+            echo "::error::Timeout while waiting for SSM command execution."
+            break
+          fi
+          sleep 10
+          SECONDS=$((SECONDS + 10))
+          STATUS=$(aws ssm get-command-invocation --command-id "$COMMAND_ID" --instance-id "${{ env.EC2_INSTANCE_ID }}" --query "Status" --output text || echo "InProgress")
+          echo "Current status: $STATUS ($SECONDS s)"
+        done
+        # Get and print the final result
+        echo "--- COMMAND OUTPUT (STDOUT) ---"
+        aws ssm get-command-invocation \
+          --command-id "$COMMAND_ID" \
+          --instance-id "${{ env.EC2_INSTANCE_ID }}" \
+          --query "StandardOutputContent" \
+          --output text
+        echo "--- ERROR OUTPUT (STDERR) ---"
+        aws ssm get-command-invocation \
+          --command-id "$COMMAND_ID" \
+          --instance-id "${{ env.EC2_INSTANCE_ID }}" \
+          --query "StandardErrorContent" \
+          --output text
+        # Fail the step if the command on EC2 failed
+        if [ "$STATUS" != "Success" ]; then
+          echo "::error::Command execution on EC2 finished with status: $STATUS."
+          exit 1
+        fi
