@@ -16,17 +16,69 @@ import { Block, Transfer, Deployment } from "../types";
 import { gql } from "@apollo/client";
 import { CURRENT_TOKEN } from "../utils/constants";
 
+// const QUICK_SEARCH = gql`
+//     query QuickSearch($where: blocks_bool_exp!) {
+//         blocks(
+//             where: $where
+//             limit: 5
+//             order_by: { block_number: desc }
+//         ) {
+//             block_number
+//             block_hash
+//             proposer
+//             timestamp
+//         }
+
+//         transfers(
+//             where: {
+//                 _or: [
+//                     { from_address: { _ilike: $query } }
+//                     { to_address: { _ilike: $query } }
+//                     { deploy_id: { _ilike: $query } }
+//                 ]
+//             }
+//             limit: 5
+//             order_by: { created_at: desc }
+//         ) {
+//             id
+//             deploy_id
+//             from_address
+//             to_address
+//             amount_rev
+//             status
+//             created_at
+//         }
+
+//         # Search deployments by deployer or deploy_id
+//         deployments(
+//             where: {
+//                 _or: [
+//                     { deployer: { _ilike: $query } }
+//                     { deploy_id: { _ilike: $query } }
+//                 ]
+//             }
+//             limit: 5
+//             order_by: { timestamp: desc }
+//         ) {
+//             deploy_id
+//             deployer
+//             deployment_type
+//             timestamp
+//             errored
+//         }
+//     }
+// `;
+
 const QUICK_SEARCH = gql`
-    query QuickSearch($query: String!) {
-        # Search blocks by number or hash
+    query QuickSearch(
+        $blocks_where: blocks_bool_exp!
+        $transfers_where:  transfers_bool_exp!
+        $deployments_where: deployments_bool_exp!
+    ) {
         blocks(
-            where: {
-                _or: [
-                    { block_hash: { _ilike: $query } }
-                ]
-            }
+            where: $blocks_where
             limit: 5
-            order_by: { block_number: desc }
+            order_by: { block_number: asc }
         ) {
             block_number
             block_hash
@@ -34,15 +86,8 @@ const QUICK_SEARCH = gql`
             timestamp
         }
 
-        # Search transfers by addresses
         transfers(
-            where: {
-                _or: [
-                    { from_address: { _ilike: $query } }
-                    { to_address: { _ilike: $query } }
-                    { deploy_id: { _ilike: $query } }
-                ]
-            }
+            where: $transfers_where
             limit: 5
             order_by: { created_at: desc }
         ) {
@@ -57,12 +102,7 @@ const QUICK_SEARCH = gql`
 
         # Search deployments by deployer or deploy_id
         deployments(
-            where: {
-                _or: [
-                    { deployer: { _ilike: $query } }
-                    { deploy_id: { _ilike: $query } }
-                ]
-            }
+            where: $deployments_where
             limit: 5
             order_by: { timestamp: desc }
         ) {
@@ -71,21 +111,6 @@ const QUICK_SEARCH = gql`
             deployment_type
             timestamp
             errored
-        }
-    }
-`;
-
-const BLOCK_SEARCH_BY_NUMBER = gql`
-    query QuickSearchByNumber($query: bigint) {
-        blocks(
-            where: { block_number: { _eq: $query } }
-            limit: 5
-            order_by: { block_number: desc }
-        ) {
-            block_number
-            block_hash
-            proposer
-            timestamp
         }
     }
 `;
@@ -104,13 +129,9 @@ interface SearchFilters {
     toAddress: string;
     minAmount: string;
     maxAmount: string;
-    transferStatus: string;
 
     // Deployment filters
     deployer: string;
-    deploymentType: string;
-    deploymentStatus: string;
-    errored: boolean | null;
     minPhloCost: string;
     maxPhloCost: string;
 
@@ -133,6 +154,151 @@ interface AdvancedSearchProps {
     placeholder?: string;
 }
 
+const IGNORE_BLOCKS_WHERE = { block_hash: { _ilike: '' }};
+const IGNORE_TRANSFERS_WHERE =  { from_address: { _ilike: '' }}
+const IGNORE_DEPLOYMENTS_WHERE = { deploy_id: { _ilike: '' }}
+
+const applyFilters = (accumulator: object[], filters: SearchFilters, statementsMap: any) => {
+    for (const [key, value] of Object.entries(filters)) {
+        if (!value) {
+            continue;
+        }
+
+        if (!(key in statementsMap)) {
+            continue;
+        }
+
+        accumulator.push(statementsMap[key](value));
+    }
+}
+
+const dateStringToUnix = (date: string) => Math.floor(new Date(date).getTime());
+
+const dateQueryStatements = {
+    startDate: (date: string) => ({ timestamp: { _gte: dateStringToUnix(date)}}),
+    endDate: (date: string) =>({ timestamp: { _lte: dateStringToUnix(date)}}),
+}
+
+const dateTransactionsQueryStatements = {
+    startDate: (date: string) => ({ created_at: { _gte: dateStringToUnix(date)}}),
+    endDate: (date: string) =>({ created_at: { _lte: dateStringToUnix(date)}}),
+}
+
+const blocksQueryStatements = {
+    proposer: (proposer: string) => ({ proposer: { _ilike: proposer }}),
+    minBlockNumber: (blockNumber: string) => ({ block_number: { _gte: blockNumber }}),
+    maxBlockNumber: (blockNumber: string) => ({ block_number: { _lte: blockNumber }}),
+}
+
+const deploymentsQueryStatements = {
+    deployer: (deployer: string) => ({ deployer: { _ilike: deployer }}),
+    minPhloCost: (minPhloCost: string) => ({ phlo_cost: { _gte: minPhloCost }}),
+    maxPhloCost: (maxPhloCost: string) => ({ phlo_cost: { _lte: maxPhloCost }}),
+}
+
+const transferQueryStatements = {
+    fromAddress: (fromAddress: string) => ({ from_address: { _ilike: fromAddress }}),
+    toAddress: (toAddress: string) => ({ to_address: { _ilike: toAddress }}),
+    minAmount: (minAmount: string) => ({ amount_rev: { _gte: minAmount }}),
+    maxAmount: (maxAmount: string) => ({ amount_rev: { _lte: maxAmount }}),
+}
+
+const constructBlocksWhere = (searchQuery: string | number, filters: SearchFilters) => {    
+    if (typeof searchQuery === 'number' || typeof searchQuery === 'bigint') {
+        return { block_number: { _eq: `${BigInt(searchQuery)}` } }
+    }
+
+    if (filters.searchType !== 'blocks' && filters.searchType !== 'all') {
+        return IGNORE_BLOCKS_WHERE;
+    }
+
+    const andStatementsArr: object[] = [];
+
+    searchQuery && andStatementsArr.push({ _or: [
+        { block_hash: { _ilike: `%${searchQuery}%` }},
+        { proposer: { _ilike: `%${searchQuery}%` }}
+    ]});
+    
+    applyFilters(andStatementsArr, filters, blocksQueryStatements);
+    applyFilters(andStatementsArr, filters, dateQueryStatements);
+
+    if (andStatementsArr.length === 1) {
+        return andStatementsArr[0];
+    }
+
+    if (!andStatementsArr.length) {
+        return IGNORE_BLOCKS_WHERE;
+    }
+
+    return {_and: andStatementsArr};
+}
+
+const constructTransfersWhere = (searchQuery: string | number, filters: SearchFilters) => {
+    // if (typeof searchQuery === 'number' || typeof searchQuery === 'bigint') {
+    //     return IGNORE_TRANSFERS_WHERE;
+    // }
+
+    if (filters.searchType !== 'transfers' && filters.searchType !== 'all') {
+        return IGNORE_TRANSFERS_WHERE;
+    }
+
+    const andStatementsArr: object[] = [];
+
+    searchQuery && andStatementsArr.push({ _or: [
+        { from_address: { _ilike: `%${searchQuery}%` }}, 
+        { to_address: { _ilike: `%${searchQuery}%` }},
+        { deploy_id: { _ilike: `%${searchQuery}%` }}
+    ]});
+
+    applyFilters(andStatementsArr, filters, transferQueryStatements);
+    applyFilters(andStatementsArr, filters, dateTransactionsQueryStatements);
+    
+    if (andStatementsArr.length === 1) {
+        return andStatementsArr[0];
+    }
+
+    if (!andStatementsArr.length) {
+        return IGNORE_TRANSFERS_WHERE;
+    }
+
+    return {_and: andStatementsArr};
+}
+
+const constructDeploymentsWhere = (searchQuery: string | number, filters: SearchFilters) => {
+
+    if (filters.searchType !== 'deployments' && filters.searchType !== 'all') {
+        return IGNORE_DEPLOYMENTS_WHERE;
+    }
+
+    const andStatementsArr: object[] = [];
+
+    searchQuery && andStatementsArr.push({ _or: [
+        { deployer: { _ilike: `%${searchQuery}%` }},
+        { deploy_id: { _ilike: `%${searchQuery}%` }}
+    ]});
+
+    applyFilters(andStatementsArr, filters, deploymentsQueryStatements);
+    applyFilters(andStatementsArr, filters, dateQueryStatements);
+
+    if (andStatementsArr.length === 1) {
+        return andStatementsArr[0];
+    }
+
+    if (!andStatementsArr.length) {
+        return IGNORE_DEPLOYMENTS_WHERE;
+    }
+
+    return {_and: andStatementsArr};
+}
+
+const constructSearchQuery = (searchQuery: string | number, filters: SearchFilters) => {
+    const blocks_where = constructBlocksWhere(searchQuery, filters);
+    const deployments_where = constructDeploymentsWhere(searchQuery, filters);
+    const transfers_where = constructTransfersWhere(searchQuery, filters);
+
+    return { variables: { blocks_where, transfers_where, deployments_where }}
+}
+
 const AdvancedSearch: React.FC<AdvancedSearchProps> = ({
     embedded = false,
     placeholder = "Search blocks, transactions, addresses...",
@@ -141,11 +307,8 @@ const AdvancedSearch: React.FC<AdvancedSearchProps> = ({
     const [isOpen, setIsOpen] = useState(false);
     const [showFilters, setShowFilters] = useState(false);
     const [isSearching, setIsSearching] = useState(false);
-    const [isCombinedSearchUsed, setIsCombinedSearchUsed] = useState(false);
     const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
     const [selectedResult, setSelectedResult] = useState<number>(0);
-    const [currentPage, setCurrentPage] = useState(1);
-    const [totalResults, setTotalResults] = useState(0);
 
     const searchInputRef = useRef<HTMLInputElement>(null);
     const searchContainerRef = useRef<HTMLDivElement>(null);
@@ -153,20 +316,20 @@ const AdvancedSearch: React.FC<AdvancedSearchProps> = ({
     const [filters, setFilters] = useState<SearchFilters>({
         searchType: "all",
         query: "",
+
         proposer: "",
         minBlockNumber: "",
         maxBlockNumber: "",
+
         fromAddress: "",
         toAddress: "",
         minAmount: "",
         maxAmount: "",
-        transferStatus: "",
+
         deployer: "",
-        deploymentType: "",
-        deploymentStatus: "",
-        errored: null,
         minPhloCost: "",
         maxPhloCost: "",
+
         startDate: "",
         endDate: "",
     });
@@ -176,12 +339,6 @@ const AdvancedSearch: React.FC<AdvancedSearchProps> = ({
         { data: quickSearchData, loading: quickSearchLoading },
     ] = useLazyQuery(QUICK_SEARCH);
 
-    const [
-        quickSearchByBlockNumber,
-        {data: quickSearchByBLockNumberData, loading: quickSearchByBLockNumberLoading },
-    ] = useLazyQuery(BLOCK_SEARCH_BY_NUMBER);
-
-    // Debounced search function
     const debounceRef = useRef<NodeJS.Timeout | undefined>(undefined);
 
     const performSearch = async (
@@ -193,49 +350,10 @@ const AdvancedSearch: React.FC<AdvancedSearchProps> = ({
             return;
         }
 
-        setIsCombinedSearchUsed(false);
         setIsSearching(true);
 
         try {
-            if (typeof searchQuery === 'number' || typeof searchQuery === 'bigint') {
-                setIsCombinedSearchUsed(true);
-
-                await quickSearchByBlockNumber(
-                    {
-                        variables: {
-                            query: `${BigInt(searchQuery)}`,
-                        }
-                    }
-                );
-            }
-
-            if (searchQuery.toString().trim() && !hasActiveFilters(searchFilters)) {
-                // Quick search when only query is provided
-                await quickSearch({
-                    variables: {
-                        query: `%${searchQuery}%`,
-                    },
-                });
-            } else {
-                // Advanced search with filters
-                const limit = 20;
-                const offset = (currentPage - 1) * limit;
-
-                const searchVariables = {
-                    search: searchQuery ? `%${searchQuery}%` : null,
-                    proposer: searchFilters.proposer
-                        ? `%${searchFilters.proposer}%`
-                        : null,
-                    minBlockNumber: searchFilters.minBlockNumber || null,
-                    maxBlockNumber: searchFilters.maxBlockNumber || null,
-                    startDate: searchFilters.startDate || null,
-                    endDate: searchFilters.endDate || null,
-                    limit,
-                    offset,
-                };
-
-                await quickSearch({ variables: searchVariables });
-            }
+            await quickSearch(constructSearchQuery(searchQuery, searchFilters));
         } catch (error) {
             console.error("Search error:", error);
         } finally {
@@ -313,26 +431,10 @@ const AdvancedSearch: React.FC<AdvancedSearchProps> = ({
         }
 
         // Sort results by timestamp (newest first)
-        results.sort((a, b) => b.timestamp - a.timestamp);
-
-        if (quickSearchByBLockNumberData && isCombinedSearchUsed) {
-            quickSearchByBLockNumberData.blocks?.forEach((block: Block) => {
-                results.unshift({
-                    type: "block",
-                    data: block,
-                    id: `block-${block.block_number}`,
-                    title: `Block #${block.block_number}`,
-                    description: `Proposed by ${block.proposer.slice(
-                        0,
-                        12
-                    )}...`,
-                    timestamp: block.timestamp,
-                });
-            });
-        }
+        // results.sort((a, b) => b.timestamp - a.timestamp);
 
         setSearchResults(results);
-    }, [quickSearchData, quickSearchByBLockNumberData]);
+    }, [quickSearchData]);
     
     const handleInputChange = (value: string | number) => {
         const newValue = value === "" ? "" : (isNaN(+value) ? value : +value);
@@ -407,11 +509,7 @@ const AdvancedSearch: React.FC<AdvancedSearchProps> = ({
             toAddress: "",
             minAmount: "",
             maxAmount: "",
-            transferStatus: "",
             deployer: "",
-            deploymentType: "",
-            deploymentStatus: "",
-            errored: null,
             minPhloCost: "",
             maxPhloCost: "",
             startDate: "",
@@ -492,7 +590,7 @@ const AdvancedSearch: React.FC<AdvancedSearchProps> = ({
                     }}
                 >
                     {/* {(isSearching || quickSearchLoading || blocksLoading || transfersLoading || deploymentsLoading) && ( */}
-                    {(isSearching || quickSearchLoading || quickSearchByBLockNumberLoading) && (
+                    {(isSearching || quickSearchLoading) && (
                         <div
                             className="loading"
                             style={{ width: "16px", height: "16px" }}
@@ -651,7 +749,8 @@ const AdvancedSearch: React.FC<AdvancedSearchProps> = ({
                                         Start Date
                                     </label>
                                     <input
-                                        type="datetime-local"
+                                        disabled
+                                        type="date"
                                         value={filters.startDate}
                                         onChange={(e) =>
                                             handleFilterChange(
@@ -683,7 +782,8 @@ const AdvancedSearch: React.FC<AdvancedSearchProps> = ({
                                         End Date
                                     </label>
                                     <input
-                                        type="datetime-local"
+                                        disabled
+                                        type="date"
                                         value={filters.endDate}
                                         onChange={(e) =>
                                             handleFilterChange(
@@ -881,7 +981,7 @@ const AdvancedSearch: React.FC<AdvancedSearchProps> = ({
                                                 color: "#fff",
                                             }}
                                         />
-                                        <select
+                                        { /*<select
                                             value={filters.transferStatus}
                                             onChange={(e) =>
                                                 handleFilterChange(
@@ -908,7 +1008,7 @@ const AdvancedSearch: React.FC<AdvancedSearchProps> = ({
                                             <option value="failed">
                                                 Failed
                                             </option>
-                                        </select>
+                                        </select> */}
                                     </div>
                                 </div>
                             )}
@@ -952,7 +1052,7 @@ const AdvancedSearch: React.FC<AdvancedSearchProps> = ({
                                                 color: "#fff",
                                             }}
                                         />
-                                        <input
+                                        {/* <input
                                             type="text"
                                             placeholder="Deployment type"
                                             value={filters.deploymentType}
@@ -970,7 +1070,7 @@ const AdvancedSearch: React.FC<AdvancedSearchProps> = ({
                                                     "rgba(255, 255, 255, 0.05)",
                                                 color: "#fff",
                                             }}
-                                        />
+                                        /> */}
                                         <input
                                             type="number"
                                             placeholder="Min phlo cost"
@@ -1009,7 +1109,7 @@ const AdvancedSearch: React.FC<AdvancedSearchProps> = ({
                                                 color: "#fff",
                                             }}
                                         />
-                                        <select
+                                        {/* <select
                                             value={
                                                 filters.errored === null
                                                     ? ""
@@ -1038,7 +1138,7 @@ const AdvancedSearch: React.FC<AdvancedSearchProps> = ({
                                                 Successful
                                             </option>
                                             <option value="true">Failed</option>
-                                        </select>
+                                        </select> */}
                                     </div>
                                 </div>
                             )}
@@ -1212,48 +1312,6 @@ const AdvancedSearch: React.FC<AdvancedSearchProps> = ({
                                     </p>
                                 </div>
                             )}
-
-                        {totalResults > searchResults.length && (
-                            <div
-                                style={{
-                                    padding: "0.75rem 1rem",
-                                    textAlign: "center",
-                                    borderTop:
-                                        "1px solid rgba(255, 255, 255, 0.05)",
-                                    color: "#9ca3af",
-                                    fontSize: "0.875rem",
-                                }}
-                            >
-                                Showing {searchResults.length} of {totalResults}{" "}
-                                results
-                                {totalResults > 20 && (
-                                    <div style={{ marginTop: "0.5rem" }}>
-                                        <button
-                                            onClick={() => {
-                                                setCurrentPage(
-                                                    (prev) => prev + 1
-                                                );
-                                                performSearch(
-                                                    filters.query,
-                                                    filters
-                                                );
-                                            }}
-                                            style={{
-                                                padding: "0.5rem 1rem",
-                                                border: "1px solid rgba(255, 255, 255, 0.2)",
-                                                borderRadius: "6px",
-                                                backgroundColor: "transparent",
-                                                color: "#10b981",
-                                                cursor: "pointer",
-                                                fontSize: "0.875rem",
-                                            }}
-                                        >
-                                            Load More Results
-                                        </button>
-                                    </div>
-                                )}
-                            </div>
-                        )}
                     </motion.div>
                 )}
             </AnimatePresence>
