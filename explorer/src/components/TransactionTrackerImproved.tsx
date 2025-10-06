@@ -54,6 +54,7 @@ const SEARCH_TRANSACTIONS = gql`
             amount_rev
             status
             created_at
+            block_number
         }
 
         # Search deployments by deployer or deploy_id
@@ -71,6 +72,7 @@ const SEARCH_TRANSACTIONS = gql`
             deploy_id
             deployer
             deployment_type
+            block_number
             timestamp
             errored
         }
