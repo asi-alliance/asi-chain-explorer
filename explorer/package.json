@@ -65,6 +65,7 @@
         "@testing-library/user-event": "^13.5.0",
         "@types/jest": "^27.5.2",
         "@types/node": "^16.18.126",
+        "@types/papaparse": "^5.3.16",
         "@types/qrcode": "^1.5.5",
         "@types/react": "^19.1.13",
         "@types/react-csv": "^1.1.10",
