@@ -46,7 +46,7 @@ const RecentTransactionsExporter = () => {
 
     if (isExportDataLoading) {
         return (
-            <div className="recent-transactions-exporter">
+            <div className="recent-transactions-exporter" title="Exporting...">
                 <div
                     className="loading"
                     style={{ width: "20px", height: "20px" }}
@@ -66,6 +66,7 @@ const RecentTransactionsExporter = () => {
     return (
         <div
             className="recent-transactions-exporter"
+            title="Export recent transactions"
             onClick={exportData}
         >
             <svg
