@@ -559,6 +559,19 @@ code, .code {
     flex: 1;
 }
 
+.header-content-wrapper {
+    display: flex;
+    align-items: center;
+    flex-wrap: nowrap;
+    gap: 1rem;
+}
+
+.recent-transactions-exporter:hover svg {
+    cursor: pointer;
+    transform: scale(1.2);
+    transition: transform 0.2s ease;
+}
+
 /* Summary Card Grid */
 .summary-grid {
     display: grid;
