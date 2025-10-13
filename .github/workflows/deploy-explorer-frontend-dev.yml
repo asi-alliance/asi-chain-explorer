@@ -1,4 +1,4 @@
-name: Deploy Frontend Explorer Dev
+name: Deploy Frontend Explorer InternalDev
 on:
   push:
     branches:
