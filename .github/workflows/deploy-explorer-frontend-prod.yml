@@ -1,4 +1,4 @@
-name: Deploy Frontend Explorer Prod
+name: Deploy Frontend Explorer DevNet
 on:
   # push:
   #   branches:
