@@ -1,4 +1,4 @@
-name: Deploy Frontend Explorer Backend Prod
+name: Deploy Frontend Explorer Prod
 on:
   # push:
   #   branches:
