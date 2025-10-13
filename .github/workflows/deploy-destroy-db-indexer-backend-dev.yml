@@ -1,4 +1,4 @@
-name: Deploy And DESTROY DB Indexer Backend Dev
+name: Deploy And DESTROY DB Indexer DevNet
 
 on:
   workflow_dispatch:
