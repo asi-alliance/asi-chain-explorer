@@ -1,4 +1,4 @@
-name: Deploy Indexer Backend Dev
+name: Deploy Indexer Backend DevNet
 
 on:
   workflow_dispatch:
