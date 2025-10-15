@@ -66,7 +66,7 @@ jobs:
         echo "Command sent. CommandId: $COMMAND_ID. Waiting for completion..."
         # Wait loop with a 3-minute timeout
         SECONDS=0
-        TIMEOUT=180
+        TIMEOUT=600
         STATUS="Pending"
         while [ "$STATUS" = "Pending" ] || [ "$STATUS" = "InProgress" ]; do
           if [ $SECONDS -gt $TIMEOUT ]; then
