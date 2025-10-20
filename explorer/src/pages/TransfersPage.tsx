@@ -1,4 +1,3 @@
-// src/pages/TransfersPage.tsx
 import React, { useState, useMemo } from 'react';
 import { useQuery } from '@apollo/client';
 import { Link } from 'react-router-dom';
@@ -11,56 +10,19 @@ import { CURRENT_TOKEN } from '../utils/constants';
 
 const TransfersPage: React.FC = () => {
     const [currentPage, setCurrentPage] = useState(1);
-    const transfersPerPage = 10;
+    const transfersPerPage = 10; // Changed to 10 to match old explorer
 
+    // Get ALL transfers (not paginated) to merge with genesis funding
     const { data: queryData, loading: transfersLoading, error: transfersError } = useQuery(GET_ALL_TRANSFERS, {
-        variables: { limit: 1000, offset: 0 },
-        pollInterval: 2000,
+        variables: {
+            limit: 1000, // Get all transfers to merge with genesis funding
+            offset: 0
+        },
+        pollInterval: 2000, // Poll every 2 seconds
     });
 
+    // Get genesis funding events
     const { genesisFundings, loading: genesisFundingLoading, error: genesisFundingError } = useGenesisFunding();
-
-    // Normalize various timestamp formats to milliseconds
-    const toMillis = (input: string | number | undefined | null): number => {
-        if (input == null) return NaN;
-
-        // If input is a number
-        if (typeof input === 'number' && Number.isFinite(input)) {
-            // Distinguish between seconds and milliseconds by magnitude
-            return input > 1e12 ? input : input * 1000;
-        }
-
-        // If input is a string
-        if (typeof input === 'string') {
-            const s = input.trim();
-
-            // If string contains only digits → treat as a numeric timestamp
-            if (/^\d+$/.test(s)) {
-                const n = Number(s);
-                return n > 1e12 ? n : n * 1000;
-            }
-
-            // If string looks like an ISO date → normalize microseconds to milliseconds
-            let normalized = s.replace(/(\.\d{3})\d+/, '$1'); // e.g. "....710772" → "....710"
-
-            // If no timezone present, assume UTC (append 'Z')
-            // Heuristics: there is a 'T' and no trailing 'Z' and no ±HH:MM
-            if (/[T ]\d{2}:\d{2}:\d{2}/.test(normalized) && !/[zZ]$/.test(normalized) && !/[+-]\d{2}:\d{2}$/.test(normalized)) {
-                normalized += 'Z';
-            }
-
-            const ms = Date.parse(normalized); // Date.parse returns milliseconds
-            return Number.isNaN(ms) ? NaN : ms;
-        }
-
-        return NaN;
-    };
-
-    const formatTimestamp = (tsLike: string | number) => {
-        const ms = toMillis(tsLike);
-        if (Number.isNaN(ms)) return 'Invalid date';
-        return formatDistanceToNow(new Date(ms), { addSuffix: true });
-    };
 
     // Merge and sort ALL transfers with genesis funding
     const allTransferEventsSorted = useMemo(() => {
@@ -77,23 +39,38 @@ const TransfersPage: React.FC = () => {
             events.push(funding);
         });
 
-        // Sort by normalized timestamp (newest first)
+
+        // Sort by timestamp/created_at (newest first)
         events.sort((a, b) => {
-            const aTime =
-                'timestamp' in a
-                    ? toMillis(a.timestamp as any)
-                    : a.deployment?.timestamp != null
-                        ? toMillis(a.deployment.timestamp as any)
-                        : toMillis((a as any).created_at);
+            // Get timestamp in milliseconds for proper comparison
+            let aTime: number;
+            let bTime: number;
 
-            const bTime =
-                'timestamp' in b
-                    ? toMillis(b.timestamp as any)
-                    : b.deployment?.timestamp != null
-                        ? toMillis(b.deployment.timestamp as any)
-                        : toMillis((b as any).created_at);
+            if ('timestamp' in a) {
+                // Genesis funding has timestamp in milliseconds
+                aTime = a.timestamp;
+            } else {
+                // Regular transfers - use deployment timestamp if available, otherwise created_at
+                if (a.deployment?.timestamp) {
+                    aTime = typeof a.deployment.timestamp === 'string' ? parseInt(a.deployment.timestamp) : a.deployment.timestamp;
+                } else {
+                    aTime = new Date(a.created_at).getTime();
+                }
+            }
 
-            return (bTime || 0) - (aTime || 0);
+            if ('timestamp' in b) {
+                // Genesis funding has timestamp in milliseconds
+                bTime = b.timestamp;
+            } else {
+                // Regular transfers - use deployment timestamp if available, otherwise created_at
+                if (b.deployment?.timestamp) {
+                    bTime = typeof b.deployment.timestamp === 'string' ? parseInt(b.deployment.timestamp) : b.deployment.timestamp;
+                } else {
+                    bTime = new Date(b.created_at).getTime();
+                }
+            }
+
+            return bTime - aTime; // Sort newest first
         });
 
         return events;
@@ -112,16 +89,45 @@ const TransfersPage: React.FC = () => {
     const error = transfersError || genesisFundingError;
 
     const goToPage = (page: number) => {
-        if (page >= 1 && page <= totalPages) setCurrentPage(page);
+        if (page >= 1 && page <= totalPages) {
+            setCurrentPage(page);
+        }
+    };
+
+    const formatTimestamp = (timestamp: string | number) => {
+        try {
+            // Convert to number if string
+            const ts = typeof timestamp === 'string' ? parseInt(timestamp) : timestamp;
+            // If timestamp looks like milliseconds (very large number), use directly
+            // Otherwise multiply by 1000 to convert seconds to milliseconds
+            const date = new Date(ts > 1e10 ? ts : ts * 1000);
+            if (isNaN(date.getTime())) return 'Invalid date';
+            return formatDistanceToNow(date, { addSuffix: true });
+        } catch (e) {
+            return 'Invalid date';
+        }
     };
 
     const formatRevAmount = (amount: number | string) => {
         const numAmount = parseFloat(amount.toString());
         if (isNaN(numAmount)) return '0';
-        if (numAmount % 1 === 0) return numAmount.toString();
-        if (numAmount >= 1) return parseFloat(numAmount.toFixed(4)).toString();
-        if (numAmount >= 0.000001) return parseFloat(numAmount.toFixed(6)).toString();
-        return numAmount.toExponential(3);
+
+        // If it's a whole number, show no decimals
+        if (numAmount % 1 === 0) {
+            return numAmount.toString();
+        }
+        // If it's >= 1, show up to 4 decimal places, removing trailing zeros
+        else if (numAmount >= 1) {
+            return parseFloat(numAmount.toFixed(4)).toString();
+        }
+        // If it's < 1, show up to 6 decimal places, removing trailing zeros
+        else if (numAmount >= 0.000001) {
+            return parseFloat(numAmount.toFixed(6)).toString();
+        }
+        // For very small amounts, use scientific notation
+        else {
+            return numAmount.toExponential(3);
+        }
     };
 
     return (
@@ -153,6 +159,7 @@ const TransfersPage: React.FC = () => {
             ) : (
                 <div>
                     {allTransferEvents.map((event: Transfer | GenesisFunding) => {
+                        // Check if it's a genesis funding event
                         const isGenesisFunding = 'wallet_address' in event;
 
                         if (isGenesisFunding) {
@@ -163,7 +170,7 @@ const TransfersPage: React.FC = () => {
                                         padding: '1rem',
                                         background: 'var(--charcoal-500)',
                                         borderRadius: '8px',
-                                        border: '1px solid var(--asi-pulse-blue)'
+                                        border: '1px solid var(--asi-pulse-blue)' // Different color for genesis
                                     }}>
                                         <div style={{
                                             display: 'flex',
@@ -215,7 +222,9 @@ const TransfersPage: React.FC = () => {
                                                 Status
                                             </dt>
                                             <dd style={{ fontSize: '12px', margin: 0 }}>
-                                                <span className="text-success">✓ Genesis Funding</span>
+                        <span className="text-success">
+                          ✓ Genesis Funding
+                        </span>
                                             </dd>
 
                                             <dt style={{ fontSize: '12px', color: 'var(--text-tertiary)', margin: 0 }}>
@@ -251,11 +260,11 @@ const TransfersPage: React.FC = () => {
                                         </h4>
                                         {(transfer.block || transfer.block_number) && (
                                             <Link
-                                                to={`/block/${transfer.block?.block_number ?? transfer.block_number}`}
+                                                to={`/block/${transfer.block?.block_number || transfer.block_number}`}
                                                 className="btn btn-secondary"
                                                 style={{ padding: '4px 12px', fontSize: '13px' }}
                                             >
-                                                Block #{transfer.block?.block_number ?? transfer.block_number}
+                                                Block #{transfer.block?.block_number || transfer.block_number}
                                             </Link>
                                         )}
                                     </div>
@@ -285,19 +294,17 @@ const TransfersPage: React.FC = () => {
                                             Time
                                         </dt>
                                         <dd style={{ fontSize: '12px', margin: 0 }}>
-                                            {formatTimestamp(
-                                                transfer.block?.timestamp ?? transfer.deployment?.timestamp ?? transfer.created_at
-                                            )}
+                                            {formatTimestamp(transfer.block?.timestamp || transfer.deployment?.timestamp || transfer.created_at)}
                                         </dd>
 
                                         <dt style={{ fontSize: '12px', color: 'var(--text-tertiary)', margin: 0 }}>
                                             Status
                                         </dt>
                                         <dd style={{ fontSize: '12px', margin: 0 }}>
-                      <span className={transfer.status === 'success' || transfer.status === 'genesis_bond' ? 'text-success' : 'text-error'}>
-                        {transfer.status === 'success' ? '✓ Success' :
-                            transfer.status === 'genesis_bond' ? '✓ Genesis Bond' : '✗ Failed'}
-                      </span>
+                    <span className={transfer.status === 'success' || transfer.status === 'genesis_bond' ? 'text-success' : 'text-error'}>
+                      {transfer.status === 'success' ? '✓ Success' :
+                          transfer.status === 'genesis_bond' ? '✓ Genesis Bond' : '✗ Failed'}
+                    </span>
                                         </dd>
 
                                         {transfer.amount_dust !== undefined && transfer.amount_dust !== null && (
@@ -319,10 +326,12 @@ const TransfersPage: React.FC = () => {
                                                 <dd className="mono" style={{ fontSize: '11px', margin: 0, wordBreak: 'break-all' }}>
                                                     {transfer.deploy_id.length > 40
                                                         ? `${transfer.deploy_id.slice(0, 20)}...${transfer.deploy_id.slice(-20)}`
-                                                        : transfer.deploy_id}
+                                                        : transfer.deploy_id
+                                                    }
                                                 </dd>
                                             </>
                                         )}
+
 
                                         {transfer.block_number !== undefined && (
                                             <>
@@ -342,6 +351,7 @@ const TransfersPage: React.FC = () => {
                 </div>
             )}
 
+            {/* Pagination Controls */}
             {totalPages > 1 && (
                 <div style={{ marginTop: '2rem', textAlign: 'center' }}>
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '1rem' }}>
