@@ -4,6 +4,7 @@ import { useQuery } from '@apollo/client';
 import { GET_BLOCK_DETAILS } from '../graphql/queries';
 import { Block } from '../types';
 import { formatDistanceToNow } from 'date-fns';
+import { CURRENT_TOKEN } from '../utils/constants';
 
 const BlockDetailPage: React.FC = () => {
   const { blockNumber } = useParams<{ blockNumber: string }>();
@@ -277,7 +278,7 @@ const BlockDetailPage: React.FC = () => {
                   <td className="mono" style={{ fontSize: '11px' }}>
                     {bond.validator}
                   </td>
-                  <td>{(bond.stake / 1e8).toFixed(2)} REV</td>
+                  <td>{(bond.stake / 1e8).toFixed(2)} {CURRENT_TOKEN}</td>
                 </tr>
               ))}
             </tbody>
@@ -385,7 +386,7 @@ const BlockDetailPage: React.FC = () => {
                             color: 'var(--asi-lime)', 
                             fontWeight: 600 
                           }}>
-                            {transferDetails.amount.toFixed(8)} REV
+                            {transferDetails.amount.toFixed(8)} {CURRENT_TOKEN}
                           </dd>
                         </>
                       )}
@@ -478,7 +479,7 @@ const BlockDetailPage: React.FC = () => {
                             Transfers
                           </dt>
                           <dd style={{ fontSize: '13px', margin: 0 }}>
-                            {deploy.transfers.length} REV transfer{deploy.transfers.length > 1 ? 's' : ''}
+                            {deploy.transfers.length} {CURRENT_TOKEN} transfer{deploy.transfers.length > 1 ? 's' : ''}
                           </dd>
                         </>
                       )}

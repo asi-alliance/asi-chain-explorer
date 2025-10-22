@@ -171,6 +171,9 @@ All documentation and utility scripts have been moved to `archive/` directory fo
 
 ## Recent Updates
 
+### October 2025
+- Fix invlid time handler
+
 ### Version 1.0.2 (September 2025)
 - **Critical Fix**: Resolved validator duplication bug in ValidatorsPage.tsx
   - Fixed normalizeValidatorKey function to handle abbreviated keys with ellipsis

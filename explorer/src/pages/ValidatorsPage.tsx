@@ -2,6 +2,7 @@ import React from 'react';
 import { useQuery } from '@apollo/client';
 import { GET_ACTIVE_VALIDATORS } from '../graphql/queries';
 import { Validator } from '../types';
+import { CURRENT_TOKEN } from '../utils/constants';
 
 const ValidatorsPage: React.FC = () => {
   const { data, loading, error } = useQuery(GET_ACTIVE_VALIDATORS, {
@@ -226,12 +227,12 @@ const ValidatorsPage: React.FC = () => {
               <h3 style={{ margin: 0 }}>{validators.length}</h3>
             </div>
             <div className="asi-card glass">
-              <p className="text-muted" style={{ marginBottom: '0.5rem' }}>Total REV Staked</p>
+              <p className="text-muted" style={{ marginBottom: '0.5rem' }}>Total {CURRENT_TOKEN} Staked</p>
               <h3 style={{ margin: 0 }}>
                 {calculateRawStake(totalStake).toLocaleString(undefined, { 
                   minimumFractionDigits: 2,
                   maximumFractionDigits: 2 
-                })} REV
+                })} {CURRENT_TOKEN}
               </h3>
             </div>
             <div className="asi-card glass">
@@ -243,7 +244,7 @@ const ValidatorsPage: React.FC = () => {
                     maximumFractionDigits: 2 
                   }) : 
                   '0.00'
-                } REV
+                } {CURRENT_TOKEN}
               </h3>
             </div>
           </div>
@@ -262,7 +263,7 @@ const ValidatorsPage: React.FC = () => {
                 <thead>
                   <tr>
                     <th>Public Key</th>
-                    <th>Stake (REV)</th>
+                    <th>Stake ({CURRENT_TOKEN})</th>
                     <th>Stake %</th>
                     <th>Blocks Proposed</th>
                     <th>First Seen</th>

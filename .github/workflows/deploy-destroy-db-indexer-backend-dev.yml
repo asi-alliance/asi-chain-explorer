@@ -1,4 +1,4 @@
-name: Deploy Indexer Dev
+name: Deploy And DESTROY DB Indexer DevNet
 
 on:
   workflow_dispatch:
@@ -12,7 +12,7 @@ env:
 
 jobs:
   build-and-deploy:
-    name: Build and Deploy to Prod
+    name: Build and Deploy to Dev AND DESTROY DB
     runs-on: ubuntu-latest
     permissions:
       id-token: write
@@ -25,21 +25,21 @@ jobs:
     - name: Configure AWS credentials
       uses: aws-actions/configure-aws-credentials@v4
       with:
-        role-to-assume: arn:aws:iam::533793137436:role/asi-chain-indexer-role 
+        role-to-assume: arn:aws:iam::533793137436:role/asi-chain-indexer-dev-github-actions-ecr-push-role 
         aws-region: ${{ env.AWS_REGION }}
 
     - name: Login to Amazon ECR
       id: login-ecr
       uses: aws-actions/amazon-ecr-login@v2
 
-    - name: Build, tag, and push space-service image
-      id: build-space-service
+    - name: Build, tag, and push indexer image
+      id: build-indexer
       env:
         ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
       run: |
-        docker build -t $ECR_REGISTRY/${{ env.ECR_REPOSITORY_SPACE }}:$IMAGE_TAG -f asi-chain-indexer-policy/Dockerfile.rust .
-        docker push $ECR_REGISTRY/${{ env.ECR_REPOSITORY_SPACE }}:$IMAGE_TAG
-        echo "image=$ECR_REGISTRY/${{ env.ECR_REPOSITORY_SPACE }}:$IMAGE_TAG" >> $GITHUB_OUTPUT
+        docker build -t $ECR_REGISTRY/${{ env.ECR_REPOSITORY_INDEXER }}:$IMAGE_TAG -f indexer/Dockerfile.rust indexer/
+        docker push $ECR_REGISTRY/${{ env.ECR_REPOSITORY_INDEXER }}:$IMAGE_TAG
+        echo "image=$ECR_REGISTRY/${{ env.ECR_REPOSITORY_INDEXER }}:$IMAGE_TAG" >> $GITHUB_OUTPUT
     
     - name: Deploy on EC2 and Get Logs
       run: |
@@ -55,8 +55,9 @@ jobs:
             export ECR_REGISTRY=${{ steps.login-ecr.outputs.registry }} && \
             export IMAGE_TAG=${{ github.sha }} && \
             aws ecr get-login-password --region ${{ env.AWS_REGION }} | docker login --username AWS --password-stdin \$ECR_REGISTRY && \
-            docker compose pull && \
-            docker compose -f docker-compose.deploy.yml up -d\"
+            docker compose -f docker-compose.rust.yml pull --quiet && \
+            bash DESTROY-DB-deploy-auto.sh \
+            docker image prune -a -f \"
           ]")
         if [ -z "$COMMAND_ID" ]; then
           echo "::error::Failed to send command to SSM."
@@ -65,7 +66,7 @@ jobs:
         echo "Command sent. CommandId: $COMMAND_ID. Waiting for completion..."
         # Wait loop with a 3-minute timeout
         SECONDS=0
-        TIMEOUT=180
+        TIMEOUT=600
         STATUS="Pending"
         while [ "$STATUS" = "Pending" ] || [ "$STATUS" = "InProgress" ]; do
           if [ $SECONDS -gt $TIMEOUT ]; then

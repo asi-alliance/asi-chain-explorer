@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { WalletService, WalletBalance } from '../services/walletService';
+import { CURRENT_TOKEN } from '../utils/constants';
 
 interface WalletSearchProps {
   onSearch?: (address: string) => void;
@@ -14,7 +15,7 @@ const WalletSearch: React.FC<WalletSearchProps> = ({ onSearch }) => {
 
   const searchWallet = async () => {
     if (!address.trim()) {
-      setError('Please enter a valid REV address');
+      setError(`Please enter a valid ${CURRENT_TOKEN} address`);
       return;
     }
 
@@ -55,12 +56,12 @@ const WalletSearch: React.FC<WalletSearchProps> = ({ onSearch }) => {
         <div className="wallet-search-content">
           <div className="wallet-search-info">
             <h3>Check Wallet Balance</h3>
-            <p>Enter a REV address to view balance and transaction history</p>
+            <p>Enter a {CURRENT_TOKEN} address to view balance and transaction history</p>
           </div>
           <div className="wallet-search-controls">
             <input
               type="text"
-              placeholder="Enter REV address (e.g., 111127RX5Zgi...)"
+              placeholder={`Enter ${CURRENT_TOKEN} address (e.g., 111127RX5Zgi...)`}
               value={address}
               onChange={(e) => setAddress(e.target.value)}
               onKeyPress={handleKeyPress}
@@ -104,9 +105,9 @@ const WalletSearch: React.FC<WalletSearchProps> = ({ onSearch }) => {
                     
                     <div className="balance-section asi-card glass">
                       <div className="balance-item">
-                        <span className="balance-label">REV Balance:</span>
+                        <span className="balance-label">{CURRENT_TOKEN} Balance:</span>
                         <span className="balance-value text-success">
-                          {walletData.balance.rev.toFixed(8)} REV
+                          {walletData.balance.rev.toFixed(8)} {CURRENT_TOKEN}
                         </span>
                       </div>
                       <div className="balance-item">
