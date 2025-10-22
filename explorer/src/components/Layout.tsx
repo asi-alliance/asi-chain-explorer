@@ -32,14 +32,13 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     const goHome = () => {
         navigate("/");
     };
-    
+
     return (
         <div className="container">
             <header>
                 <div className="header-container">
                     <div className="header-left" onClick={goHome}>
                         <Logo size="large" showText={true} />
-                        <h1 style={{ marginBottom: 0, marginLeft: '12px' }}>Block Explorer</h1>
                     </div>
                     <div className="header-right">
                         <div
