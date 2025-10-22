@@ -20,13 +20,13 @@ const Logo: React.FC<LogoProps> = ({
         };
       case 'large':
         return {
-          svgSize: { width: 45, height: 30 },
-          textSize: '20px'
+          svgSize: { width: 34, height: 23 },
+          textSize: '18px'
         };
       default: // medium
         return {
           svgSize: { width: 34, height: 23 },
-          textSize: '17.658px'
+          textSize: '18px'
         };
     }
   };
@@ -67,7 +67,7 @@ const Logo: React.FC<LogoProps> = ({
         <span 
           className="logo-text"
           style={{
-            color: 'var(--Primary-Black, #000)',
+            color: 'var(--Primary-Black, #fff)',
             fontFamily: '"Roboto Mono", monospace',
             fontSize: textSize,
             fontStyle: 'normal',
@@ -76,7 +76,7 @@ const Logo: React.FC<LogoProps> = ({
             userSelect: 'none'
           }}
         >
-          ASI
+          ASI:Block Explorer
         </span>
       )}
     </div>
