@@ -8,6 +8,7 @@ import {
   SUBSCRIBE_TO_NETWORK_STATS,
   SUBSCRIBE_TO_NEW_DEPLOYMENTS
 } from '../graphql/queries';
+import { CURRENT_TOKEN } from '../utils/constants';
 
 // WebSocket connection status
 export type ConnectionStatus = 'connecting' | 'connected' | 'disconnected' | 'error' | 'reconnecting';
@@ -311,7 +312,7 @@ export const formatRealtimeUpdate = (update: RealtimeUpdate): string => {
     case 'block':
       return `New block #${update.data.block_number} - ${timeString}`;
     case 'transfer':
-      return `New transfer: ${update.data.amount_rev} REV - ${timeString}`;
+      return `New transfer: ${update.data.amount_rev} ${CURRENT_TOKEN} - ${timeString}`;
     case 'deployment':
       return `New deployment by ${update.data.deployer.slice(0, 8)}... - ${timeString}`;
     case 'network_stats':

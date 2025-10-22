@@ -68,10 +68,10 @@ export const apolloClient = new ApolloClient({
   }),
   defaultOptions: {
     watchQuery: {
-      errorPolicy: 'all',
+      errorPolicy: 'ignore',
     },
     query: {
-      errorPolicy: 'all',
+      errorPolicy: 'ignore',
     },
   },
 });

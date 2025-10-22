@@ -1,3 +1,5 @@
+import { CURRENT_TOKEN } from "../utils/constants";
+
 export interface WalletBalance {
   address: string;
   balance: {
@@ -212,7 +214,7 @@ export class WalletService {
   public static async getWalletBalance(address: string): Promise<WalletBalance> {
     // Validate address format
     if (!this.isValidAddress(address)) {
-      throw new Error('Invalid address format. Please enter a valid REV address (base58 starting with "111" or hex format).');
+      throw new Error(`Invalid address format. Please enter a valid ${CURRENT_TOKEN} address (base58 starting with "111" or hex format).`);
     }
 
     try {
