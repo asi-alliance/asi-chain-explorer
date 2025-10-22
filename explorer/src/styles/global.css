@@ -1,11 +1,11 @@
-/* ASI-Chain Block Explorer - ASI Wallet v2 Brand Styles */
+/* ASI-Chain Block Explorer - ASI Wallet Brand Styles */
 
-/* Import Inter font to match ASI Wallet v2 */
+/* Import Inter font to match ASI Wallet */
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@100;200;300;400;500;600;700;800;900&display=swap');
 /* Import Roboto Mono for logo text consistency */
 @import url('https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@400;700&display=swap');
 
-/* Color Variables - ASI Wallet v2 Brand Guide */
+/* Color Variables - ASI Wallet Brand Guide */
 :root {
     /* Primary Colors - Same for both themes */
     --asi-lime: #93E27C;
@@ -74,7 +74,7 @@ body {
     padding: var(--spacing-xl) var(--spacing-xl);
 }
 
-/* Typography - ASI Wallet v2 Scale */
+/* Typography - ASI Wallet Scale */
 h1 {
     font-size: 3rem;
     font-weight: 700;
@@ -106,7 +106,7 @@ p {
     color: var(--text-secondary);
 }
 
-/* ASI Wallet v2 Card Component */
+/* ASI Wallet Card Component */
 .live-activity {
     min-width: 300px;
     max-width: 400px;
@@ -137,7 +137,7 @@ p {
     box-shadow: var(--shadow-large);
 }
 
-/* Table Styles - ASI Wallet v2 */
+/* Table Styles - ASI Wallet */
 table {
     width: 100%;
     border-collapse: collapse;
@@ -179,7 +179,7 @@ tbody tr:last-child td {
     border-bottom: none;
 }
 
-/* Navigation Tabs - ASI Wallet v2 Style */
+/* Navigation Tabs - ASI Wallet Style */
 .nav-tabs {
     overflow: auto;
     width: 100%;
@@ -279,7 +279,7 @@ a:hover {
     opacity: 0.8;
 }
 
-/* Buttons - ASI Wallet v2 Style */
+/* Buttons - ASI Wallet Style */
 .btn {
     display: inline-flex;
     align-items: center;
@@ -335,7 +335,7 @@ a:hover {
     background: rgba(147, 226, 124, 0.12);
 }
 
-/* Input Fields - ASI Wallet v2 Style */
+/* Input Fields - ASI Wallet Style */
 input, textarea, select {
     font-family: inherit;
     font-size: 16px;
@@ -411,7 +411,7 @@ code, .code {
     color: var(--alert-red);
 }
 
-/* Loading State - ASI Wallet v2 Style */
+/* Loading State - ASI Wallet Style */
 .loading {
     display: inline-block;
     width: 20px;
@@ -838,7 +838,7 @@ input::-webkit-inner-spin-button {
     box-shadow: var(--shadow);
 }
 
-/* Wallet Balance Modal - ASI Wallet v2 Theme */
+/* Wallet Balance Modal - ASI Wallet Theme */
 .modal-overlay {
     position: fixed;
     top: 0;
