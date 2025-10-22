@@ -35,8 +35,8 @@ class BlockIndexer:
     @staticmethod
     def classify_deployment(term: str) -> str:
         """Classify deployment type based on Rholang term content."""
-        if 'RevVault' in term and 'transfer' in term:
-            return 'rev_transfer'
+        if 'ASIVault' in term and 'transfer' in term:
+            return 'asi_transfer'
         elif 'validator' in term or 'bond' in term:
             return 'validator_operation'
         elif 'finalizer' in term:
