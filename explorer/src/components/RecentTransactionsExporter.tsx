@@ -19,7 +19,7 @@ const EXPORT_RECENT_TRANSACTIONS = gql`
             from_address
             to_address
             amount_dust
-            amount_rev
+            amount_asi
             shard_id
             phlo_cost
             phlo_limit
