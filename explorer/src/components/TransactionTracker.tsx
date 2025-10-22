@@ -26,6 +26,7 @@ import { formatDistanceToNow, format } from 'date-fns';
 import { toast } from 'react-toastify';
 import { Transfer, Deployment, Block } from '../types';
 import { gql } from '@apollo/client';
+import { CURRENT_TOKEN } from '../utils/constants';
 
 // Enhanced GraphQL queries for transaction tracking
 const GET_RECENT_TRANSACTIONS = gql`
@@ -344,7 +345,7 @@ const TransactionTracker: React.FC<TransactionTrackerProps> = ({
         results.push({
           ...transfer,
           type: 'transfer',
-          title: `${transfer.amount_rev} REV Transfer`,
+          title: `${transfer.amount_rev} ${CURRENT_TOKEN} Transfer`,
           description: `From ${transfer.from_address.slice(0, 8)}... to ${transfer.to_address.slice(0, 8)}...`,
           timestamp: parseTimestamp(transfer.created_at)
         });
@@ -612,13 +613,13 @@ const TransactionTracker: React.FC<TransactionTrackerProps> = ({
           <div className="asi-card glass">
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
               <Activity size={16} style={{ color: '#06b6d4' }} />
-              <span style={{ fontSize: '0.875rem', color: '#9ca3af' }}>REV Volume</span>
+              <span style={{ fontSize: '0.875rem', color: '#9ca3af' }}>{CURRENT_TOKEN} Volume</span>
             </div>
             <div style={{ fontSize: '1.5rem', fontWeight: '600', marginBottom: '0.25rem' }}>
               {transactionStats.totalRevTransferred.toLocaleString()}
             </div>
             <div style={{ fontSize: '0.75rem', color: '#9ca3af' }}>
-              Avg: {transactionStats.avgTransferAmount.toFixed(4)} REV
+              Avg: {transactionStats.avgTransferAmount.toFixed(4)} {CURRENT_TOKEN}
             </div>
           </div>
         </div>
@@ -1066,7 +1067,7 @@ const TransactionTracker: React.FC<TransactionTrackerProps> = ({
                       marginBottom: idx < result.transfers.length - 1 ? '0.5rem' : '0'
                     }}>
                       <div>
-                        <span style={{ fontWeight: '500' }}>{transfer.amount_rev} REV</span>
+                        <span style={{ fontWeight: '500' }}>{transfer.amount_rev} {CURRENT_TOKEN}</span>
                         <span style={{ margin: '0 0.5rem', color: '#9ca3af' }}>•</span>
                         <span style={{ fontSize: '0.875rem', color: '#d1d5db' }}>
                           {transfer.from_address.slice(0, 8)}... → {transfer.to_address.slice(0, 8)}...
@@ -1311,7 +1312,7 @@ const TransactionTracker: React.FC<TransactionTrackerProps> = ({
                       <code style={{ marginLeft: '0.5rem' }}>{selectedTransaction.to_address}</code>
                     </div>
                     <div style={{ fontSize: '0.875rem', color: '#d1d5db' }}>
-                      <strong>Amount:</strong> {selectedTransaction.amount_rev} REV
+                      <strong>Amount:</strong> {selectedTransaction.amount_rev} {CURRENT_TOKEN}
                     </div>
                   </>
                 )}
