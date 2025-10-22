@@ -33,7 +33,7 @@ class RustBlockIndexer:
         # Match pattern with REV addresses: match ("from", "to", amount)
         r'match\s*\(\s*"([0-9a-zA-Z0-9]{54,56})"\s*,\s*"([0-9a-zA-Z0-9]{54,56})"\s*,\s*(\d+)\s*\)',
         # RevVault findOrCreate pattern
-        r'RevVault!\s*\(\s*"findOrCreate"\s*,\s*"([0-9a-zA-Z0-9]{54,56})"\s*,\s*(\d+)\s*\)',
+        r'ASIVault!\s*\(\s*"findOrCreate"\s*,\s*"([0-9a-zA-Z0-9]{54,56})"\s*,\s*(\d+)\s*\)',
     ]
     
     # New pattern specifically for the transfer deployments in blocks 365, 377
@@ -53,8 +53,8 @@ class RustBlockIndexer:
     @staticmethod
     def classify_deployment(term: str) -> str:
         """Classify deployment type based on Rholang term content."""
-        if 'RevVault' in term and 'transfer' in term:
-            return 'rev_transfer'
+        if 'ASIVault' in term and 'transfer' in term:
+            return 'asi_transfer'
         elif 'validator' in term or 'bond' in term:
             return 'validator_operation'
         elif 'finalizer' in term:
@@ -692,7 +692,7 @@ class RustBlockIndexer:
             return transfers
         
         # Otherwise check other patterns if the term contains RevVault operations
-        if (("RevVault" not in term and "transfer" not in term) and ("vault" not in term.lower())):
+        if (("ASIVault" not in term and "transfer" not in term) and ("vault" not in term.lower())):
             return transfers
         
         # First, extract address bindings from the term
@@ -837,7 +837,7 @@ class RustBlockIndexer:
                 deploy_term = deploy.get('term', '')
                 
                 # Look for RevVault initialization patterns
-                if 'initVault' in deploy_term or 'RevVault' in deploy_term:
+                if 'initVault' in deploy_term or 'ASIVault' in deploy_term:
                     # Extract REV address and amount using regex
                     # Pattern: initVault!("address", amount)
                     import re

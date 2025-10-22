@@ -319,7 +319,7 @@ class BlockIndexer:
         term = deploy_data.get("term", "")
         
         # Check if term contains RevVault operations
-        if "RevVault" not in term and "transfer" not in term:
+        if "ASIVault" not in term and "transfer" not in term:
             return transfers
         
         # Try each pattern
