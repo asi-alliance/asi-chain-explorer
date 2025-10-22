@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useQuery } from '@apollo/client';
 import { gql } from '@apollo/client';
 import { formatDistanceToNow } from 'date-fns';
+import { CURRENT_TOKEN } from '../utils/constants';
 
 const GET_VALIDATOR_HISTORY = gql`
   query GetValidatorHistory($blockNumber: bigint) {
@@ -191,7 +192,7 @@ const ValidatorHistoryPage: React.FC = () => {
                   <tr>
                     <th>#</th>
                     <th>Validator Public Key</th>
-                    <th>Stake (REV)</th>
+                    <th>Stake ({CURRENT_TOKEN})</th>
                     <th>Stake %</th>
                     <th>Proposer</th>
                   </tr>
@@ -212,7 +213,7 @@ const ValidatorHistoryPage: React.FC = () => {
                           </span>
                         </td>
                         <td style={{ fontWeight: 600 }}>
-                          {calculateStake(bond.stake)} REV
+                          {calculateStake(bond.stake)} {CURRENT_TOKEN}
                         </td>
                         <td>
                           <span style={{ color: 'var(--text-tertiary)' }}>
@@ -253,7 +254,7 @@ const ValidatorHistoryPage: React.FC = () => {
                       {(totalStake / 1e8).toLocaleString(undefined, {
                         minimumFractionDigits: 2,
                         maximumFractionDigits: 2
-                      })} REV
+                      })} {CURRENT_TOKEN}
                     </dd>
                   </div>
                   <div>
@@ -267,7 +268,7 @@ const ValidatorHistoryPage: React.FC = () => {
                             maximumFractionDigits: 2
                           })
                         : '0.00'
-                      } REV
+                      } {CURRENT_TOKEN}
                     </dd>
                   </div>
                   <div>
@@ -281,7 +282,7 @@ const ValidatorHistoryPage: React.FC = () => {
                             maximumFractionDigits: 2
                           })
                         : '0.00'
-                      } REV
+                      } {CURRENT_TOKEN}
                     </dd>
                   </div>
                   <div>
@@ -295,7 +296,7 @@ const ValidatorHistoryPage: React.FC = () => {
                             maximumFractionDigits: 2
                           })
                         : '0.00'
-                      } REV
+                      } {CURRENT_TOKEN}
                     </dd>
                   </div>
                 </dl>
