@@ -76,7 +76,7 @@ const Logo: React.FC<LogoProps> = ({
             userSelect: 'none'
           }}
         >
-          ASI:Block Explorer
+          ASI:Chain Block Explorer
         </span>
       )}
     </div>
