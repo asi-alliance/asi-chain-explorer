@@ -1,6 +1,39 @@
-# ASI Chain Explorer
+<div align="center">
 
-Blockchain explorer and indexer infrastructure for ASI Chain, providing real-time blockchain data synchronization and web-based interface for exploring blocks, transactions, validators, and network statistics.
+# ASI Chain: Block Explorer
+
+[![Status](https://img.shields.io/badge/Status-Alpha-FFA500?style=for-the-badge)](https://github.com/asi-alliance/asi-chain-explorer)
+[![Version](https://img.shields.io/badge/Version-1.0.0-A8E6A3?style=for-the-badge)](https://github.com/asi-alliance/asi-chain-explorer/releases)
+[![License](https://img.shields.io/badge/License-Apache%202.0-1A1A1A?style=for-the-badge)](LICENSE)
+[![Docs](https://img.shields.io/badge/Docs-Available-C4F0C1?style=for-the-badge)](https://docs.asi.tech)
+
+<h3>Blockchain Explorer and Indexer Infrastructure for ASI Chain</h3>
+
+Part of the [**Artificial Superintelligence Alliance**](https://superintelligence.io) ecosystem
+
+*Uniting Fetch.ai, SingularityNET, and CUDOS*
+
+</div>
+
+---
+
+**ASI Chain Explorer** provides comprehensive blockchain data synchronization and web-based interface for exploring blocks, transactions, validators, and network statistics on the ASI Chain network.
+
+---
+
+## Table of Contents
+
+1. [Overview](#overview)
+2. [Architecture](#architecture)
+3. [Technology Stack](#technology-stack)
+4. [Project Structure](#project-structure)
+5. [Installation](#installation)
+6. [Configuration](#configuration)
+7. [Documentation](#documentation)
+8. [Monitoring](#monitoring)
+9. [License](#license)
+
+---
 
 ## Overview
 
@@ -340,4 +373,4 @@ Licensed under the Apache License, Version 2.0. See [LICENSE](LICENSE) file for 
 
 This project builds upon the F1R3FLY and RChain codebases. For submodule licensing, see individual LICENSE files in respective directories.
 
-ASI Alliance founding members: Fetch.ai, SingularityNET, Ocean Protocol, CUDOS
+ASI Alliance founding members: Fetch.ai, SingularityNET, and CUDOS
