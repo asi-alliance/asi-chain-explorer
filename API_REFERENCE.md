@@ -6,7 +6,6 @@ Complete reference for the ASI Chain Explorer GraphQL API.
 
 ```
 HTTP Endpoint:  http://localhost:8080/v1/graphql
-WebSocket:      ws://localhost:8080/v1/graphql
 Console:        http://localhost:8080/console
 ```
 
@@ -487,14 +486,14 @@ query GetAggregatedStats {
 }
 ```
 
-## Subscriptions
+## Real-time Queries (Polling)
 
-Subscriptions provide real-time updates via WebSocket connection.
+Hasura provides real-time data updates through polling-based live queries. The frontend uses Apollo Client with `pollInterval` to automatically refetch data at specified intervals.
 
-### Subscribe to New Blocks
+### Poll for New Blocks
 
 ```graphql
-subscription SubscribeToNewBlocks($limit: Int = 5) {
+query PollForNewBlocks($limit: Int = 5) {
   blocks(
     limit: $limit
     order_by: { block_number: desc }
@@ -518,10 +517,10 @@ subscription SubscribeToNewBlocks($limit: Int = 5) {
 }
 ```
 
-### Subscribe to New Transfers
+### Poll for New Transfers
 
 ```graphql
-subscription SubscribeToNewTransfers($limit: Int = 10) {
+query PollForNewTransfers($limit: Int = 10) {
   transfers(
     limit: $limit
     order_by: { created_at: desc }
@@ -539,10 +538,10 @@ subscription SubscribeToNewTransfers($limit: Int = 10) {
 }
 ```
 
-### Subscribe to Network Activity
+### Poll for Network Activity
 
 ```graphql
-subscription SubscribeToNetworkActivity {
+query PollForNetworkActivity {
   blocks(limit: 1, order_by: { block_number: desc }) {
     block_number
     timestamp
@@ -556,10 +555,10 @@ subscription SubscribeToNetworkActivity {
 }
 ```
 
-### Subscribe to Network Stats
+### Poll for Network Stats
 
 ```graphql
-subscription SubscribeToNetworkStats {
+query PollForNetworkStats {
   network_stats_view {
     total_blocks
     avg_block_time_seconds
@@ -616,10 +615,10 @@ subscription SubscribeToNetworkStats {
 }
 ```
 
-### Subscribe to New Deployments
+### Poll for New Deployments
 
 ```graphql
-subscription SubscribeToNewDeployments($limit: Int = 20) {
+query PollForNewDeployments($limit: Int = 20) {
   deployments(
     limit: $limit
     order_by: { created_at: desc }
@@ -766,7 +765,7 @@ Common error codes:
 
 1. **Always use pagination** for large result sets
 2. **Select only needed fields** to reduce response size
-3. **Use subscriptions** for real-time data instead of polling
+3. **Configure appropriate polling intervals** based on data freshness requirements
 4. **Implement error handling** on the client side
 5. **Cache query results** when appropriate
 6. **Use variables** instead of string concatenation
@@ -801,9 +800,9 @@ const { data } = await client.query({
   variables: { limit: 10 },
 });
 
-// Subscription
-const SUBSCRIBE_BLOCKS = gql`
-  subscription {
+// Polling
+const POLL_BLOCKS = gql`
+  query {
     blocks(limit: 5, order_by: { block_number: desc }) {
       block_number
       block_hash
@@ -811,8 +810,9 @@ const SUBSCRIBE_BLOCKS = gql`
   }
 `;
 
-client.subscribe({
-  query: SUBSCRIBE_BLOCKS,
+client.watchQuery({
+  query: POLL_BLOCKS,
+  pollInterval: 5000, // Poll every 5 seconds
 }).subscribe({
   next: (result) => console.log(result.data),
   error: (error) => console.error(error),

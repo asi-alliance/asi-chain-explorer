@@ -52,11 +52,11 @@ The system indexes blockchain data including blocks, deployments, transfers, val
 ┌─────────────────────▼───────────────────────────────────────┐
 │                   Hasura GraphQL Engine                     │
 │  - Auto-generated GraphQL API                               │
-│  - Real-time subscriptions                                  │
+│  - Real-time queries with polling                           │
 │  - Query optimization                                       │
 └─────────────────────┬───────────────────────────────────────┘
                       │
-                      │ GraphQL (HTTP/WebSocket)
+                      │ GraphQL (HTTP)
                       │
 ┌─────────────────────▼───────────────────────────────────────┐
 │                  React Explorer Frontend                    │
@@ -64,7 +64,7 @@ The system indexes blockchain data including blocks, deployments, transfers, val
 │  - Transaction viewer                                       │
 │  - Validator dashboard                                      │
 │  - Network statistics                                       │
-│  - Real-time updates                                        │
+│  - Real-time updates via polling                            │
 └─────────────────────────────────────────────────────────────┘
 ```
 
@@ -74,7 +74,7 @@ The system indexes blockchain data including blocks, deployments, transfers, val
 2. **Data Processing**: Each block is processed to extract deployments, transfers, validator bonds, and network state
 3. **Database Storage**: Processed data is stored in PostgreSQL with proper relationships and indices
 4. **GraphQL Exposure**: Hasura automatically generates GraphQL API from database schema
-5. **Frontend Query**: React application queries GraphQL API and subscribes to real-time updates
+5. **Frontend Query**: React application queries GraphQL API with automatic polling for updates
 6. **User Interface**: Data is rendered in the web interface with visualizations and navigation
 
 ## Technology Stack
@@ -97,11 +97,10 @@ The system indexes blockchain data including blocks, deployments, transfers, val
 
 - **React 19.1.1**: UI framework
 - **TypeScript 4.9.5**: Type-safe JavaScript
-- **Apollo Client 3.13.9**: GraphQL client with caching
+- **Apollo Client 3.13.9**: GraphQL client with caching and polling
 - **React Router 7.7.1**: Client-side routing
 - **Framer Motion 11.11.17**: UI animations
 - **Recharts 3.1.1**: Data visualization
-- **graphql-ws 6.0.6**: WebSocket subscriptions
 - **date-fns 4.1.0**: Date formatting
 - **lucide-react 0.536.0**: Icons
 - **papaparse 5.5.3**: CSV parsing
@@ -144,7 +143,7 @@ asi-chain-explorer/
 │   ├── src/
 │   │   ├── components/       # Reusable UI components
 │   │   ├── pages/           # Route-based page components
-│   │   ├── graphql/         # GraphQL queries and mutations
+│   │   ├── graphql/         # GraphQL queries and subscriptions
 │   │   ├── services/        # Business logic services
 │   │   ├── hooks/           # Custom React hooks
 │   │   ├── utils/           # Utility functions
@@ -180,7 +179,7 @@ cd asi-chain-explorer
 2. Start the indexer stack:
 ```bash
 cd indexer
-docker-compose up -d
+docker compose up -d
 ```
 
 This starts:
@@ -191,10 +190,10 @@ This starts:
 3. Start the explorer frontend:
 ```bash
 cd ../explorer
-docker-compose -f docker-compose.standalone.yml up -d
+docker compose -f docker-compose.standalone.yml up -d
 ```
 
-Frontend will be available at http://localhost:80
+Frontend will be available at http://localhost:3001
 
 ### Local Development Setup
 
@@ -225,7 +224,7 @@ cp .env.template .env
 
 6. Start PostgreSQL:
 ```bash
-docker-compose up -d postgres
+docker compose up -d postgres
 ```
 
 7. Run migrations:
@@ -253,7 +252,6 @@ npm install
 3. Create `.env.local` file:
 ```bash
 REACT_APP_GRAPHQL_URL=http://localhost:8080/v1/graphql
-REACT_APP_GRAPHQL_WS_URL=ws://localhost:8080/v1/graphql
 REACT_APP_HASURA_ADMIN_SECRET=myadminsecretkey
 ```
 
@@ -296,11 +294,9 @@ Application will open at http://localhost:3000
 | Variable | Description | Default |
 |----------|-------------|---------|
 | `REACT_APP_GRAPHQL_URL` | Hasura GraphQL HTTP endpoint | `http://localhost:8080/v1/graphql` |
-| `REACT_APP_GRAPHQL_WS_URL` | Hasura GraphQL WebSocket endpoint | `ws://localhost:8080/v1/graphql` |
 | `REACT_APP_HASURA_ADMIN_SECRET` | Hasura admin secret for authentication | Empty |
 | `REACT_APP_NETWORK_NAME` | Network display name | `ASI Chain` |
-| `REACT_APP_ENABLE_WEBSOCKETS` | Enable real-time subscriptions | `true` |
-| `REACT_APP_POLLING_INTERVAL` | Fallback polling interval (ms) | `5000` |
+| `REACT_APP_POLLING_INTERVAL` | Polling interval for data updates (ms) | `5000` |
 
 ## Database Schema
 
@@ -509,33 +505,6 @@ query GetActiveValidators {
 }
 ```
 
-### Subscription Examples
-
-#### Subscribe to New Blocks
-```graphql
-subscription SubscribeToNewBlocks {
-  blocks(limit: 5, order_by: {block_number: desc}) {
-    block_number
-    block_hash
-    timestamp
-    deployment_count
-  }
-}
-```
-
-#### Subscribe to New Transfers
-```graphql
-subscription SubscribeToNewTransfers {
-  transfers(limit: 10, order_by: {created_at: desc}) {
-    id
-    from_address
-    to_address
-    amount_rev
-    block_number
-  }
-}
-```
-
 ## Monitoring
 
 ### Indexer Metrics
@@ -560,75 +529,6 @@ Returns:
   "blocks_behind": 0,
   "database_connected": true
 }
-```
-
-## Deployment
-
-### Production Deployment
-
-1. Configure production environment variables in `.env.production`
-
-2. Build production images:
-```bash
-cd indexer
-docker build -t asi-indexer:latest .
-
-cd ../explorer
-docker build -t asi-explorer:latest .
-```
-
-3. Deploy using Docker Compose or orchestration platform of choice
-
-### Docker Compose Production
-
-```yaml
-version: '3.8'
-
-services:
-  postgres:
-    image: postgres:14-alpine
-    environment:
-      POSTGRES_DB: asichain
-      POSTGRES_USER: indexer
-      POSTGRES_PASSWORD: ${DB_PASSWORD}
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-    restart: always
-
-  indexer:
-    image: asi-indexer:latest
-    environment:
-      NODE_HOST: ${NODE_HOST}
-      GRPC_PORT: ${GRPC_PORT}
-      HTTP_PORT: ${HTTP_PORT}
-      DATABASE_URL: postgresql://indexer:${DB_PASSWORD}@postgres:5432/asichain
-    depends_on:
-      - postgres
-    restart: always
-
-  hasura:
-    image: hasura/graphql-engine:v2.36.0
-    environment:
-      HASURA_GRAPHQL_DATABASE_URL: postgresql://indexer:${DB_PASSWORD}@postgres:5432/asichain
-      HASURA_GRAPHQL_ENABLE_CONSOLE: "false"
-      HASURA_GRAPHQL_ADMIN_SECRET: ${HASURA_ADMIN_SECRET}
-    depends_on:
-      - postgres
-    restart: always
-
-  explorer:
-    image: asi-explorer:latest
-    environment:
-      REACT_APP_GRAPHQL_URL: ${GRAPHQL_URL}
-      REACT_APP_GRAPHQL_WS_URL: ${GRAPHQL_WS_URL}
-    ports:
-      - "80:80"
-    depends_on:
-      - hasura
-    restart: always
-
-volumes:
-  postgres_data:
 ```
 
 ## License
