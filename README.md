@@ -11,7 +11,7 @@
 
 Part of the [**Artificial Superintelligence Alliance**](https://superintelligence.io) ecosystem
 
-*Uniting Fetch.ai, SingularityNET, and CUDOS*
+*Uniting Fetch.ai, SingularityNET and CUDOS*
 
 </div>
 
