@@ -110,7 +110,7 @@ const ValidatorsPage: React.FC = () => {
   const calculateStake = (stake: number | string): string => {
     const stakeNum = typeof stake === 'string' ? parseFloat(stake) : stake;
     if (!stakeNum || stakeNum === 0 || isNaN(stakeNum)) return '0.00';
-    // Stake values from API appear to already be in REV
+    // Stake values from API appear to already be in ASI
     const revAmount = stakeNum;
     
     // Format based on size
@@ -129,7 +129,7 @@ const ValidatorsPage: React.FC = () => {
   const calculateRawStake = (stake: number | string): number => {
     const stakeNum = typeof stake === 'string' ? parseFloat(stake) : stake;
     if (!stakeNum || stakeNum === 0 || isNaN(stakeNum)) return 0;
-    // Stake values from API appear to already be in REV
+    // Stake values from API appear to already be in ASI
     return stakeNum;
   };
 
@@ -157,8 +157,8 @@ const ValidatorsPage: React.FC = () => {
   //   console.log('=== Validator Stake Debug ===');
   //   console.log('Number of validators:', validators.length);
   //   console.log('Total stake raw:', totalStake);
-  //   console.log('Total stake REV:', totalStake / 1e8);
-  //   console.log('Average stake REV:', totalStake / 1e8 / validators.length);
+  //   console.log('Total stake ASI:', totalStake / 1e8);
+  //   console.log('Average stake ASI:', totalStake / 1e8 / validators.length);
   // }
 
   // Sort validators by their stake (bond or total_stake)

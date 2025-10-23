@@ -91,7 +91,7 @@ const SearchResultsPage: React.FC = () => {
             id: 1,
             from_address: '0x1111111111111111',
             to_address: '0x2222222222222222',
-            amount_rev: 100,
+            amount_asi: 100,
             status: 'success',
             block_number: 12344,
             created_at: new Date().toISOString()

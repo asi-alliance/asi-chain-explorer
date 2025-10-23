@@ -42,7 +42,7 @@ const QUICK_SEARCH = gql`
             deploy_id
             from_address
             to_address
-            amount_rev
+            amount_asi
             status
             created_at
         }
@@ -146,8 +146,8 @@ const deploymentsQueryStatements = {
 const transferQueryStatements = {
     fromAddress: (fromAddress: string) => ({ from_address: { _ilike: fromAddress }}),
     toAddress: (toAddress: string) => ({ to_address: { _ilike: toAddress }}),
-    minAmount: (minAmount: string) => ({ amount_rev: { _gte: minAmount }}),
-    maxAmount: (maxAmount: string) => ({ amount_rev: { _lte: maxAmount }}),
+    minAmount: (minAmount: string) => ({ amount_asi: { _gte: minAmount }}),
+    maxAmount: (maxAmount: string) => ({ amount_asi: { _lte: maxAmount }}),
 }
 
 const constructBlocksWhere = (searchQuery: string | number, filters: SearchFilters) => {    
@@ -353,7 +353,7 @@ const AdvancedSearch: React.FC<AdvancedSearchProps> = ({
                     type: "transfer",
                     data: transfer,
                     id: `transfer-${transfer.id}`,
-                    title: `Transfer: ${transfer.amount_rev} ${CURRENT_TOKEN}`,
+                    title: `Transfer: ${transfer.amount_asi} ${CURRENT_TOKEN}`,
                     description: `From ${transfer.from_address.slice(
                         0,
                         12

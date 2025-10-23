@@ -24,15 +24,15 @@ logger = structlog.get_logger(__name__)
 class RustBlockIndexer:
     """Enhanced indexer using Rust CLI for full blockchain data extraction."""
     
-    # Pattern for extracting REV transfers from Rholang terms
+    # Pattern for extracting ASI transfers from Rholang terms
     TRANSFER_PATTERNS = [
-        # Standard RevVault transfer pattern with literal address: @vault!("transfer", "address", amount,
+        # Standard AsiVault transfer pattern with literal address: @vault!("transfer", "address", amount,
         r'@vault!\s*\(\s*"transfer"\s*,\s*"([0-9a-zA-Z0-9]{54,56})"\s*,\s*(\d+)\s*,',
         # Variable-based transfer pattern: @vault!("transfer", recipient, amount,
         r'@vault!\s*\(\s*"transfer"\s*,\s*(\w+)\s*,\s*(\d+)\s*,',
-        # Match pattern with REV addresses: match ("from", "to", amount)
+        # Match pattern with ASI addresses: match ("from", "to", amount)
         r'match\s*\(\s*"([0-9a-zA-Z0-9]{54,56})"\s*,\s*"([0-9a-zA-Z0-9]{54,56})"\s*,\s*(\d+)\s*\)',
-        # RevVault findOrCreate pattern
+        # AsiVault findOrCreate pattern
         r'ASIVault!\s*\(\s*"findOrCreate"\s*,\s*"([0-9a-zA-Z0-9]{54,56})"\s*,\s*(\d+)\s*\)',
     ]
     
@@ -390,7 +390,7 @@ class RustBlockIndexer:
         )
         session.add(deployment)
         
-        # Extract REV transfers if enabled
+        # Extract ASI transfers if enabled
         if settings.enable_rev_transfer_extraction:
             transfers = self._extract_transfers(deploy_data, block_data.get("blockNumber"))
             if transfers:
@@ -638,7 +638,7 @@ class RustBlockIndexer:
             session.add(bond)
     
     def _extract_transfers(self, deploy_data: Dict, block_number: int) -> List[Transfer]:
-        """Extract REV transfers from deployment term."""
+        """Extract ASI transfers from deployment term."""
         transfers = []
         term = deploy_data.get("term", "")
         
@@ -646,7 +646,7 @@ class RustBlockIndexer:
         if term and block_number < 10:  # Only log first few blocks
             logger.debug(f"Deploy term preview: {term[:200]}...")
         
-        # Check if term contains RevVault operations or match statements with addresses
+        # Check if term contains AsiVault operations or match statements with addresses
         if not term:
             return transfers
         
@@ -658,13 +658,13 @@ class RustBlockIndexer:
             for match in direct_matches:
                 try:
                     from_address, to_address, amount_str = match
-                    # Validate addresses (REV addresses can be 53-56 characters)
+                    # Validate addresses (ASI addresses can be 53-56 characters)
                     if (from_address.startswith('1111') and len(from_address) in range(53, 57) and
                         to_address.startswith('1111') and len(to_address) in range(53, 57)):
                         
                         amount_dust = int(amount_str)
                         if amount_dust > 0:
-                            amount_rev = Decimal(amount_dust) / Decimal(100_000_000)
+                            amount_asi = Decimal(amount_dust) / Decimal(100_000_000)
                             
                             transfer = Transfer(
                                 deploy_id=deploy_data.get("sig"),
@@ -672,17 +672,17 @@ class RustBlockIndexer:
                                 from_address=from_address[:150],
                                 to_address=to_address[:150],
                                 amount_dust=amount_dust,
-                                amount_rev=amount_rev,
+                                amount_asi=amount_asi,
                                 status="success" if not deploy_data.get("errored") else "failed"
                             )
                             transfers.append(transfer)
                             
                             logger.info(
-                                "💸 Found direct REV transfer",
+                                "💸 Found direct ASI transfer",
                                 block=block_number,
                                 from_address=from_address[:20] + "...",
                                 to_address=to_address[:20] + "...",
-                                amount_rev=float(amount_rev)
+                                amount_asi=float(amount_asi)
                             )
                 except (ValueError, IndexError) as e:
                     logger.warning(f"Failed to parse direct transfer: {e}")
@@ -691,8 +691,8 @@ class RustBlockIndexer:
         if transfers:
             return transfers
         
-        # Otherwise check other patterns if the term contains RevVault operations
-        if (("ASIVault" not in term and "transfer" not in term) and ("vault" not in term.lower())):
+        # Otherwise check other patterns if the term contains AsiVault operations
+        if ("ASIVault" not in term and "transfer" not in term) and ("vault" not in term.lower()):
             return transfers
         
         # First, extract address bindings from the term
@@ -785,7 +785,7 @@ class RustBlockIndexer:
                     if amount_dust <= 0:
                         continue
                     
-                    amount_rev = Decimal(amount_dust) / Decimal(100_000_000)
+                    amount_asi = Decimal(amount_dust) / Decimal(100_000_000)
                     
                     # Create transfer record
                     transfer = Transfer(
@@ -794,16 +794,16 @@ class RustBlockIndexer:
                         from_address=from_address[:150],  # Use 150 char limit as per schema
                         to_address=to_address[:150],      
                         amount_dust=amount_dust,
-                        amount_rev=amount_rev,
+                        amount_asi=amount_asi,
                         status="success" if not deploy_data.get("errored") else "failed"
                     )
                     transfers.append(transfer)
                     
                     logger.info(
-                        "💸 Found REV transfer",
+                        "💸 Found ASI transfer",
                         from_address=from_address[:20] + "...",
                         to_address=to_address[:20] + "...",
-                        amount_rev=float(amount_rev)
+                        amount_asi=float(amount_asi)
                     )
                     
                 except (ValueError, IndexError) as e:
@@ -836,20 +836,20 @@ class RustBlockIndexer:
             for deploy in genesis_deployments:
                 deploy_term = deploy.get('term', '')
                 
-                # Look for RevVault initialization patterns
+                # Look for AsiVault initialization patterns
                 if 'initVault' in deploy_term or 'ASIVault' in deploy_term:
-                    # Extract REV address and amount using regex
+                    # Extract ASI address and amount using regex
                     # Pattern: initVault!("address", amount)
                     import re
                     vault_pattern = r'initVault!\s*\(\s*"([^"]+)"\s*,\s*(\d+)\s*\)'
                     matches = re.findall(vault_pattern, deploy_term)
                     
                     for address, amount_str in matches:
-                        if address.startswith('1111'):  # REV addresses start with 1111
+                        if address.startswith('1111'):  # ASI addresses start with 1111
                             amount_dust = int(amount_str)
-                            amount_rev = amount_dust / 100000000  # Convert dust to REV
-                            allocations.append((address, amount_dust, amount_rev))
-                            logger.info(f"Found genesis allocation: {address} -> {amount_rev} REV")
+                            amount_asi = amount_dust / 100000000  # Convert dust to ASI
+                            allocations.append((address, amount_dust, amount_asi))
+                            logger.info(f"Found genesis allocation: {address} -> {amount_asi} ASI")
                 
                 # Look for PoS initialization patterns for bonds
                 elif 'PoS' in deploy_term or 'bond' in deploy_term.lower():
@@ -860,9 +860,9 @@ class RustBlockIndexer:
                     
                     for pubkey, amount_str in matches:
                         amount_dust = int(amount_str)
-                        amount_rev = amount_dust / 100000000
-                        bonds.append((pubkey, amount_dust, amount_rev))
-                        logger.info(f"Found genesis bond: {pubkey[:20]}... -> {amount_rev} REV")
+                        amount_asi = amount_dust / 100000000
+                        bonds.append((pubkey, amount_dust, amount_asi))
+                        logger.info(f"Found genesis bond: {pubkey[:20]}... -> {amount_asi} ASI")
             
             # If we couldn't parse from deployments, try to get from initial state
             if not allocations and not bonds:
@@ -876,11 +876,11 @@ class RustBlockIndexer:
                         stake = validator.get('stake', 0)
                         if pubkey and stake > 0:
                             bonds.append((pubkey, stake, stake / 100000000))
-                            logger.info(f"Found validator bond: {pubkey[:20]}... -> {stake / 100000000} REV")
+                            logger.info(f"Found validator bond: {pubkey[:20]}... -> {stake / 100000000} ASI")
                 
                 # For allocations, we might need to query initial balances
                 # This is network-specific and might require additional logic
-                logger.info("Note: Initial REV allocations may need to be discovered through balance queries")
+                logger.info("Note: Initial ASI allocations may need to be discovered through balance queries")
             
             # Cache the result
             self._genesis_data_cache = {
@@ -909,7 +909,7 @@ class RustBlockIndexer:
                     stake = bond.get('stake', 0)
                     if validator_key and stake > 0:
                         bonds.append((validator_key, stake, stake / 100000000))
-                        logger.info(f"Found validator bond: {validator_key[:20]}... -> {stake / 100000000} REV")
+                        logger.info(f"Found validator bond: {validator_key[:20]}... -> {stake / 100000000} ASI")
             else:
                 # Try to get from client if not in block_info
                 try:
@@ -922,7 +922,7 @@ class RustBlockIndexer:
                                 stake = bond.get('stake', 0)
                                 if validator_key and stake > 0:
                                     bonds.append((validator_key, stake, stake / 100000000))
-                                    logger.info(f"Found validator bond: {validator_key[:20]}... -> {stake / 100000000} REV")
+                                    logger.info(f"Found validator bond: {validator_key[:20]}... -> {stake / 100000000} ASI")
                 except Exception as e:
                     logger.warning(f"Could not get bonds from genesis block: {e}")
             
@@ -931,7 +931,7 @@ class RustBlockIndexer:
                 # Get initial validator bonds from read-only node
                 # Temporarily switch to read-only port
                 original_port = self.client.http_port
-                self.client.http_port = 40453  # Read-only node port
+                self.client.http_port = self.client.http_port  # TODO Read-only node port, old: 40453
                 
                 try:
                     # First try to get the first few blocks to extract full validator keys from proposers
@@ -971,7 +971,7 @@ class RustBlockIndexer:
                                 full_key = validator_full_keys.get(abbreviated)
                                 if full_key:
                                     bonds.append((full_key, stake, stake / 100000000))
-                                    logger.info(f"Found validator bond: {full_key[:20]}... -> {stake / 100000000} REV")
+                                    logger.info(f"Found validator bond: {full_key[:20]}... -> {stake / 100000000} ASI")
                                 else:
                                     # If we couldn't find full key, use abbreviated for now
                                     # The full key will be discovered when processing blocks
@@ -985,7 +985,7 @@ class RustBlockIndexer:
             
             # For a network-agnostic approach, we can try to detect initial allocations
             # by looking at the first few blocks for large transfers from genesis
-            logger.info("Note: Initial REV allocations will be discovered as transfers are processed")
+            logger.info("Note: Initial ASI allocations will be discovered as transfers are processed")
             
             # Cache the result
             self._genesis_data_cache = {
@@ -999,7 +999,7 @@ class RustBlockIndexer:
             return None
     
     async def _process_genesis_transfers(self, session, block_info: Dict):
-        """Process genesis transfers for initial REV allocations and validator bonds."""
+        """Process genesis transfers for initial ASI allocations and validator bonds."""
         logger.info("💰 Processing genesis transfers and validator bonds")
         
         # Extract genesis data dynamically
@@ -1009,11 +1009,11 @@ class RustBlockIndexer:
             logger.warning("⚠️ Could not extract genesis data dynamically, skipping genesis transfers")
             return
         
-        # Genesis REV wallet allocations (minting from genesis)
+        # Genesis ASI wallet allocations (minting from genesis)
         genesis_allocations = genesis_data['allocations']
         
         # Create genesis allocation deployments and transfers
-        for i, (address, amount_dust, amount_rev) in enumerate(genesis_allocations, 1):
+        for i, (address, amount_dust, amount_asi) in enumerate(genesis_allocations, 1):
             deploy_id = f"genesis_allocation_{i}"
             
             # Create genesis allocation deployment
@@ -1022,7 +1022,7 @@ class RustBlockIndexer:
                 block_number=0,
                 block_hash=block_info.get("blockHash"),
                 deployer="0000000000000000000000000000000000000000000000000000000000000000",
-                term=f"Genesis REV allocation to {address}: {amount_rev:,.0f} REV",
+                term=f"Genesis ASI allocation to {address}: {amount_asi:,.0f} ASI",
                 timestamp=block_info.get("timestamp"),
                 sig=deploy_id,
                 deployment_type="genesis_mint",
@@ -1038,7 +1038,7 @@ class RustBlockIndexer:
                 from_address="0000000000000000000000000000000000000000000000000000000000000000",  # Genesis mint
                 to_address=address,
                 amount_dust=amount_dust,
-                amount_rev=amount_rev,
+                amount_asi=amount_asi,
                 status="genesis_mint"
             )
             session.add(transfer)
@@ -1047,7 +1047,7 @@ class RustBlockIndexer:
         validator_bonds = genesis_data['bonds']
         
         # Create genesis bond deployments and transfers
-        for i, (validator_pubkey, amount_dust, amount_rev) in enumerate(validator_bonds, 1):
+        for i, (validator_pubkey, amount_dust, amount_asi) in enumerate(validator_bonds, 1):
             deploy_id = f"genesis_bond_{i}"
             
             # Create genesis bond deployment
@@ -1056,7 +1056,7 @@ class RustBlockIndexer:
                 block_number=0,
                 block_hash=block_info.get("blockHash"),
                 deployer=validator_pubkey,
-                term=f"Genesis validator bond: {amount_rev:,.0f} REV staked",
+                term=f"Genesis validator bond: {amount_asi:,.0f} ASI staked",
                 timestamp=block_info.get("timestamp"),
                 sig=deploy_id,
                 deployment_type="genesis_bond",
@@ -1072,7 +1072,7 @@ class RustBlockIndexer:
                 from_address=validator_pubkey,
                 to_address="1111gW5kkGxHg7xDg6dRkZx2f7qxTizJzaCH9VEM1oJKWRvSX9Sk5",  # PoS contract address
                 amount_dust=amount_dust,
-                amount_rev=amount_rev,
+                amount_asi=amount_asi,
                 status="genesis_bond"
             )
             session.add(transfer)
@@ -1093,18 +1093,18 @@ class RustBlockIndexer:
             logger.warning("⚠️ Could not extract genesis data dynamically, skipping balance states")
             return
         
-        # Genesis REV wallet allocations (all unbonded initially)
+        # Genesis ASI wallet allocations (all unbonded initially)
         genesis_allocations = genesis_data['allocations']
         
         # Add genesis wallet balance states
-        for address, amount_dust, amount_rev in genesis_allocations:
+        for address, amount_dust, amount_asi in genesis_allocations:
             balance_state = BalanceState(
                 address=address,
                 block_number=0,
                 unbonded_balance_dust=amount_dust,
-                unbonded_balance_rev=amount_rev,
+                unbonded_balance_asi=amount_asi,
                 bonded_balance_dust=0,
-                bonded_balance_rev=0
+                bonded_balance_asi=0
             )
             session.add(balance_state)
         
@@ -1112,28 +1112,28 @@ class RustBlockIndexer:
         validator_bonds = genesis_data['bonds']
         
         # Add validator balance states
-        for validator_pubkey, amount_dust, amount_rev in validator_bonds:
+        for validator_pubkey, amount_dust, amount_asi in validator_bonds:
             balance_state = BalanceState(
                 address=validator_pubkey,
                 block_number=0,
                 unbonded_balance_dust=0,
-                unbonded_balance_rev=0,
+                unbonded_balance_asi=0,
                 bonded_balance_dust=amount_dust,
-                bonded_balance_rev=amount_rev
+                bonded_balance_asi=amount_asi
             )
             session.add(balance_state)
         
-        # PoS contract balance state (holds all bonded REV)
+        # PoS contract balance state (holds all bonded ASI)
         total_bonded_dust = sum(bond[1] for bond in validator_bonds)
-        total_bonded_rev = sum(bond[2] for bond in validator_bonds)
+        total_bonded_asi = sum(bond[2] for bond in validator_bonds)
         
         pos_balance_state = BalanceState(
             address="1111gW5kkGxHg7xDg6dRkZx2f7qxTizJzaCH9VEM1oJKWRvSX9Sk5",
             block_number=0,
             unbonded_balance_dust=0,
-            unbonded_balance_rev=0,
+            unbonded_balance_asi=0,
             bonded_balance_dust=total_bonded_dust,
-            bonded_balance_rev=total_bonded_rev
+            bonded_balance_asi=total_bonded_asi
         )
         session.add(pos_balance_state)
         

@@ -305,7 +305,7 @@ List REV transfers with pagination and filtering.
       "from_address": "04837a4cff833e31...",
       "to_address": "1111K6oNBewfN8iw...",
       "amount_dust": 1000000,
-      "amount_rev": "0.01000000",
+      "amount_asi": "0.01000000",
       "deploy_id": "3045022100...",
       "block_number": 50,
       "status": "success"
@@ -331,11 +331,11 @@ Get balance state for an address.
 {
   "address": "04837a4cff833e31...",
   "unbonded_balance_dust": 0,
-  "unbonded_balance_rev": "0.00000000",
+  "unbonded_balance_asi": "0.00000000",
   "bonded_balance_dust": 50000000000000,
-  "bonded_balance_rev": "500000.00000000",
+  "bonded_balance_asi": "500000.00000000",
   "total_balance_dust": 50000000000000,
-  "total_balance_rev": "500000.00000000",
+  "total_balance_asi": "500000.00000000",
   "block_number": 240,
   "updated_at": "2025-08-06T08:10:00.000000"
 }

@@ -87,6 +87,6 @@ echo ""
 echo "💡 Example queries you can now run:"
 echo '   { blocks(limit: 5) { block_number deployments { deploy_id deployment_type } } }'
 echo '   { validators { public_key name validator_bonds { stake } } }'
-echo '   { transfers { amount_rev deployment { deploy_id } block { block_number } } }'
+echo '   { transfers { amount_asi deployment { deploy_id } block { block_number } } }'
 echo ""
 echo "🌐 GraphQL Console: $HASURA_URL/console"

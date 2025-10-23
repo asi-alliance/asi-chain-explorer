@@ -414,12 +414,12 @@ curl -X POST http://localhost:8080/v1/graphql \
   -H "Content-Type: application/json" \
   -d '{"query": "{ blocks(limit: 1) { block_number deployments { deploy_id } } }"}'
 
-# Query REV transfers (with admin secret)
+# Query ASI transfers (with admin secret)
 curl http://localhost:8080/v1/graphql \
   -H "x-hasura-admin-secret: myadminsecretkey" \
   -H "Content-Type: application/json" \
   -d '{
-    "query": "{ transfers(limit: 10) { block_number from_address to_address amount_rev timestamp } }"
+    "query": "{ transfers(limit: 10) { block_number from_address to_address amount_asi timestamp } }"
   }'
 
 # Query validators
@@ -676,7 +676,7 @@ Testing nested GraphQL query...
     validator_bonds { stake block { block_number } }
   }
   balance_states { 
-    total_balance_rev # Auto-computed from bonded + unbonded
+    total_balance_asi # Auto-computed from bonded + unbonded
     block { block_number }
   }
 }
