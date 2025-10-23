@@ -73,7 +73,7 @@ const ValidatorHistoryPage: React.FC = () => {
   const calculateStake = (stake: number | string): string => {
     const stakeNum = typeof stake === 'string' ? parseFloat(stake) : stake;
     if (!stakeNum || stakeNum === 0 || isNaN(stakeNum)) return '0.00';
-    // Stake values from API appear to already be in REV
+    // Stake values from API appear to already be in ASI
     const revAmount = stakeNum;
     
     if (revAmount >= 1000000) {

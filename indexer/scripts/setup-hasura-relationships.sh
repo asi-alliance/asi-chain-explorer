@@ -240,4 +240,4 @@ echo "   GraphQL endpoint: $HASURA_URL/v1/graphql"
 echo "   Console: $HASURA_URL/console"
 echo ""
 echo "You can now run queries like:"
-echo '  { blocks { deployments { deploy_id } transfers { amount_rev } } }'
+echo '  { blocks { deployments { deploy_id } transfers { amount_asi } } }'

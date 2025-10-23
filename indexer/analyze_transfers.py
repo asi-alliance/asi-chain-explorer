@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Analyze all REV transfers via GraphQL."""
+"""Analyze all ASI transfers via GraphQL."""
 
 import json
 import requests
@@ -21,13 +21,13 @@ query = """
     from_address
     to_address
     amount_dust
-    amount_rev
+    amount_asi
     status
   }
   transfers_aggregate {
     aggregate {
       count
-      sum { amount_rev }
+      sum { amount_asi }
     }
   }
 }
@@ -40,14 +40,14 @@ transfers = data["transfers"]
 aggregate = data["transfers_aggregate"]["aggregate"]
 
 print("=" * 80)
-print("ASI-CHAIN REV TRANSFER ANALYSIS - COMPLETE REPORT")
+print("ASI-CHAIN ASI TRANSFER ANALYSIS - COMPLETE REPORT")
 print("=" * 80)
 print()
 
 # Summary
 print("📊 OVERALL STATISTICS:")
 print(f"  • Total Transfers: {aggregate['count']}")
-print(f"  • Total REV Moved: {float(aggregate['sum']['amount_rev']):,.2f} REV")
+print(f"  • Total ASI Moved: {float(aggregate['sum']['amount_asi']):,.2f} ASI")
 print()
 
 # Separate by type
@@ -56,23 +56,23 @@ user_transfers = [t for t in transfers if t["block_number"] != "0"]
 
 print("🏛️ GENESIS TRANSFERS (Validator Bonds):")
 print(f"  • Count: {len(genesis_transfers)}")
-genesis_total = sum(float(t["amount_rev"]) for t in genesis_transfers)
-print(f"  • Total: {genesis_total:,.0f} REV")
+genesis_total = sum(float(t["amount_asi"]) for t in genesis_transfers)
+print(f"  • Total: {genesis_total:,.0f} ASI")
 for i, t in enumerate(genesis_transfers, 1):
-    print(f"    {i}. {t['from_address'][:20]}... → PoS Vault: {float(t['amount_rev']):,.0f} REV")
+    print(f"    {i}. {t['from_address'][:20]}... → PoS Vault: {float(t['amount_asi']):,.0f} ASI")
 print()
 
 print("💸 USER TRANSFERS:")
 print(f"  • Count: {len(user_transfers)}")
-user_total = sum(float(t["amount_rev"]) for t in user_transfers)
-print(f"  • Total: {user_total:,.0f} REV")
+user_total = sum(float(t["amount_asi"]) for t in user_transfers)
+print(f"  • Total: {user_total:,.0f} ASI")
 print()
 
 print("  Details:")
 for t in user_transfers:
     from_addr = t['from_address'][:30] + "..." if len(t['from_address']) > 33 else t['from_address']
     to_addr = t['to_address'][:30] + "..." if len(t['to_address']) > 33 else t['to_address']
-    print(f"    Block {t['block_number']:>3}: {float(t['amount_rev']):>10,.0f} REV")
+    print(f"    Block {t['block_number']:>3}: {float(t['amount_asi']):>10,.0f} ASI")
     print(f"             From: {from_addr}")
     print(f"             To:   {to_addr}")
     print()
@@ -93,8 +93,8 @@ sent_count = defaultdict(int)
 received_count = defaultdict(int)
 
 for t in user_transfers:
-    flows[t['from_address']] -= float(t['amount_rev'])
-    flows[t['to_address']] += float(t['amount_rev'])
+    flows[t['from_address']] -= float(t['amount_asi'])
+    flows[t['to_address']] += float(t['amount_asi'])
     sent_count[t['from_address']] += 1
     received_count[t['to_address']] += 1
 
@@ -105,15 +105,15 @@ for addr in sorted(addresses):
     sent = sent_count[addr]
     received = received_count[addr]
     print(f"    {display}")
-    print(f"      Sent: {sent} tx(s) | Received: {received} tx(s) | Net: {net:+,.0f} REV")
+    print(f"      Sent: {sent} tx(s) | Received: {received} tx(s) | Net: {net:+,.0f} ASI")
 print()
 
 # Transfer patterns
 print("🔄 TRANSFER PATTERNS:")
 print(f"  • Blocks with transfers: {len(set(t['block_number'] for t in user_transfers))}")
-print(f"  • Average user transfer: {user_total/len(user_transfers):,.2f} REV")
-print(f"  • Largest user transfer: {max(float(t['amount_rev']) for t in user_transfers):,.0f} REV")
-print(f"  • Smallest user transfer: {min(float(t['amount_rev']) for t in user_transfers):,.0f} REV")
+print(f"  • Average user transfer: {user_total/len(user_transfers):,.2f} ASI")
+print(f"  • Largest user transfer: {max(float(t['amount_asi']) for t in user_transfers):,.0f} ASI")
+print(f"  • Smallest user transfer: {min(float(t['amount_asi']) for t in user_transfers):,.0f} ASI")
 
 print()
 print("=" * 80)

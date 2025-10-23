@@ -88,7 +88,7 @@ class Deployment(Base):
 
 
 class Transfer(Base):
-    """Transfer model for REV token transfers."""
+    """Transfer model for ASI token transfers."""
     
     __tablename__ = "transfers"
     
@@ -98,7 +98,7 @@ class Transfer(Base):
     from_address = Column(String(150), nullable=False, index=True)  # Support validator public keys
     to_address = Column(String(150), nullable=False, index=True)    # Support validator public keys
     amount_dust = Column(BigInteger, nullable=False)
-    amount_rev = Column(Numeric(20, 8), nullable=False)
+    amount_asi = Column(Numeric(20, 8), nullable=False)
     status = Column(String(20), default="success", index=True)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     
@@ -187,12 +187,12 @@ class BalanceState(Base):
     __tablename__ = "balance_states"
     
     id = Column(BigInteger, primary_key=True, autoincrement=True)
-    address = Column(String(150), nullable=False)  # Support both REV addresses and validator public keys
+    address = Column(String(150), nullable=False)  # Support both ASI addresses and validator public keys
     block_number = Column(BigInteger, ForeignKey("blocks.block_number", ondelete="CASCADE"), nullable=False)
     unbonded_balance_dust = Column(BigInteger, nullable=False, default=0)
-    unbonded_balance_rev = Column(Numeric(20, 8), nullable=False, default=0)
+    unbonded_balance_asi = Column(Numeric(20, 8), nullable=False, default=0)
     bonded_balance_dust = Column(BigInteger, nullable=False, default=0)
-    bonded_balance_rev = Column(Numeric(20, 8), nullable=False, default=0)
+    bonded_balance_asi = Column(Numeric(20, 8), nullable=False, default=0)
     updated_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     
     # Relationships
@@ -211,9 +211,9 @@ class BalanceState(Base):
         return self.unbonded_balance_dust + self.bonded_balance_dust
     
     @property
-    def total_balance_rev(self):
-        """Calculate total balance in REV."""
-        return self.unbonded_balance_rev + self.bonded_balance_rev
+    def total_balance_asi(self):
+        """Calculate total balance in ASI."""
+        return self.unbonded_balance_asi + self.bonded_balance_asi
 
 
 class EpochTransition(Base):

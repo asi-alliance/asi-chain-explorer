@@ -64,8 +64,8 @@ query CombinedAdvancedSearch(
       _and: [
         { from_address: { _ilike: $transfer_fromAddress } },
         { to_address: { _ilike: $transfer_toAddress } },
-        { amount_rev: { _gte: $transfer_minAmount } },
-        { amount_rev: { _lte: $transfer_maxAmount } },
+        { amount_asi: { _gte: $transfer_minAmount } },
+        { amount_asi: { _lte: $transfer_maxAmount } },
         { status: { _eq: $transfer_status } },
         { created_at: { _gte: $transfer_startDate } },
         { created_at: { _lte: $transfer_endDate } },
@@ -84,7 +84,7 @@ query CombinedAdvancedSearch(
     deploy_id
     from_address
     to_address
-    amount_rev
+    amount_asi
     status
     created_at
   }

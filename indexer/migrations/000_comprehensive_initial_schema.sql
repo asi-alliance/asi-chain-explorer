@@ -80,7 +80,7 @@ CREATE TABLE IF NOT EXISTS transfers (
     from_address VARCHAR(150) NOT NULL,
     to_address VARCHAR(150) NOT NULL,
     amount_dust BIGINT NOT NULL,
-    amount_rev NUMERIC(20, 8) NOT NULL,
+    amount_asi NUMERIC(20, 8) NOT NULL,
     status VARCHAR(20) DEFAULT 'success',
     created_at TIMESTAMP DEFAULT NOW() NOT NULL
 );
@@ -141,11 +141,11 @@ CREATE TABLE IF NOT EXISTS balance_states (
     address VARCHAR(150) NOT NULL,
     block_number BIGINT NOT NULL REFERENCES blocks(block_number) ON DELETE CASCADE,
     unbonded_balance_dust BIGINT NOT NULL DEFAULT 0,
-    unbonded_balance_rev NUMERIC(20, 8) NOT NULL DEFAULT 0,
+    unbonded_balance_asi NUMERIC(20, 8) NOT NULL DEFAULT 0,
     bonded_balance_dust BIGINT NOT NULL DEFAULT 0,
-    bonded_balance_rev NUMERIC(20, 8) NOT NULL DEFAULT 0,
+    bonded_balance_asi NUMERIC(20, 8) NOT NULL DEFAULT 0,
     total_balance_dust BIGINT GENERATED ALWAYS AS (unbonded_balance_dust + bonded_balance_dust) STORED,
-    total_balance_rev NUMERIC(20, 8) GENERATED ALWAYS AS (unbonded_balance_rev + bonded_balance_rev) STORED,
+    total_balance_asi NUMERIC(20, 8) GENERATED ALWAYS AS (unbonded_balance_asi + bonded_balance_asi) STORED,
     updated_at TIMESTAMP DEFAULT NOW() NOT NULL,
     UNIQUE(address, block_number)
 );
@@ -290,7 +290,7 @@ BEGIN
             'id', NEW.id,
             'from_address', NEW.from_address,
             'to_address', NEW.to_address,
-            'amount_rev', NEW.amount_rev,
+            'amount_asi', NEW.amount_asi,
             'block_number', NEW.block_number
         )::text
     );
@@ -309,7 +309,7 @@ FOR EACH ROW EXECUTE FUNCTION notify_new_transfer();
 
 COMMENT ON TABLE blocks IS 'Core blockchain blocks with all enhanced fields for F1R3FLY/RChain';
 COMMENT ON TABLE deployments IS 'Smart contract deployments with enhanced tracking and status';
-COMMENT ON TABLE transfers IS 'REV token transfers extracted from deployments';
+COMMENT ON TABLE transfers IS 'ASI token transfers extracted from deployments';
 COMMENT ON TABLE validators IS 'Network validators with extended name field for full public keys';
 COMMENT ON TABLE validator_bonds IS 'Historical validator bonding states per block';
 COMMENT ON TABLE balance_states IS 'Address balance tracking with bonded/unbonded separation';
@@ -326,4 +326,4 @@ COMMENT ON COLUMN deployments.deployment_type IS 'Type classification for deploy
 COMMENT ON COLUMN validators.status IS 'Validator status: active/bonded/quarantine/inactive';
 COMMENT ON COLUMN validators.name IS 'Validator name (can store full public key up to 160 chars)';
 COMMENT ON COLUMN balance_states.total_balance_dust IS 'Auto-computed total balance in dust units';
-COMMENT ON COLUMN balance_states.total_balance_rev IS 'Auto-computed total balance in REV units';
+COMMENT ON COLUMN balance_states.total_balance_asi IS 'Auto-computed total balance in REV units';

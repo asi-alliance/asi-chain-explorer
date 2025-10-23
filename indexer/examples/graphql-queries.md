@@ -7,8 +7,8 @@ The Hasura GraphQL engine provides instant GraphQL APIs for the ASI-Chain indexe
 **Admin Secret**: `myadminsecretkey`
 
 ## Features (v2.1)
-- Enhanced REV transfer detection (variable-based and match-based patterns)
-- Address validation supports 53-56 character REV addresses and 130+ char validator keys
+- Enhanced ASI transfer detection (variable-based and match-based patterns)
+- Address validation supports 53-56 character ASI addresses and 130+ char validator keys
 - Automatic Hasura configuration with zero-touch deployment
 - Genesis block processing with validator bonds
 - Comprehensive nested relationships working out of the box
@@ -67,7 +67,7 @@ query BlockDetails($blockNumber: bigint!) {
       transfers {
         from_address
         to_address
-        amount_rev
+        amount_asi
         status
       }
     }
@@ -98,7 +98,7 @@ query SearchBlocks($hashPrefix: String!) {
 
 ## Transfer Queries
 
-### Get All REV Transfers (Including Genesis)
+### Get All ASI Transfers (Including Genesis)
 
 ```graphql
 query AllTransfers {
@@ -107,7 +107,7 @@ query AllTransfers {
     block_number
     from_address  # Supports 53-56 char addresses
     to_address    # and 130+ char validator keys
-    amount_rev
+    amount_asi
     amount_dust
     status
     deployment {
@@ -121,7 +121,7 @@ query AllTransfers {
   transfers_aggregate {
     aggregate {
       count
-      sum { amount_rev }
+      sum { amount_asi }
     }
   }
 }
@@ -135,7 +135,7 @@ query TransferStats {
   genesis: transfers(where: {block_number: {_eq: "0"}}) {
     from_address
     to_address
-    amount_rev
+    amount_asi
   }
   
   # User transfers (non-genesis)
@@ -143,17 +143,17 @@ query TransferStats {
     block_number
     from_address
     to_address
-    amount_rev
+    amount_asi
   }
   
   # Aggregate stats
   stats: transfers_aggregate {
     aggregate {
       count
-      sum { amount_rev }
-      avg { amount_rev }
-      max { amount_rev }
-      min { amount_rev }
+      sum { amount_asi }
+      avg { amount_asi }
+      max { amount_asi }
+      min { amount_asi }
     }
   }
 }
@@ -175,7 +175,7 @@ query AddressTransfers($address: String!) {
     id
     from_address
     to_address
-    amount_rev
+    amount_asi
     status
     deployment {
       deploy_id
@@ -378,7 +378,7 @@ subscription NewTransfers {
     id
     from_address
     to_address
-    amount_rev
+    amount_asi
     status
     created_at
     deployment {
@@ -468,7 +468,7 @@ query NetworkStats {
     aggregate {
       count
       sum {
-        amount_rev
+        amount_asi
       }
     }
   }
@@ -581,7 +581,7 @@ query CompleteBlockHistory($limit: Int = 5) {
       transfers {
         from_address
         to_address
-        amount_rev
+        amount_asi
         status
       }
     }
@@ -678,7 +678,7 @@ GraphQL subscriptions work over WebSockets. Most GraphQL clients handle this aut
 ### Enhanced Features
 - Genesis block processing with validator bonds
 - Full blockchain sync from block 0
-- Enhanced REV transfer detection patterns
+- Enhanced ASI transfer detection patterns
 - Support for 130+ character validator public keys
 - JSONB fields for bonds_map and justifications
 - Computed columns for balance tracking

@@ -28,7 +28,7 @@ deployments_indexed = Counter(
 
 transfers_extracted = Counter(
     "indexer_transfers_extracted_total",
-    "Total number of REV transfers extracted"
+    "Total number of ASI transfers extracted"
 )
 
 sync_lag = Gauge(
@@ -447,7 +447,7 @@ class MonitoringServer:
             return web.json_response({"error": str(e)}, status=500)
     
     async def get_transfers(self, request):
-        """Get list of REV transfers with pagination."""
+        """Get list of ASI transfers with pagination."""
         try:
             # Get query parameters
             page = int(request.query.get('page', 1))
@@ -460,7 +460,7 @@ class MonitoringServer:
             query = """
                 SELECT 
                     t.id, t.deploy_id, t.block_number, t.from_address, t.to_address,
-                    t.amount_dust, t.amount_rev::FLOAT as amount_rev, t.status, t.created_at,
+                    t.amount_dust, t.amount_asi::FLOAT as amount_asi, t.status, t.created_at,
                     d.timestamp
                 FROM transfers t
                 JOIN deployments d ON t.deploy_id = d.deploy_id
@@ -692,7 +692,7 @@ class MonitoringServer:
             query = """
                 SELECT 
                     id, deploy_id, block_number, from_address, to_address,
-                    amount_dust, amount_rev::FLOAT as amount_rev, status, created_at
+                    amount_dust, amount_asi::FLOAT as amount_asi, status, created_at
                 FROM transfers
                 WHERE from_address = $1 OR to_address = $1
                 ORDER BY block_number DESC
