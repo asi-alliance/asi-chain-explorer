@@ -56,7 +56,7 @@ export const TRANSFER_FRAGMENT = gql`
     deploy_id
     from_address
     to_address
-    amount_rev
+    amount_asi
     amount_dust
     status
     block_number
@@ -310,7 +310,7 @@ export const SUBSCRIBE_TO_NETWORK_ACTIVITY = gql`
     }
     transfers(limit: 1, order_by: { created_at: desc }) {
       id
-      amount_rev
+      amount_asi
       created_at
     }
   }
@@ -349,10 +349,10 @@ export const SUBSCRIBE_TO_NETWORK_STATS = gql`
       aggregate {
         count
         sum {
-          amount_rev
+          amount_asi
         }
         avg {
-          amount_rev
+          amount_asi
         }
       }
     }

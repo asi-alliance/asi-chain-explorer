@@ -52,7 +52,7 @@ const GET_RECENT_TRANSACTIONS = gql`
       deploy_id
       from_address
       to_address
-      amount_rev
+      amount_asi
       amount_dust
       status
       block_number
@@ -82,7 +82,7 @@ const TRACK_TRANSACTION = gql`
         id
         from_address
         to_address
-        amount_rev
+        amount_asi
         amount_dust
         status
         created_at
@@ -133,7 +133,7 @@ const SEARCH_TRANSACTIONS = gql`
         id
         from_address
         to_address
-        amount_rev
+        amount_asi
         status
       }
     }
@@ -157,7 +157,7 @@ const SEARCH_TRANSACTIONS = gql`
       deploy_id
       from_address
       to_address
-      amount_rev
+      amount_asi
       amount_dust
       status
       block_number
@@ -185,7 +185,7 @@ const GET_TRANSACTION_STATS = gql`
       errored
     }
     transfers(where: { created_at: { _gte: $timeRange } }, limit: 1000) {
-      amount_rev
+      amount_asi
       status
     }
   }
@@ -345,7 +345,7 @@ const TransactionTracker: React.FC<TransactionTrackerProps> = ({
         results.push({
           ...transfer,
           type: 'transfer',
-          title: `${transfer.amount_rev} ${CURRENT_TOKEN} Transfer`,
+          title: `${transfer.amount_asi} ${CURRENT_TOKEN} Transfer`,
           description: `From ${transfer.from_address.slice(0, 8)}... to ${transfer.to_address.slice(0, 8)}...`,
           timestamp: parseTimestamp(transfer.created_at)
         });
@@ -370,7 +370,7 @@ const TransactionTracker: React.FC<TransactionTrackerProps> = ({
     const totalPhlo = deployments.reduce((sum: number, d: any) => sum + (parseFloat(d.phlo_cost) || 0), 0);
     const avgPhloCost = totalDeployments > 0 ? totalPhlo / totalDeployments : 0;
     
-    const totalRevTransferred = transfers.reduce((sum: number, t: any) => sum + (parseFloat(t.amount_rev) || 0), 0);
+    const totalRevTransferred = transfers.reduce((sum: number, t: any) => sum + (parseFloat(t.amount_asi) || 0), 0);
     const avgTransferAmount = totalTransfers > 0 ? totalRevTransferred / totalTransfers : 0;
     
     return {
@@ -1067,7 +1067,7 @@ const TransactionTracker: React.FC<TransactionTrackerProps> = ({
                       marginBottom: idx < result.transfers.length - 1 ? '0.5rem' : '0'
                     }}>
                       <div>
-                        <span style={{ fontWeight: '500' }}>{transfer.amount_rev} {CURRENT_TOKEN}</span>
+                        <span style={{ fontWeight: '500' }}>{transfer.amount_asi} {CURRENT_TOKEN}</span>
                         <span style={{ margin: '0 0.5rem', color: '#9ca3af' }}>•</span>
                         <span style={{ fontSize: '0.875rem', color: '#d1d5db' }}>
                           {transfer.from_address.slice(0, 8)}... → {transfer.to_address.slice(0, 8)}...
@@ -1312,7 +1312,7 @@ const TransactionTracker: React.FC<TransactionTrackerProps> = ({
                       <code style={{ marginLeft: '0.5rem' }}>{selectedTransaction.to_address}</code>
                     </div>
                     <div style={{ fontSize: '0.875rem', color: '#d1d5db' }}>
-                      <strong>Amount:</strong> {selectedTransaction.amount_rev} {CURRENT_TOKEN}
+                      <strong>Amount:</strong> {selectedTransaction.amount_asi} {CURRENT_TOKEN}
                     </div>
                   </>
                 )}

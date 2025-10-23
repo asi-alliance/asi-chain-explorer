@@ -139,7 +139,7 @@ Remote F1R3FLY Network (13.251.66.61:40453)
 ```graphql
 {
   transfers {
-    amount_rev
+    amount_asi
     from_address
     to_address
     status

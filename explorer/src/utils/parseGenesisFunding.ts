@@ -7,7 +7,7 @@ import { CURRENT_TOKEN } from "./constants";
 export interface GenesisFunding {
   wallet_address: string;
   amount_dust: number;
-  amount_rev: number;
+  amount_asi: number;
   status: 'genesis_funding';
   timestamp: number;
   deploy_id: string;
@@ -38,7 +38,7 @@ export function parseGenesisFunding(deploymentTerm: string, deployId: string, ti
         fundings.push({
           wallet_address: walletAddress,
           amount_dust: amountDust,
-          amount_rev: amountRev,
+          amount_asi: amountRev,
           status: 'genesis_funding',
           timestamp,
           deploy_id: deployId

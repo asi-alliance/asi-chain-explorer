@@ -53,7 +53,7 @@ export class WalletService {
    * Validate REV address format
    */
   private static isValidAddress(address: string): boolean {
-    // REV addresses can have different formats:
+    // ASI addresses can have different formats:
     // 1. Base58-encoded starting with "111" (54+ chars): 111127RX5ZgiAdRaQy4AWy57RdvAAckdELReEBxzvWYVvdnR32PiHA
     // 2. Hex-encoded (64-66 chars): 04a936f4e0cda4688ec61fa17cf3cbaed6a450ac8e633490596587ce22b78fe6621861d4fa442f7c9f8070acb846f40d8844dca94fda398722d6a4664041a7b39b
     
@@ -74,7 +74,7 @@ export class WalletService {
   }
 
   /**
-   * Convert dust units to REV tokens
+   * Convert dust units to ASI tokens
    */
   private static dustToRev(dust: number): number {
     return dust / this.REV_DUST_RATIO;

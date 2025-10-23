@@ -1,3 +1,5 @@
+# deprecated local way
+
 # Build stage
 FROM python:3.11-slim as builder
 

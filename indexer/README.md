@@ -23,7 +23,7 @@ The indexer now features complete automation with zero manual configuration:
 - **Balance state tracking** - separate bonded and unbonded balances per address
 - **GraphQL API** via Hasura with automatic bash-based configuration
 - Enhanced block metadata extraction (state roots, bonds, validators, justifications)
-- PostgreSQL storage with 150-char address fields (supports both REV addresses and validator keys)
+- PostgreSQL storage with 150-char address fields (supports both ASI addresses and validator keys)
 - Deployment extraction with full Rholang code
 - Smart contract type classification (REV transfers, validator ops, etc.)
 - REV transfer extraction with both variable-based and match-based pattern matching
@@ -299,13 +299,13 @@ Environment variables for Rust indexer:
 
 - **transfers**: REV token transfers
   - Supports both REV addresses (54-56 chars) and validator public keys (130+ chars)
-  - Tracks amounts in both dust and REV (8 decimal precision)
+  - Tracks amounts in both dust and ASI (8 decimal precision)
   - Links to deployments and blocks
 
 - **balance_states**: Address balance tracking
   - Separate bonded and unbonded balances
   - Point-in-time balance snapshots per block
-  - Supports both validator keys and REV addresses
+  - Supports both validator keys and ASI addresses
 
 - **validators**: Validator registry
   - Full public key storage (up to 200 chars)

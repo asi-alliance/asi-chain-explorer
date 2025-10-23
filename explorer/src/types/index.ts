@@ -53,7 +53,7 @@ export interface Transfer {
   deploy_id?: string;
   from_address: string;
   to_address: string;
-  amount_rev: number | string;
+  amount_asi: number | string;
   amount_dust?: number;
   status: string;
   block_number?: number | string;
@@ -66,7 +66,7 @@ export interface GenesisFunding {
   id: string;
   wallet_address: string;
   amount_dust: number;
-  amount_rev: number;
+  amount_asi: number;
   status: 'genesis_funding';
   timestamp: number;
   deploy_id: string;
@@ -117,7 +117,7 @@ export interface AggregateData {
     phlo_cost?: number;
   };
   sum?: {
-    amount_rev?: number;
+    amount_asi?: number;
     phlo_cost?: number;
   };
 }
