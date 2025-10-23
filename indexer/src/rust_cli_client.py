@@ -305,7 +305,7 @@ class RustCLIClient:
                     })
                 else:
                     # Try old format
-                    match = re.search(r'Validator:\s*([a-f0-9]+)\s*\|\s*Stake:\s*([\d,]+)\s*REV', line)
+                    match = re.search(r'Validator:\s*([a-f0-9]+)\s*\|\s*Stake:\s*([\d,]+)\s*ASI', line)
                     if match:
                         bonds.append({
                             "validator": match.group(1),
