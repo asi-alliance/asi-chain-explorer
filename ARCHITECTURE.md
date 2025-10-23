@@ -7,7 +7,7 @@
 The ASI Chain Explorer implements a three-tier architecture:
 
 1. **Data Layer**: PostgreSQL database with normalized schema for blockchain data
-2. **API Layer**: Hasura GraphQL Engine providing auto-generated API with real-time capabilities
+2. **API Layer**: Hasura GraphQL Engine providing auto-generated API with real-time capabilities via polling
 3. **Presentation Layer**: React-based web application with Apollo Client for data management
 
 ### Component Interactions
@@ -144,7 +144,7 @@ Hasura is configured to:
 
 1. Auto-track all tables in the public schema
 2. Create relationships based on foreign keys
-3. Enable real-time subscriptions via WebSockets
+3. Enable query subscriptions with polling mechanism
 4. Provide role-based access control
 5. Expose public read access for queries and subscriptions
 
@@ -160,16 +160,13 @@ Configuration in docker-compose.yml:
 Hasura implements several optimizations:
 
 1. **Query Multiplexing**: Batches similar queries for efficiency
-2. **Live Query Optimization**: Uses LISTEN/NOTIFY for real-time updates
+2. **Polling-based Updates**: Uses periodic database queries for live data
 3. **Connection Pooling**: Reuses database connections
 4. **Query Depth Limiting**: Prevents overly complex nested queries
 
-#### Real-time Subscriptions
+#### Real-time Updates
 
-Subscriptions use PostgreSQL NOTIFY mechanism implemented via triggers:
-
-- `notify_new_block()`: Triggered on INSERT to blocks table
-- `notify_new_transfer()`: Triggered on INSERT to transfers table
+The system provides real-time updates through Apollo Client's polling mechanism. The frontend configures appropriate polling intervals based on data freshness requirements. Database triggers (notify_new_block, notify_new_transfer) are available but polling is the primary method for updates.
 
 ### Frontend Architecture
 
@@ -210,7 +207,7 @@ Apollo Client manages all application state:
 
 1. **Normalized Cache**: Entities cached by their primary key
 2. **Cache Policies**: Configured per query for optimal performance
-3. **Subscription Integration**: Real-time updates merged into cache
+3. **Polling Integration**: Regular queries for data updates
 4. **Type Policies**: Defined for blocks, deployments, and validators
 
 Cache configuration from apollo-client.ts:
@@ -231,10 +228,10 @@ typePolicies: {
 
 #### Real-time Data Flow
 
-1. Component subscribes to GraphQL subscription
-2. Hasura listens for PostgreSQL notifications
-3. On new data, Hasura pushes update via WebSocket
-4. Apollo Client receives update and updates cache
+1. Component executes GraphQL query/subscription
+2. Apollo Client fetches data from Hasura
+3. Polling mechanism triggers periodic refetch
+4. On new data, Apollo Client updates cache
 5. React components automatically re-render with new data
 
 ### Performance Considerations
@@ -253,7 +250,7 @@ typePolicies: {
 2. **JSONB Indexing**: GIN indices on JSONB columns for fast lookups
 3. **Partial Indices**: Pattern-matching indices for hash lookups using varchar_pattern_ops
 4. **Generated Columns**: Automatic calculation of total balances
-5. **Triggers**: Automatic deployment count updates and real-time notifications
+5. **Triggers**: Automatic deployment count updates and notification system
 
 #### Frontend Performance
 
@@ -263,6 +260,7 @@ typePolicies: {
 4. **Virtual Scrolling**: react-window used for very large lists
 5. **Memoization**: Expensive computations cached with useMemo and memo
 6. **Fragment-based Queries**: Reusable fragments reduce query complexity
+7. **Polling Optimization**: Configurable intervals based on data freshness needs
 
 ### Scalability
 
@@ -342,7 +340,7 @@ Health check includes:
 
 1. **Error Boundaries**: Catch component errors gracefully (AnimatePresenceWrapper)
 2. **Query Error Policies**: Configure retry and fallback behavior in Apollo Client
-3. **Connection Recovery**: Automatic WebSocket reconnection
+3. **Polling Recovery**: Automatic restart of polling on connection recovery
 4. **Offline Support**: Graceful degradation when API unavailable
 
 ### Data Synchronization Process
