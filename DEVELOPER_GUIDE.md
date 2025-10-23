@@ -145,60 +145,104 @@ psql -U indexer -d asichain -h localhost
 docker exec -it asi-indexer-db psql -U indexer -d asichain
 ```
 
-### Useful Database Queries
+### Useful GraphQL Queries
 
-```sql
--- Check indexer progress
-SELECT value FROM indexer_state WHERE key = 'last_indexed_block';
+Check indexer progress:
 
--- Count entities
-SELECT 
-  (SELECT COUNT(*) FROM blocks) as blocks,
-  (SELECT COUNT(*) FROM deployments) as deployments,
-  (SELECT COUNT(*) FROM transfers) as transfers,
-  (SELECT COUNT(*) FROM validators) as validators;
+```graphql
+query GetIndexerStatus {
+  blocks(order_by: { block_number: desc }, limit: 1) {
+    block_number
+    timestamp
+  }
+}
+```
 
--- Recent blocks
-SELECT block_number, block_hash, timestamp, deployment_count 
-FROM blocks 
-ORDER BY block_number DESC 
-LIMIT 10;
+Count entities:
 
--- Deployment statistics by type
-SELECT 
-  deployment_type, 
-  COUNT(*) as count,
-  AVG(phlo_cost) as avg_phlo_cost
-FROM deployments 
-GROUP BY deployment_type 
-ORDER BY count DESC;
+```graphql
+query GetEntityCounts {
+  blocks_aggregate {
+    aggregate {
+      count
+    }
+  }
+  deployments_aggregate {
+    aggregate {
+      count
+    }
+  }
+  transfers_aggregate {
+    aggregate {
+      count
+    }
+  }
+  validators_aggregate {
+    aggregate {
+      count
+    }
+  }
+}
+```
 
--- Top validators by stake
-SELECT public_key, total_stake, status
-FROM validators
-ORDER BY total_stake DESC
-LIMIT 10;
+Recent blocks:
 
--- Failed deployments
-SELECT deploy_id, deployer, error_message, block_number
-FROM deployments
-WHERE errored = true
-ORDER BY block_number DESC
-LIMIT 20;
+```graphql
+query GetRecentBlocks {
+  blocks(limit: 10, order_by: { block_number: desc }) {
+    block_number
+    block_hash
+    timestamp
+    deployment_count
+  }
+}
+```
 
--- Analyze tables for query optimization
-ANALYZE blocks;
-ANALYZE deployments;
-ANALYZE transfers;
+Deployment statistics by type:
 
--- Check table sizes
-SELECT 
-  schemaname,
-  tablename,
-  pg_size_pretty(pg_total_relation_size(schemaname||'.'||tablename)) AS size
-FROM pg_tables
-WHERE schemaname = 'public'
-ORDER BY pg_total_relation_size(schemaname||'.'||tablename) DESC;
+```graphql
+query GetDeploymentsByType {
+  deployments_aggregate(group_by: deployment_type) {
+    aggregate {
+      count
+      avg {
+        phlo_cost
+      }
+    }
+    nodes {
+      deployment_type
+    }
+  }
+}
+```
+
+Top validators by stake:
+
+```graphql
+query GetTopValidators {
+  validators(order_by: { total_stake: desc }, limit: 10) {
+    public_key
+    total_stake
+    status
+  }
+}
+```
+
+Failed deployments:
+
+```graphql
+query GetFailedDeployments {
+  deployments(
+    where: { errored: { _eq: true } }
+    order_by: { block_number: desc }
+    limit: 20
+  ) {
+    deploy_id
+    deployer
+    error_message
+    block_number
+  }
+}
 ```
 
 ## Debugging
@@ -230,10 +274,10 @@ python -m src.main
    - Test query in GraphiQL interface
    - Verify table relationships are configured
 
-2. **Real-time updates not working:**
-   - Check WebSocket connection in browser DevTools
-   - Verify subscription query syntax
-   - Check Hasura subscription configuration
+2. **Data not updating:**
+   - Check polling interval configuration
+   - Verify Apollo Client cache policies
+   - Check browser console for errors
 
 3. **Apollo Client cache issues:**
    - Clear cache: `client.clearStore()`
@@ -244,19 +288,21 @@ python -m src.main
 
 ### Database Optimization
 
-1. **Add indices for frequently queried columns:**
+Add indices for frequently queried columns using GraphQL admin queries or direct SQL access.
 
-```sql
-CREATE INDEX idx_custom_query ON table_name(column1, column2);
-```
+Use GraphQL aggregate queries efficiently:
 
-2. **Use EXPLAIN ANALYZE to understand query plans:**
-
-```sql
-EXPLAIN ANALYZE
-SELECT * FROM blocks WHERE block_number > 1000
-ORDER BY block_number DESC
-LIMIT 10;
+```graphql
+query GetAggregateStats {
+  blocks_aggregate {
+    aggregate {
+      count
+      max {
+        block_number
+      }
+    }
+  }
+}
 ```
 
 ### Indexer Optimization
@@ -301,124 +347,15 @@ const BlockCard = memo(({ block }) => {
 });
 ```
 
-## Deployment Checklist
+3. **Polling optimization:**
 
-### Pre-deployment
+Configure appropriate polling intervals based on data freshness requirements:
 
-- [ ] All tests passing
-- [ ] Code reviewed and approved
-- [ ] Environment variables configured
-- [ ] Database migrations tested
-- [ ] Performance testing completed
-- [ ] Security review completed
-
-### Deployment Steps
-
-1. Build images:
-```bash
-docker build -t asi-indexer:v1.0.0 ./indexer
-docker build -t asi-explorer:v1.0.0 ./explorer
+```typescript
+useQuery(GET_LATEST_BLOCKS, { 
+  pollInterval: 5000  // Poll every 5 seconds
+});
 ```
-
-2. Tag for registry:
-```bash
-docker tag asi-indexer:v1.0.0 registry.example.com/asi-indexer:v1.0.0
-docker tag asi-explorer:v1.0.0 registry.example.com/asi-explorer:v1.0.0
-```
-
-3. Push to registry:
-```bash
-docker push registry.example.com/asi-indexer:v1.0.0
-docker push registry.example.com/asi-explorer:v1.0.0
-```
-
-4. Update production environment
-5. Apply database migrations
-6. Deploy new containers
-7. Verify health checks
-8. Monitor metrics
-
-### Post-deployment
-
-- [ ] Verify indexer is syncing
-- [ ] Check GraphQL API responsiveness
-- [ ] Test frontend functionality
-- [ ] Monitor error rates
-- [ ] Review logs for issues
-
-## Common Issues and Solutions
-
-### Issue: Indexer falls behind chain tip
-
-**Symptoms:** `blocks_behind` metric increasing over time
-
-**Solutions:**
-1. Increase `BATCH_SIZE` to process more blocks per cycle
-2. Reduce `SYNC_INTERVAL` to sync more frequently
-3. Increase database connection pool
-4. Optimize database queries with better indices
-
-### Issue: Frontend shows stale data
-
-**Symptoms:** Data not updating in real-time
-
-**Solutions:**
-1. Check WebSocket connection status
-2. Verify subscription queries are active
-3. Enable polling as fallback:
-   ```typescript
-   useQuery(GET_BLOCKS, { pollInterval: 5000 })
-   ```
-
-### Issue: GraphQL query timeouts
-
-**Symptoms:** 504 Gateway Timeout errors
-
-**Solutions:**
-1. Reduce query depth/complexity
-2. Add pagination to large result sets
-3. Increase Hasura timeout settings
-4. Add database indices for queried fields
-
-### Issue: Database connection exhaustion
-
-**Symptoms:** "Too many connections" errors
-
-**Solutions:**
-1. Increase PostgreSQL `max_connections`
-2. Reduce `DATABASE_POOL_SIZE` if set too high
-3. Check for connection leaks in code
-4. Implement connection pooling at application level
-
-## Contributing Guidelines
-
-### Branch Strategy
-
-- `main` - Production-ready code
-- `dev` - Development branch
-- `feature/*` - Feature branches
-- `fix/*` - Bug fix branches
-- `release/*` - Release preparation branches
-
-### Commit Messages
-
-Follow conventional commits format:
-
-```
-feat(indexer): add genesis balance tracking
-fix(frontend): correct block timestamp display
-docs(readme): update installation instructions
-refactor(database): optimize validator queries
-```
-
-### Pull Request Process
-
-1. Create feature branch from `dev`
-2. Implement changes with tests
-3. Update documentation if needed
-4. Create PR with description of changes
-5. Address review comments
-6. Merge after approval
 
 ## Resources
 
