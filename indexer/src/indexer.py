@@ -55,7 +55,7 @@ class BlockIndexer:
     async def start(self):
         """Start the indexer."""
         self.running = True
-        logger.info("Starting blockchain indexer", node_url=settings.node_url)
+        logger.info("Starting blockchain indexer", node_url=settings.observer_host)
         
         # Initialize database
         await db.connect()
@@ -318,7 +318,7 @@ class BlockIndexer:
         transfers = []
         term = deploy_data.get("term", "")
         
-        # Check if term contains RevVault operations
+        # Check if term contains AsiVault operations
         if "ASIVault" not in term and "transfer" not in term:
             return transfers
         
