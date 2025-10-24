@@ -9,10 +9,13 @@ class Settings(BaseSettings):
     """Application settings loaded from environment variables."""
 
     # RChain Node Configuration
+    # Client for interacting with RChain node HTTP API.
+    # Maybe deprecated param
     node_url: str = Field(
         default="http://localhost:40453",
         description="RChain node HTTP API endpoint"
     )
+
     node_timeout: int = Field(
         default=30,
         description="HTTP request timeout in seconds"
@@ -23,17 +26,33 @@ class Settings(BaseSettings):
         default=None,
         description="Path to Rust CLI executable (node_cli)"
     )
-    node_host: str = Field(
-        default="localhost",
-        description="Node hostname for Rust CLI"
-    )
-    grpc_port: int = Field(
-        default=40412,
-        description="gRPC port for blockchain operations"
-    )
-    http_port: int = Field(
-        default=40413,
+
+    # node_host: str = Field(
+    #     default="localhost",
+    #     description="Node hostname for Rust CLI"
+    # )
+    # grpc_port: int = Field(
+    #     default=40412,
+    #     description="gRPC port for blockchain operations"
+    # )
+    # http_port: int = Field(
+    #     default=40413,
+    #     description="HTTP port for status queries"
+    # )
+
+    observer_http_port: int = Field(
+        default=40453,
         description="HTTP port for status queries"
+    )
+
+    observer_grpc_port: int = Field(
+        default=40452,
+        description="GRPC port for status queries"
+    )
+
+    observer_host: str = Field(
+        default="localhost",
+        description="host port for status queries"
     )
 
     # Database Configuration
