@@ -31,6 +31,7 @@ import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import { gql } from '@apollo/client';
 import { CURRENT_TOKEN } from '../utils/constants';
+import { toMillis } from '../utils/calculateBlockTime';
 
 // Helper functions to safely parse timestamps
 const parseTimestamp = (timestamp: any): number => {
@@ -877,7 +878,7 @@ Exported at: ${new Date().toLocaleString()}
               }}>
                 <div>
                   <Clock size={14} style={{ marginRight: '0.25rem' }} />
-                  {formatTimestampDistance(transfer.created_at)}
+                  {formatTimestampDistance(toMillis(transfer.created_at))}
                 </div>
                 {transfer.amount_dust && (
                   <div>
