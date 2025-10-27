@@ -8,7 +8,7 @@ GraphQL URL: `http://localhost:8080/v1/graphql`
 - **Network-Agnostic Genesis**: Automatic validator bond and ASI allocation extraction
 - **Balance State Tracking**: Separate bonded/unbonded balances per address
 - **Enhanced Transfer Detection**: Both variable-based and match-based Rholang patterns
-- **Address Validation**: Supports 53-56 character ASI addresses (previously 54-56)
+- **Address Validation**: Supports 52-56 character ASI addresses (previously 54-56)
 - **GraphQL API**: Full Hasura integration with automatic relationship configuration
 - **10 Comprehensive Tables**: Complete blockchain data model
 - **Full Blockchain Sync**: Index from genesis (block 0) without limitations
@@ -440,7 +440,7 @@ Get comprehensive network statistics.
   "deployments": {
     "by_type": [
       {"deployment_type": "validator_operation", "count": 146},
-      {"deployment_type": "rev_transfer", "count": 2}
+      {"deployment_type": "asi_transfer", "count": 2}
     ],
     "total_errored": 148
   },
@@ -451,7 +451,7 @@ Get comprehensive network statistics.
   },
   "transfers": {
     "total": 0,
-    "total_volume_rev": "0.00000000"
+    "total_volume_asi": "0.00000000"
   },
   "sync": {
     "started_from_block": 0,
@@ -482,7 +482,7 @@ Error response format:
 
 The indexer automatically classifies deployments into the following types:
 
-- `rev_transfer`: ASI token transfers between addresses
+- `asi_transfer`: ASI token transfers between addresses
 - `validator_operation`: Validator consensus and bonding operations
 - `smart_contract`: General smart contract deployments
 - `registry_lookup`: Registry service interactions
