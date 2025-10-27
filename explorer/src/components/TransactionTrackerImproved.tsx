@@ -51,7 +51,7 @@ const SEARCH_TRANSACTIONS = gql`
             deploy_id
             from_address
             to_address
-            amount_rev
+            amount_asi
             status
             created_at
             block_number
@@ -113,7 +113,7 @@ const GET_PAGINATED_TRANSACTIONS = gql`
             deploy_id
             from_address
             to_address
-            amount_rev
+            amount_asi
             status
             block_number
             created_at
@@ -272,7 +272,7 @@ const TransactionTrackerImproved: React.FC<TransactionTrackerImprovedProps> = ({
                     ...transfer,
                     type: "transfer",
                     id: transfer.id,
-                    displayTitle: `Transfer ${transfer.amount_rev} ${CURRENT_TOKEN}`,
+                    displayTitle: `Transfer ${transfer.amount_asi} ${CURRENT_TOKEN}`,
                     displayTime: transfer.created_at,
                     isError: transfer.status !== "success",
                 });
@@ -322,7 +322,7 @@ const TransactionTrackerImproved: React.FC<TransactionTrackerImprovedProps> = ({
                     ...transfer,
                     type: "transfer",
                     id: transfer.id,
-                    displayTitle: `Transfer ${transfer.amount_rev} ${CURRENT_TOKEN}`,
+                    displayTitle: `Transfer ${transfer.amount_asi} ${CURRENT_TOKEN}`,
                     displayTime: transfer.created_at,
                     isError: transfer.status !== "success",
                 });

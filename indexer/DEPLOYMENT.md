@@ -9,19 +9,19 @@ This guide covers various deployment scenarios for the ASI-Chain Indexer with ne
 - **Zero-Touch Deployment**: One-command setup with automatic configuration
 - **Validator Bond Detection**: Fixed regex pattern for new CLI output format
 - **Data Quality**: Proper NULL handling for deployment error messages
-- **Network-Agnostic Genesis Processing**: Automatic validator bond and REV allocation extraction
+- **Network-Agnostic Genesis Processing**: Automatic validator bond and ASI allocation extraction
 - **Full Blockchain Sync**: Index from genesis (block 0) without limitations
-- **Enhanced REV Transfer Detection**: Supports both variable-based and match-based Rholang patterns
+- **Enhanced ASI Transfer Detection**: Supports both variable-based and match-based Rholang patterns
 - **Balance State Tracking**: Separate bonded and unbonded balances per address
 - **GraphQL API Integration**: Automatic Hasura relationship configuration
 - **Rust CLI Integration**: Built from source inside Docker (cross-platform)
-- **Address Validation**: Supports 53-56 character REV addresses
+- **Address Validation**: Supports 53-56 character ASI addresses
 - **10 Comprehensive Tables**: Complete blockchain data model
 
 ## Key Capabilities
 
 - **Genesis Data Extraction**: Automatically processes validator bonds from block 0
-- **REV Balance Tracking**: Monitors bonded vs unbonded balances for all addresses
+- **ASI Balance Tracking**: Monitors bonded vs unbonded balances for all addresses
 - **GraphQL API**: Query all data via Hasura at http://localhost:8080
 - **Advanced Transfer Detection**: Handles both variable (@fromAddr) and match-based Rholang patterns
 - **Full Validator Keys**: Supports 130+ character validator public keys

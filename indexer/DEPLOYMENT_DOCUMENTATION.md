@@ -139,7 +139,7 @@ Remote F1R3FLY Network (13.251.66.61:40453)
 ```graphql
 {
   transfers {
-    amount_rev
+    amount_asi
     from_address
     to_address
     status
@@ -162,7 +162,7 @@ Remote F1R3FLY Network (13.251.66.61:40453)
 ### Database Schema (10 Tables):
 - **blocks** - Block headers with JSONB bonds_map and justifications
 - **deployments** - Smart contracts with full Rholang code and type classification
-- **transfers** - REV token transfers (variable and match-based patterns)
+- **transfers** - ASI token transfers (variable and match-based patterns)
 - **validators** - Validator registry with full public keys (130+ chars)
 - **validator_bonds** - Historical stake records per block
 - **balance_states** - Address balances (bonded vs unbonded)

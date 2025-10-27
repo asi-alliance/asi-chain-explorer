@@ -128,7 +128,7 @@ const NetworkDashboard: React.FC = () => {
         activeValidators: activeValidatorCount,
         transfers: Math.floor(transfers.length / dataPoints),
         deployments: 0, // Could fetch actual deployments if needed
-        totalStake: totalValidatorCount * 1000 // Each validator has 1000 REV
+        totalStake: totalValidatorCount * 1000 // Each validator has 1000 ASI
       };
     });
   }, [timeRange, blocks, transfers, networkStats]);
@@ -193,7 +193,7 @@ const NetworkDashboard: React.FC = () => {
     // Calculate TPS from actual data (transfers per block * blocks per second)
     const tps = avgBlockTime > 0 ? (transferCount / blockCount) / avgBlockTime : 0;
     
-    // Total stake from validators (each has 1000 REV)
+    // Total stake from validators (each has 1000 ASI)
     const totalStake = totalValidators * 1000;
     
     return [

@@ -26,7 +26,7 @@ export function useGenesisFunding() {
         id: `genesis_funding_${index + 1}`,
         wallet_address: funding.wallet_address,
         amount_dust: funding.amount_dust,
-        amount_rev: funding.amount_rev,
+        amount_asi: funding.amount_asi,
         status: 'genesis_funding',
         timestamp: funding.timestamp,
         deploy_id: funding.deploy_id,

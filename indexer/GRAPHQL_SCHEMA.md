@@ -58,14 +58,14 @@ Stores smart contract deployments.
 - `created_at` (timestamp): When indexed
 
 ### transfers
-Stores REV token transfers.
+Stores ASI token transfers.
 
 **Fields:**
 - `id` (serial): Primary key
 - `deploy_id` (varchar): Related deployment ID
 - `from_address` (varchar): Sender address
 - `to_address` (varchar): Recipient address
-- `amount_rev` (bigint): Amount in REV (nano units)
+- `amount_asi` (bigint): Amount in ASI (nano units)
 - `amount_dust` (bigint): Dust amount
 - `status` (varchar): Transfer status
 - `block_number` (bigint): Block number
@@ -112,13 +112,13 @@ Stores address balance snapshots with bonded/unbonded separation.
 
 **Fields:**
 - `id` (serial): Primary key
-- `address` (varchar): Address (REV address or validator key)
+- `address` (varchar): Address (ASI address or validator key)
 - `unbonded_balance_dust` (bigint): Unbonded balance in dust
-- `unbonded_balance_rev` (numeric): Unbonded balance in REV
+- `unbonded_balance_asi` (numeric): Unbonded balance in ASI
 - `bonded_balance_dust` (bigint): Bonded balance in dust
-- `bonded_balance_rev` (numeric): Bonded balance in REV
+- `bonded_balance_asi` (numeric): Bonded balance in ASI
 - `total_balance_dust` (bigint): Computed total in dust
-- `total_balance_rev` (numeric): Computed total in REV
+- `total_balance_asi` (numeric): Computed total in ASI
 - `block_number` (bigint): Block number
 - `updated_at` (timestamp): When updated
 
@@ -184,7 +184,7 @@ query GetBlockDeployments($blockNumber: bigint!) {
 }
 ```
 
-### Get REV Transfers
+### Get ASI Transfers
 ```graphql
 query GetTransfers {
   transfers(
@@ -193,7 +193,7 @@ query GetTransfers {
   ) {
     from_address
     to_address
-    amount_rev
+    amount_asi
     status
     block_number
   }
@@ -229,7 +229,7 @@ query GetAddressTransfers($address: String!) {
   ) {
     from_address
     to_address
-    amount_rev
+    amount_asi
     block_number
   }
 }
@@ -260,7 +260,7 @@ query GetStats {
     aggregate {
       count
       sum {
-        amount_rev
+        amount_asi
       }
     }
   }

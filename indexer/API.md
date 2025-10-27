@@ -5,10 +5,10 @@ GraphQL URL: `http://localhost:8080/v1/graphql`
 
 ## 🆕 New Features (v2.1.1 - Data Quality & Bond Detection)
 
-- **Network-Agnostic Genesis**: Automatic validator bond and REV allocation extraction
+- **Network-Agnostic Genesis**: Automatic validator bond and ASI allocation extraction
 - **Balance State Tracking**: Separate bonded/unbonded balances per address
 - **Enhanced Transfer Detection**: Both variable-based and match-based Rholang patterns
-- **Address Validation**: Supports 53-56 character REV addresses (previously 54-56)
+- **Address Validation**: Supports 52-56 character ASI addresses (previously 54-56)
 - **GraphQL API**: Full Hasura integration with automatic relationship configuration
 - **10 Comprehensive Tables**: Complete blockchain data model
 - **Full Blockchain Sync**: Index from genesis (block 0) without limitations
@@ -20,7 +20,7 @@ GraphQL URL: `http://localhost:8080/v1/graphql`
 ### Core Tables
 - **blocks**: Blockchain blocks with JSONB bonds_map and justifications
 - **deployments**: Smart contracts with full Rholang code
-- **transfers**: REV token transfers (both variable-based and match-based patterns)
+- **transfers**: ASI token transfers (both variable-based and match-based patterns)
 - **balance_states**: Address balances (bonded vs unbonded)
 - **validators**: Validator registry with full public keys (130+ chars)
 - **validator_bonds**: Historical stake records per block (including genesis)
@@ -288,13 +288,13 @@ Get detailed information about a specific deployment.
 **Response:** Full deployment details including Rholang code
 
 ### GET /api/transfers
-List REV transfers with pagination and filtering.
+List ASI transfers with pagination and filtering.
 
 **Query Parameters:**
 - `page` (integer, default: 1): Page number
 - `limit` (integer, default: 20, max: 100): Results per page
-- `from` (string): Filter by sender address (REV address or validator key)
-- `to` (string): Filter by recipient address (REV address or validator key)
+- `from` (string): Filter by sender address (ASI address or validator key)
+- `to` (string): Filter by recipient address (ASI address or validator key)
 
 **Response:**
 ```json
@@ -305,7 +305,7 @@ List REV transfers with pagination and filtering.
       "from_address": "04837a4cff833e31...",
       "to_address": "1111K6oNBewfN8iw...",
       "amount_dust": 1000000,
-      "amount_rev": "0.01000000",
+      "amount_asi": "0.01000000",
       "deploy_id": "3045022100...",
       "block_number": 50,
       "status": "success"
@@ -324,18 +324,18 @@ List REV transfers with pagination and filtering.
 Get balance state for an address.
 
 **Path Parameters:**
-- `address` (string): REV address or validator public key
+- `address` (string): ASI address or validator public key
 
 **Response:**
 ```json
 {
   "address": "04837a4cff833e31...",
   "unbonded_balance_dust": 0,
-  "unbonded_balance_rev": "0.00000000",
+  "unbonded_balance_asi": "0.00000000",
   "bonded_balance_dust": 50000000000000,
-  "bonded_balance_rev": "500000.00000000",
+  "bonded_balance_asi": "500000.00000000",
   "total_balance_dust": 50000000000000,
-  "total_balance_rev": "500000.00000000",
+  "total_balance_asi": "500000.00000000",
   "block_number": 240,
   "updated_at": "2025-08-06T08:10:00.000000"
 }
@@ -440,7 +440,7 @@ Get comprehensive network statistics.
   "deployments": {
     "by_type": [
       {"deployment_type": "validator_operation", "count": 146},
-      {"deployment_type": "rev_transfer", "count": 2}
+      {"deployment_type": "asi_transfer", "count": 2}
     ],
     "total_errored": 148
   },
@@ -451,7 +451,7 @@ Get comprehensive network statistics.
   },
   "transfers": {
     "total": 0,
-    "total_volume_rev": "0.00000000"
+    "total_volume_asi": "0.00000000"
   },
   "sync": {
     "started_from_block": 0,
@@ -482,7 +482,7 @@ Error response format:
 
 The indexer automatically classifies deployments into the following types:
 
-- `rev_transfer`: REV token transfers between addresses
+- `asi_transfer`: ASI token transfers between addresses
 - `validator_operation`: Validator consensus and bonding operations
 - `smart_contract`: General smart contract deployments
 - `registry_lookup`: Registry service interactions
@@ -550,9 +550,9 @@ See `GRAPHQL_GUIDE.md` for comprehensive examples.
 - ✅ Network-agnostic genesis processing
 - ✅ Automatic validator bond extraction from block 0
 - ✅ Balance state tracking (bonded vs unbonded)
-- ✅ Enhanced REV transfer pattern matching (variable and match-based)
+- ✅ Enhanced ASI transfer pattern matching (variable and match-based)
 - ✅ GraphQL API with Hasura integration
 - ✅ One-command deployment with deploy.sh
-- ✅ Support for 150-char addresses (validators and REV)
+- ✅ Support for 150-char addresses (validators and ASI)
 - ✅ 10 comprehensive database tables
 - ✅ Integrated Rust CLI for full blockchain access

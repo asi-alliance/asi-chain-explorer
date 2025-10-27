@@ -114,7 +114,7 @@ const GET_TRANSACTION_DETAILS = gql`
         id
         from_address
         to_address
-        amount_rev
+        amount_asi
         amount_dust
         status
         created_at
@@ -201,7 +201,7 @@ Type: ${transaction.deployment_type || 'Unknown'}
 
 ${transaction.error_message ? `Error: ${transaction.error_message}\n` : ''}
 ${transfers.length > 0 ? `\nTransfers (${transfers.length}):\n${transfers.map((t: any) => 
-  `- ${t.amount_rev} ${CURRENT_TOKEN} from ${t.from_address} to ${t.to_address} (${t.status})`
+  `- ${t.amount_asi} ${CURRENT_TOKEN} from ${t.from_address} to ${t.to_address} (${t.status})`
 ).join('\n')}` : ''}
 
 Exported at: ${new Date().toLocaleString()}
@@ -632,7 +632,7 @@ Exported at: ${new Date().toLocaleString()}
                   marginBottom: '0.5rem'
                 }}>
                   <span style={{ fontWeight: '600', color: '#3b82f6' }}>
-                    {transfer.amount_rev} {CURRENT_TOKEN}
+                    {transfer.amount_asi} {CURRENT_TOKEN}
                   </span>
                   <span style={{
                     padding: '0.25rem 0.5rem',
@@ -802,7 +802,7 @@ Exported at: ${new Date().toLocaleString()}
                     color: '#3b82f6',
                     marginBottom: '0.25rem'
                   }}>
-                    {transfer.amount_rev} {CURRENT_TOKEN}
+                    {transfer.amount_asi} {CURRENT_TOKEN}
                   </div>
                   <div style={{ fontSize: '0.875rem', color: '#9ca3af' }}>
                     Transfer #{transfer.id}

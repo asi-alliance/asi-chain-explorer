@@ -22,7 +22,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     const navigation = [
         { name: "Blocks", href: "/" },
         { name: "Transactions", href: "/transactions" },
-        // { name: "REV Transfers", href: "/transfers" },
+        // { name: "ASI Transfers", href: "/transfers" },
         // { name: "Deployments", href: "/deployments" },
         { name: "Validators", href: "/validators" },
         { name: "Statistics", href: "/statistics" },
