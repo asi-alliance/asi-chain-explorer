@@ -370,8 +370,8 @@ const TransactionTracker: React.FC<TransactionTrackerProps> = ({
     const totalPhlo = deployments.reduce((sum: number, d: any) => sum + (parseFloat(d.phlo_cost) || 0), 0);
     const avgPhloCost = totalDeployments > 0 ? totalPhlo / totalDeployments : 0;
     
-    const totalRevTransferred = transfers.reduce((sum: number, t: any) => sum + (parseFloat(t.amount_asi) || 0), 0);
-    const avgTransferAmount = totalTransfers > 0 ? totalRevTransferred / totalTransfers : 0;
+    const totalAsiTransferred = transfers.reduce((sum: number, t: any) => sum + (parseFloat(t.amount_asi) || 0), 0);
+    const avgTransferAmount = totalTransfers > 0 ? totalAsiTransferred / totalTransfers : 0;
     
     return {
       totalDeployments,
@@ -382,7 +382,7 @@ const TransactionTracker: React.FC<TransactionTrackerProps> = ({
       transferSuccessRate: totalTransfers > 0 ? (successfulTransfers / totalTransfers) * 100 : 0,
       avgPhloCost,
       totalPhlo,
-      totalRevTransferred,
+      totalAsiTransferred: totalAsiTransferred,
       avgTransferAmount
     };
   }, [statsData]);
@@ -616,7 +616,7 @@ const TransactionTracker: React.FC<TransactionTrackerProps> = ({
               <span style={{ fontSize: '0.875rem', color: '#9ca3af' }}>{CURRENT_TOKEN} Volume</span>
             </div>
             <div style={{ fontSize: '1.5rem', fontWeight: '600', marginBottom: '0.25rem' }}>
-              {transactionStats.totalRevTransferred.toLocaleString()}
+              {transactionStats.totalAsiTransferred.toLocaleString()}
             </div>
             <div style={{ fontSize: '0.75rem', color: '#9ca3af' }}>
               Avg: {transactionStats.avgTransferAmount.toFixed(4)} {CURRENT_TOKEN}

@@ -27,13 +27,13 @@ class RustBlockIndexer:
     # Pattern for extracting ASI transfers from Rholang terms
     TRANSFER_PATTERNS = [
         # Standard AsiVault transfer pattern with literal address: @vault!("transfer", "address", amount,
-        r'@vault!\s*\(\s*"transfer"\s*,\s*"([0-9a-zA-Z0-9]{54,56})"\s*,\s*(\d+)\s*,',
+        r'@vault!\s*\(\s*"transfer"\s*,\s*"([0-9a-zA-Z0-9]{52,56})"\s*,\s*(\d+)\s*,',
         # Variable-based transfer pattern: @vault!("transfer", recipient, amount,
         r'@vault!\s*\(\s*"transfer"\s*,\s*(\w+)\s*,\s*(\d+)\s*,',
         # Match pattern with ASI addresses: match ("from", "to", amount)
-        r'match\s*\(\s*"([0-9a-zA-Z0-9]{54,56})"\s*,\s*"([0-9a-zA-Z0-9]{54,56})"\s*,\s*(\d+)\s*\)',
+        r'match\s*\(\s*"([0-9a-zA-Z0-9]{52,56})"\s*,\s*"([0-9a-zA-Z0-9]{52,57})"\s*,\s*(\d+)\s*\)',
         # AsiVault findOrCreate pattern
-        r'ASIVault!\s*\(\s*"findOrCreate"\s*,\s*"([0-9a-zA-Z0-9]{54,56})"\s*,\s*(\d+)\s*\)',
+        r'ASIVault!\s*\(\s*"findOrCreate"\s*,\s*"([0-9a-zA-Z0-9]{52,57})"\s*,\s*(\d+)\s*\)',
     ]
 
     # New pattern specifically for the transfer deployments in blocks 365, 377
@@ -43,11 +43,11 @@ class RustBlockIndexer:
     # Pattern to extract address assignments from match statements
     ADDRESS_BINDING_PATTERNS = [
         # match "address" { varName =>
-        r'match\s*"([0-9a-zA-Z0-9]{54,56})"\s*\{\s*(\w+)\s*=>',
+        r'match\s*"([0-9a-zA-Z0-9]{52,56})"\s*\{\s*(\w+)\s*=>',
         # varName = "address"
-        r'(\w+)\s*=\s*"([0-9a-zA-Z0-9]{54,56})"',
+        r'(\w+)\s*=\s*"([0-9a-zA-Z0-9]{52,56})"',
         # match ("from", "to", amount) { (varFrom, varTo, varAmount) =>
-        r'match\s*\(\s*"([0-9a-zA-Z0-9]{54,56})"\s*,\s*"([0-9a-zA-Z0-9]{54,56})"\s*,\s*\d+\s*\)\s*\{\s*\((\w+)\s*,\s*(\w+)\s*,\s*\w+\)\s*=>',
+        r'match\s*\(\s*"([0-9a-zA-Z0-9]{52,56})"\s*,\s*"([0-9a-zA-Z0-9]{52,57})"\s*,\s*\d+\s*\)\s*\{\s*\((\w+)\s*,\s*(\w+)\s*,\s*\w+\)\s*=>',
     ]
 
     @staticmethod
@@ -653,15 +653,15 @@ class RustBlockIndexer:
 
         # Check for direct transfer pattern first (blocks 365, 377 style)
         direct_matches = re.findall(self.DIRECT_TRANSFER_PATTERN, term)
-        if block_number in [365, 377]:
-            logger.info(f"Block {block_number}: Pattern search result: {len(direct_matches)} matches found")
+        # if block_number in [365, 377]:
+        #     logger.info(f"Block {block_number}: Pattern search result: {len(direct_matches)} matches found")
         if direct_matches:
             for match in direct_matches:
                 try:
                     from_address, to_address, amount_str = match
-                    # Validate addresses (ASI addresses can be 53-56 characters)
-                    if (from_address.startswith('1111') and len(from_address) in range(53, 57) and
-                            to_address.startswith('1111') and len(to_address) in range(53, 57)):
+                    # Validate addresses (ASI addresses can be 52-56 characters)
+                    if (from_address.startswith('1111') and len(from_address) in range(52, 57) and
+                            to_address.startswith('1111') and len(to_address) in range(52, 57)):
 
                         amount_dust = int(amount_str)
                         if amount_dust > 0:
@@ -700,18 +700,18 @@ class RustBlockIndexer:
         address_bindings = {}
 
         # Debug logging for block 334
-        if block_number == 334:
-            logger.info("Analyzing block 334 deployment", term_length=len(term))
+        # if block_number == 334:
+        #     logger.info("Analyzing block 334 deployment", term_length=len(term))
 
         for pattern in self.ADDRESS_BINDING_PATTERNS:
             matches = re.findall(pattern, term)
             for match in matches:
                 if len(match) == 2:
                     # Could be (address, var) or (var, address) depending on pattern
-                    if match[0].startswith('1111') and len(match[0]) in range(54, 57):
+                    if match[0].startswith('1111') and len(match[0]) in range(52, 57):
                         # First element is address
                         address_bindings[match[1]] = match[0]
-                    elif match[1].startswith('1111') and len(match[1]) in range(54, 57):
+                    elif match[1].startswith('1111') and len(match[1]) in range(52, 57):
                         # Second element is address
                         address_bindings[match[0]] = match[1]
                 elif len(match) == 4:
@@ -719,8 +719,8 @@ class RustBlockIndexer:
                     if match[0].startswith('1111') and match[1].startswith('1111'):
                         address_bindings[match[2]] = match[0]  # fromVar = fromAddr
                         address_bindings[match[3]] = match[1]  # toVar = toAddr
-                        if block_number == 334:
-                            logger.info("Found address bindings in block 334", bindings=address_bindings)
+                        # if block_number == 334:
+                        #     logger.info("Found address bindings in block 334", bindings=address_bindings)
 
         # Try each transfer pattern
         for pattern in self.TRANSFER_PATTERNS:
@@ -740,7 +740,7 @@ class RustBlockIndexer:
                         # Check if to_identifier is a variable that we have a binding for
                         if to_identifier in address_bindings:
                             to_address = address_bindings[to_identifier]
-                        elif to_identifier.startswith('1111') and len(to_identifier) in range(54, 57):
+                        elif to_identifier.startswith('1111') and len(to_identifier) in range(52, 57):
                             # It's already an address
                             to_address = to_identifier
                         else:
@@ -754,7 +754,7 @@ class RustBlockIndexer:
                         # Resolve from address
                         if from_identifier in address_bindings:
                             from_address = address_bindings[from_identifier]
-                        elif from_identifier.startswith('1111') and len(from_identifier) in range(54, 57):
+                        elif from_identifier.startswith('1111') and len(from_identifier) in range(52, 57):
                             from_address = from_identifier
                         else:
                             from_address = deploy_data.get("deployer", deploy_data.get("sender", ""))
@@ -762,7 +762,7 @@ class RustBlockIndexer:
                         # Resolve to address
                         if to_identifier in address_bindings:
                             to_address = address_bindings[to_identifier]
-                        elif to_identifier.startswith('1111') and len(to_identifier) in range(54, 57):
+                        elif to_identifier.startswith('1111') and len(to_identifier) in range(52, 57):
                             to_address = to_identifier
                         else:
                             continue

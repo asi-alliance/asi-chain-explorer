@@ -80,18 +80,18 @@ Smart contract deployments and transactions.
 | status | String | Deployment status |
 
 ### 3. **transfers**
-REV token transfers extracted from deployments.
+ASI token transfers extracted from deployments.
 
-| Field | Type | Description |
-|-------|------|-------------|
-| id | BigInt | Auto-increment transfer ID |
-| from_address | String | Sender address (REV address or validator public key) |
-| to_address | String | Recipient address (REV address or validator public key) |
-| amount_dust | BigInt | Amount in dust (smallest unit) |
-| amount_asi | Numeric | ASI amount (8 decimals) |
-| deploy_id | String | Associated deployment |
-| block_number | String | Block containing transfer |
-| status | String | Transfer status |
+| Field | Type | Description                                             |
+|-------|------|---------------------------------------------------------|
+| id | BigInt | Auto-increment transfer ID                              |
+| from_address | String | Sender address (ASI address or validator public key)    |
+| to_address | String | Recipient address (ASI address or validator public key) |
+| amount_dust | BigInt | Amount in dust (smallest unit)                          |
+| amount_asi | Numeric | ASI amount (8 decimals)                                 |
+| deploy_id | String | Associated deployment                                   |
+| block_number | String | Block containing transfer                               |
+| status | String | Transfer status                                         |
 
 ### 4. **validator_bonds**
 Historical validator stake records per block (including genesis bonds).
