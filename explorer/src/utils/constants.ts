@@ -1,5 +1,5 @@
 export enum AvailableTokens {
-    REV = "REV",
+    REV = "REV", // deprecated
     ASI = "ASI",
 }
 

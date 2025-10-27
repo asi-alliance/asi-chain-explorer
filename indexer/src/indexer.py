@@ -21,7 +21,7 @@ logger = structlog.get_logger(__name__)
 class BlockIndexer:
     """Main indexer class for processing blockchain data."""
     
-    # Pattern for extracting REV transfers from Rholang terms
+    # Pattern for extracting ASI transfers from Rholang terms
     TRANSFER_PATTERNS = [
         # Standard transfer pattern
         r'@vault!\("transfer",\s*"([^"]+)",\s*(\d+),',
@@ -35,8 +35,8 @@ class BlockIndexer:
     @staticmethod
     def classify_deployment(term: str) -> str:
         """Classify deployment type based on Rholang term content."""
-        if 'RevVault' in term and 'transfer' in term:
-            return 'rev_transfer'
+        if 'ASIVault' in term and 'transfer' in term:
+            return 'asi_transfer'
         elif 'validator' in term or 'bond' in term:
             return 'validator_operation'
         elif 'finalizer' in term:
@@ -55,7 +55,7 @@ class BlockIndexer:
     async def start(self):
         """Start the indexer."""
         self.running = True
-        logger.info("Starting blockchain indexer", node_url=settings.node_url)
+        logger.info("Starting blockchain indexer", node_url=settings.observer_host)
         
         # Initialize database
         await db.connect()
@@ -307,19 +307,19 @@ class BlockIndexer:
         )
         session.add(deployment)
         
-        # Extract REV transfers if enabled
+        # Extract ASI transfers if enabled
         if settings.enable_rev_transfer_extraction:
             transfers = self._extract_transfers(deploy_data, block_data["blockNumber"])
             for transfer in transfers:
                 session.add(transfer)
     
     def _extract_transfers(self, deploy_data: Dict, block_number: int) -> List[Transfer]:
-        """Extract REV transfers from deployment term."""
+        """Extract ASI transfers from deployment term."""
         transfers = []
         term = deploy_data.get("term", "")
         
-        # Check if term contains RevVault operations
-        if "RevVault" not in term and "transfer" not in term:
+        # Check if term contains AsiVault operations
+        if "ASIVault" not in term and "transfer" not in term:
             return transfers
         
         # Try each pattern
@@ -343,7 +343,7 @@ class BlockIndexer:
                     if amount_dust <= 0:
                         continue
                     
-                    amount_rev = Decimal(amount_dust) / Decimal(100_000_000)
+                    amount_asi = Decimal(amount_dust) / Decimal(100_000_000)
                     
                     # Create transfer record
                     transfer = Transfer(
@@ -352,16 +352,16 @@ class BlockIndexer:
                         from_address=from_address,
                         to_address=to_address,
                         amount_dust=amount_dust,
-                        amount_rev=amount_rev,
+                        amount_asi=amount_asi,
                         status="success" if not deploy_data.get("errored") else "failed"
                     )
                     transfers.append(transfer)
                     
                     logger.debug(
-                        "Found REV transfer",
+                        "Found ASI transfer",
                         from_address=from_address[:20],
                         to_address=to_address[:20],
-                        amount_rev=float(amount_rev)
+                        amount_asi=float(amount_asi)
                     )
                     
                 except (ValueError, IndexError) as e:

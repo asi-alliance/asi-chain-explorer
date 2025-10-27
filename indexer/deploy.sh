@@ -123,9 +123,6 @@ if [ ! -f ".env" ]; then
                 cat > .env << 'EOF'
 # ASI-Chain Indexer Configuration for Remote Observer Node
 NODE_HOST=44.198.8.24
-HTTP_PORT=40403
-GRPC_PORT=40401
-DATABASE_URL=postgresql://indexer:indexer_pass@postgres:5432/asichain
 RUST_CLI_PATH=/usr/local/bin/node_cli
 SYNC_INTERVAL=5
 BATCH_SIZE=50
@@ -144,9 +141,7 @@ EOF
             cat > .env << 'EOF'
 # ASI-Chain Indexer Configuration for Local Node
 NODE_HOST=44.198.8.24
-GRPC_PORT=40452
-HTTP_PORT=40453
-DATABASE_URL=postgresql://indexer:indexer_pass@postgres:5432/asichain
+DATABASE_URL=postgresql://indexer:PASS@postgres:5432/asichain
 RUST_CLI_PATH=/usr/local/bin/node_cli
 SYNC_INTERVAL=5
 BATCH_SIZE=50
@@ -162,13 +157,9 @@ EOF
             ;;
         3)
             cat > .env << 'EOF'
+
 # ASI-Chain Indexer Environment Configuration
 # Please customize these values for your deployment
-
-NODE_HOST=44.198.8.24
-GRPC_PORT=40452
-HTTP_PORT=40453
-DATABASE_URL=postgresql://indexer:indexer_pass@postgres:5432/asichain
 RUST_CLI_PATH=/usr/local/bin/node_cli
 SYNC_INTERVAL=5
 BATCH_SIZE=50
@@ -240,7 +231,7 @@ source .env 2>/dev/null || echo "Warning: Could not source .env file"
 
 # Use new environment variable format (NODE_HOST and HTTP_PORT)
 TEST_HOST="$NODE_HOST"
-TEST_PORT="${HTTP_PORT:-40453}"
+TEST_PORT="${HTTP_PORT:-40403}"
 
 # Handle different host formats
 if [ "$TEST_HOST" = "host.docker.internal" ]; then

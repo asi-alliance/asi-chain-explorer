@@ -15,8 +15,8 @@ logger = structlog.get_logger(__name__)
 
 class RustCLIClient:
     """Client for interacting with ASI-Chain using rust-client CLI."""
-    
-    def __init__(self, cli_path: str = None, node_host: str = None, grpc_port: int = None, http_port: int = None):
+
+    def __init__(self, cli_path: str = None, observer_host: str = None, observer_grpc_port: int = None, observer_http_port: int = None):
         """Initialize the Rust CLI client.
         
         Args:
@@ -26,14 +26,23 @@ class RustCLIClient:
             http_port: HTTP port for status queries
         """
         self.cli_path = cli_path or settings.rust_cli_path or "/rust-client/target/release/node_cli"
-        self.node_host = node_host or settings.node_host or "localhost"
-        self.grpc_port = grpc_port or settings.grpc_port or 40412
-        self.http_port = http_port or settings.http_port or 40413
-        
+        # self.node_host = node_host or settings.node_host or "localhost"
+        # self.grpc_port = grpc_port or settings.grpc_port or 40412
+        # self.http_port = http_port or settings.http_port or 40413
+
+        self.observer_http_port = observer_http_port or settings.observer_http_port or 40453
+        self.observer_grpc_port = observer_grpc_port or settings.observer_grpc_port or 40452
+
+        # self.VALIDATOR_HTTP_PORT = http_port or settings.http_port or 40413
+        # self.VALIDATOR_GRPC_PORT = http_port or settings.http_port or 40413
+
+        self.observer_host = observer_host or settings.observer_host or "localhost"
+        # self.validator_host = node_host or settings.validator_host or "localhost"
+
         # Verify CLI exists
         if not Path(self.cli_path).exists():
             raise FileNotFoundError(f"Rust CLI not found at {self.cli_path}")
-    
+
     async def _run_command(self, command: List[str], timeout: int = 30) -> Tuple[str, str]:
         """Run a CLI command and return stdout and stderr.
         
@@ -45,37 +54,37 @@ class RustCLIClient:
             Tuple of (stdout, stderr)
         """
         full_command = [self.cli_path] + command
-        
+
         logger.debug(f"Running command: {' '.join(full_command)}")
-        
+
         try:
             process = await asyncio.create_subprocess_exec(
                 *full_command,
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE
             )
-            
+
             stdout, stderr = await asyncio.wait_for(
                 process.communicate(),
                 timeout=timeout
             )
-            
+
             stdout_str = stdout.decode('utf-8')
             stderr_str = stderr.decode('utf-8')
-            
+
             if process.returncode != 0:
                 logger.error(f"Command failed: {stderr_str}")
                 raise RuntimeError(f"CLI command failed: {stderr_str}")
-            
+
             return stdout_str, stderr_str
-            
+
         except asyncio.TimeoutError:
             logger.error(f"Command timed out after {timeout}s")
             raise
         except Exception as e:
             logger.error(f"Command execution failed: {e}")
             raise
-    
+
     def _parse_json_from_output(self, output: str) -> Dict[str, Any]:
         """Extract JSON from CLI output.
         
@@ -89,9 +98,9 @@ class RustCLIClient:
             json_start = output.find('[')
             if json_start == -1:
                 raise ValueError("No JSON found in output")
-        
+
         json_str = output[json_start:]
-        
+
         # Handle case where there might be text after JSON
         # Try to parse progressively smaller strings until successful
         for i in range(len(json_str), 0, -1):
@@ -99,9 +108,9 @@ class RustCLIClient:
                 return json.loads(json_str[:i])
             except json.JSONDecodeError:
                 continue
-        
+
         raise ValueError(f"Could not parse JSON from output: {output}")
-    
+
     async def get_last_finalized_block(self) -> Optional[Dict[str, Any]]:
         """Get the last finalized block.
         
@@ -111,45 +120,45 @@ class RustCLIClient:
         try:
             stdout, _ = await self._run_command([
                 "last-finalized-block",
-                "-H", self.node_host,
-                "-p", str(self.http_port)
+                "-H", self.observer_host,
+                "--http-port", str(self.observer_http_port),
             ])
-            
+
             # Parse the text output for last-finalized-block
             block_info = {}
             lines = stdout.strip().split('\n')
-            
+
             for line in lines:
                 # Parse block number
                 if "Block Number:" in line:
                     match = re.search(r'Block Number:\s*(\d+)', line)
                     if match:
                         block_info["blockNumber"] = int(match.group(1))
-                
+
                 # Parse block hash
                 elif "Block Hash:" in line:
                     match = re.search(r'Block Hash:\s*([a-f0-9]+)', line)
                     if match:
                         block_info["blockHash"] = match.group(1)
-                
+
                 # Parse timestamp
                 elif "Timestamp:" in line:
                     match = re.search(r'Timestamp:\s*(\d+)', line)
                     if match:
                         block_info["timestamp"] = int(match.group(1))
-                
+
                 # Parse deploy count
                 elif "Deploy Count:" in line:
                     match = re.search(r'Deploy Count:\s*(\d+)', line)
                     if match:
                         block_info["deployCount"] = int(match.group(1))
-            
+
             return block_info if block_info else None
-            
+
         except Exception as e:
             logger.error(f"Failed to get last finalized block: {e}")
             return None
-    
+
     async def get_blocks_by_height(self, start: int, end: int) -> List[Dict[str, Any]]:
         """Get blocks within a height range.
         
@@ -165,15 +174,15 @@ class RustCLIClient:
                 "get-blocks-by-height",
                 "-s", str(start),
                 "-e", str(end),
-                "-H", self.node_host,
-                "-p", str(self.grpc_port)
+                "-H", self.observer_host,
+                "--grpc-port", str(self.observer_grpc_port)
             ], timeout=60)  # Longer timeout for potentially many blocks
-            
+
             # Extract blocks from output
             # The output contains status messages and then block info
             blocks = []
             lines = stdout.strip().split('\n')
-            
+
             # Look for block entries
             current_block = {}
             for line in lines:
@@ -184,43 +193,43 @@ class RustCLIClient:
                     match = re.search(r'Block #(\d+):', line)
                     if match:
                         current_block = {"blockNumber": int(match.group(1))}
-                
+
                 # Parse other fields
                 elif "🔗 Hash:" in line or "Hash:" in line:
                     match = re.search(r'Hash:\s*([a-f0-9]+)', line)
                     if match and current_block:
                         current_block["blockHash"] = match.group(1)
-                
+
                 elif "👤 Sender:" in line or "Sender:" in line:
                     match = re.search(r'Sender:\s*([a-f0-9]+)', line)
                     if match and current_block:
                         current_block["sender"] = match.group(1)
-                
+
                 elif "⏰ Timestamp:" in line or "Timestamp:" in line:
                     match = re.search(r'Timestamp:\s*(\d+)', line)
                     if match and current_block:
                         current_block["timestamp"] = int(match.group(1))
-                
+
                 elif "📦 Deploy Count:" in line or "Deploy Count:" in line:
                     match = re.search(r'Deploy Count:\s*(\d+)', line)
                     if match and current_block:
                         current_block["deployCount"] = int(match.group(1))
-                
+
                 elif "⚖️  Fault Tolerance:" in line or "Fault Tolerance:" in line:
                     match = re.search(r'Fault Tolerance:\s*([\d.]+)', line)
                     if match and current_block:
                         current_block["faultTolerance"] = float(match.group(1))
-            
+
             # Don't forget the last block
             if current_block:
                 blocks.append(current_block)
-            
+
             return blocks
-            
+
         except Exception as e:
             logger.error(f"Failed to get blocks by height {start}-{end}: {e}")
             return []
-    
+
     async def get_block_details(self, block_hash: str) -> Optional[Dict[str, Any]]:
         """Get detailed block information including deployments.
         
@@ -234,17 +243,17 @@ class RustCLIClient:
             stdout, _ = await self._run_command([
                 "blocks",
                 "--block-hash", block_hash,
-                "-H", self.node_host,
-                "-p", str(self.http_port)
+                "-H", self.observer_host,
+                "--http-port", str(self.observer_http_port)
             ], timeout=30)
-            
+
             # Parse the JSON response
             return self._parse_json_from_output(stdout)
-            
+
         except Exception as e:
             logger.error(f"Failed to get block details for {block_hash}: {e}")
             return None
-    
+
     async def get_deploy_info(self, deploy_id: str) -> Optional[Dict[str, Any]]:
         """Get deployment information by ID.
         
@@ -259,17 +268,17 @@ class RustCLIClient:
                 "get-deploy",
                 "-d", deploy_id,
                 "--format", "json",
-                "-H", self.node_host,
-                "--http-port", str(self.http_port)
+                "-H", self.observer_host,
+                "--http-port", str(self.observer_http_port),
             ])
-            
+
             # Parse the JSON response
             return self._parse_json_from_output(stdout)
-            
+
         except Exception as e:
             logger.error(f"Failed to get deploy {deploy_id}: {e}")
             return None
-    
+
     async def get_bonds(self) -> Optional[Dict[str, Any]]:
         """Get current validator bonds.
         
@@ -279,19 +288,19 @@ class RustCLIClient:
         try:
             stdout, _ = await self._run_command([
                 "bonds",
-                "-H", self.node_host,
-                "-p", str(self.http_port)
+                "-H", self.observer_host,
+                "--http-port", str(self.observer_http_port)
             ])
-            
+
             # Parse bonds from output
             bonds = []
             lines = stdout.strip().split('\n')
-            
+
             for line in lines:
                 # Look for lines with validator info
                 # New format: "1. 04837a4c...b2df065f (stake: 1000)"
-                # Old format: "Validator: <pubkey> | Stake: <amount> REV"
-                
+                # Old format: "Validator: <pubkey> | Stake: <amount> ASI"
+
                 # Try new format first (abbreviated keys with stake in parentheses)
                 match = re.search(r'([a-f0-9]{8})\.\.\.([a-f0-9]{8})\s*\(stake:\s*([\d,]+)\)', line)
                 if match:
@@ -305,19 +314,19 @@ class RustCLIClient:
                     })
                 else:
                     # Try old format
-                    match = re.search(r'Validator:\s*([a-f0-9]+)\s*\|\s*Stake:\s*([\d,]+)\s*REV', line)
+                    match = re.search(r'Validator:\s*([a-f0-9]+)\s*\|\s*Stake:\s*([\d,]+)\s*ASI', line)
                     if match:
                         bonds.append({
                             "validator": match.group(1),
                             "stake": int(match.group(2).replace(',', ''))
                         })
-            
+
             return {"bonds": bonds}
-            
+
         except Exception as e:
             logger.error(f"Failed to get bonds: {e}")
             return None
-    
+
     async def get_active_validators(self) -> Optional[List[Dict[str, Any]]]:
         """Get list of active validators with their stake.
         
@@ -327,14 +336,14 @@ class RustCLIClient:
         try:
             stdout, _ = await self._run_command([
                 "active-validators",
-                "-H", self.node_host,
-                "-p", str(self.http_port)
+                "-H", self.observer_host,
+                "--http-port", str(self.observer_http_port)
             ])
-            
+
             # Parse validator list from output
             validators = []
             lines = stdout.strip().split('\n')
-            
+
             for line in lines:
                 # Look for lines with validator info like:
                 # 1. 04837a4c...b2df065f (stake: 50000000000000)
@@ -343,11 +352,11 @@ class RustCLIClient:
                     # This is abbreviated, need to find full key in previous lines
                     abbreviated = match.group(1)
                     stake = int(match.group(2))
-                    
+
                     # Look for full key that matches the abbreviation
                     prefix = abbreviated.split('...')[0]
                     suffix = abbreviated.split('...')[-1]
-                    
+
                     # Search all lines for full key
                     for check_line in lines:
                         full_match = re.search(r'([0-9a-fA-F]{130})', check_line)
@@ -367,13 +376,13 @@ class RustCLIClient:
                             'validator': match.group(1),
                             'stake': int(match.group(2))
                         })
-            
+
             return validators if validators else None
-            
+
         except Exception as e:
             logger.error(f"Failed to get active validators: {e}")
             return None
-    
+
     async def get_epoch_info(self) -> Optional[Dict[str, Any]]:
         """Get current epoch information.
         
@@ -383,41 +392,43 @@ class RustCLIClient:
         try:
             stdout, _ = await self._run_command([
                 "epoch-info",
-                "-H", self.node_host,
-                "-p", str(40452)  # Observer port for PoS queries
+                "-H", self.observer_host,
+                "--grpc-port", str(self.observer_grpc_port),  # Observer port for PoS queries, old: 40452
+                "--http-port", str(self.observer_http_port)
             ])
-            
+
             # Parse epoch info from output
             epoch_info = {}
             lines = stdout.strip().split('\n')
-            
+
             for line in lines:
                 # Current Epoch: X
                 match = re.search(r'Current Epoch:\s*(\d+)', line)
                 if match:
                     epoch_info["current_epoch"] = int(match.group(1))
-                
+
                 # Epoch Length: X blocks
                 match = re.search(r'Epoch Length:\s*(\d+)\s*blocks', line)
                 if match:
                     epoch_info["epoch_length"] = int(match.group(1))
-                
+
                 # Quarantine Length: X blocks
                 match = re.search(r'Quarantine Length:\s*(\d+)\s*blocks', line)
                 if match:
                     epoch_info["quarantine_length"] = int(match.group(1))
-                
+
                 # Blocks Until Next Epoch: X
                 match = re.search(r'Blocks Until Next Epoch:\s*(\d+)', line)
                 if match:
                     epoch_info["blocks_until_next_epoch"] = int(match.group(1))
-            
+
             return epoch_info
-            
+
         except Exception as e:
             logger.error(f"Failed to get epoch info: {e}")
             return None
-    
+
+    # Deprecated TODO
     async def show_block_deploys(self, block_number: int) -> Optional[List[Dict[str, Any]]]:
         """Get deployments from a specific block.
         
@@ -431,15 +442,16 @@ class RustCLIClient:
             stdout, _ = await self._run_command([
                 "show-deploys",
                 "-b", str(block_number),
-                "-H", self.node_host,
-                "-p", str(self.http_port)
+                "-H", self.observer_host,
+                "-p", str(self.observer_grpc_port),
+                "--http-port", str(self.observer_http_port)
             ])
-            
+
             # Parse deployments from output
             deploys = []
             current_deploy = {}
             in_term = False
-            
+
             for line in stdout.strip().split('\n'):
                 if "Deploy ID:" in line:
                     # Save previous deploy if exists
@@ -466,17 +478,17 @@ class RustCLIClient:
                     match = re.search(r'Timestamp:\s*(\d+)', line)
                     if match:
                         current_deploy['timestamp'] = int(match.group(1))
-            
+
             # Don't forget the last deployment
             if current_deploy:
                 deploys.append(current_deploy)
-            
+
             return deploys if deploys else None
-                
+
         except Exception as e:
             logger.error(f"Failed to get block deploys: {e}")
             return None
-    
+
     async def get_network_consensus(self) -> Optional[Dict[str, Any]]:
         """Get network consensus overview.
         
@@ -486,40 +498,41 @@ class RustCLIClient:
         try:
             stdout, _ = await self._run_command([
                 "network-consensus",
-                "-H", self.node_host,
-                "-p", str(40452)  # Observer port
+                "-H", self.observer_host,
+                "--grpc-port", str(self.observer_grpc_port),  # Observer port, old 40452
+                "--http-port", str(self.observer_http_port)
             ])
-            
+
             # Parse consensus info from output
             consensus = {}
             lines = stdout.strip().split('\n')
-            
+
             for line in lines:
                 # Current Block: X
                 match = re.search(r'Current Block:\s*(\d+)', line)
                 if match:
                     consensus["current_block"] = int(match.group(1))
-                
+
                 # Total Bonded Validators: X
                 match = re.search(r'Total Bonded Validators:\s*(\d+)', line)
                 if match:
                     consensus["total_bonded_validators"] = int(match.group(1))
-                
+
                 # Active Validators: X
                 match = re.search(r'Active Validators:\s*(\d+)', line)
                 if match:
                     consensus["active_validators"] = int(match.group(1))
-                
+
                 # Validators in Quarantine: X
                 match = re.search(r'Validators in Quarantine:\s*(\d+)', line)
                 if match:
                     consensus["validators_in_quarantine"] = int(match.group(1))
-                
+
                 # Participation Rate: X%
                 match = re.search(r'Participation Rate:\s*([\d.]+)%', line)
                 if match:
                     consensus["participation_rate"] = float(match.group(1))
-                
+
                 # Consensus Status: Healthy/Degraded
                 if "🟢 Healthy" in line:
                     consensus["status"] = "healthy"
@@ -527,13 +540,13 @@ class RustCLIClient:
                     consensus["status"] = "degraded"
                 elif "🔴 Critical" in line:
                     consensus["status"] = "critical"
-            
+
             return consensus
-            
+
         except Exception as e:
             logger.error(f"Failed to get network consensus: {e}")
             return None
-    
+
     async def show_main_chain(self, depth: int = 10) -> Optional[List[Dict[str, Any]]]:
         """Get blocks from the main chain for verification.
         
@@ -547,14 +560,14 @@ class RustCLIClient:
             stdout, _ = await self._run_command([
                 "show-main-chain",
                 "-d", str(depth),
-                "-H", self.node_host,
-                "-p", str(self.grpc_port)
+                "-H", self.observer_host,
+                "--grpc-port", str(self.observer_grpc_port)
             ])
-            
+
             # Parse similar to get_blocks_by_height
             blocks = []
             lines = stdout.strip().split('\n')
-            
+
             current_block = {}
             for line in lines:
                 if "Block #" in line:
@@ -563,26 +576,26 @@ class RustCLIClient:
                     match = re.search(r'Block #(\d+):', line)
                     if match:
                         current_block = {"blockNumber": int(match.group(1))}
-                
+
                 elif "Hash:" in line:
                     match = re.search(r'Hash:\s*([a-f0-9]+)', line)
                     if match and current_block:
                         current_block["blockHash"] = match.group(1)
-                
+
                 elif "Parent:" in line:
                     match = re.search(r'Parent:\s*([a-f0-9]+)', line)
                     if match and current_block:
                         current_block["parentHash"] = match.group(1)
-            
+
             if current_block:
                 blocks.append(current_block)
-            
+
             return blocks
-            
+
         except Exception as e:
             logger.error(f"Failed to get main chain: {e}")
             return None
-    
+
     async def health_check(self) -> bool:
         """Check if the node is healthy and responding.
         

@@ -11,11 +11,11 @@ CREATE TABLE IF NOT EXISTS balance_states (
     address VARCHAR(150) NOT NULL,
     block_number BIGINT NOT NULL,
     unbonded_balance_dust BIGINT NOT NULL DEFAULT 0,
-    unbonded_balance_rev NUMERIC(20, 8) NOT NULL DEFAULT 0,
+    unbonded_balance_asi NUMERIC(20, 8) NOT NULL DEFAULT 0,
     bonded_balance_dust BIGINT NOT NULL DEFAULT 0,
-    bonded_balance_rev NUMERIC(20, 8) NOT NULL DEFAULT 0,
+    bonded_balance_asi NUMERIC(20, 8) NOT NULL DEFAULT 0,
     total_balance_dust BIGINT GENERATED ALWAYS AS (unbonded_balance_dust + bonded_balance_dust) STORED,
-    total_balance_rev NUMERIC(20, 8) GENERATED ALWAYS AS (unbonded_balance_rev + bonded_balance_rev) STORED,
+    total_balance_asi NUMERIC(20, 8) GENERATED ALWAYS AS (unbonded_balance_asi + bonded_balance_asi) STORED,
     updated_at TIMESTAMP DEFAULT NOW(),
     UNIQUE(address, block_number)
 );

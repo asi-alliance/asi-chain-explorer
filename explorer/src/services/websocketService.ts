@@ -312,7 +312,7 @@ export const formatRealtimeUpdate = (update: RealtimeUpdate): string => {
     case 'block':
       return `New block #${update.data.block_number} - ${timeString}`;
     case 'transfer':
-      return `New transfer: ${update.data.amount_rev} ${CURRENT_TOKEN} - ${timeString}`;
+      return `New transfer: ${update.data.amount_asi} ${CURRENT_TOKEN} - ${timeString}`;
     case 'deployment':
       return `New deployment by ${update.data.deployer.slice(0, 8)}... - ${timeString}`;
     case 'network_stats':

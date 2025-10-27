@@ -2,6 +2,10 @@
 
 All notable changes to the ASI-Chain Indexer project will be documented in this file.
 
+### [2.1.2]  Changed - 2025-10-27
+- 🔄 **ASI address validation** updated from `range(53, 57)` to `range(52, 57)`
+- Rename REV to ASI
+
 ## [2.1.1] - 2025-09-09
 
 ### 🔧 Data Quality & Bond Detection Fixes
@@ -25,13 +29,13 @@ This patch release fixes critical issues with validator bond detection and data 
 
 ## [2.1.0] - 2025-08-06
 
-### 🚀 Enhanced REV Transfer Detection
+### 🚀 Enhanced ASI Transfer Detection
 
 This release improves upon v2.0 with enhanced transfer detection capabilities, supporting both variable-based and match-based Rholang patterns. The indexer now detects previously missed transfers in blocks like 365 and 377.
 
 ### Added
 - ✅ **Match-based transfer pattern detection** - `match ("addr1", "addr2", amount)` pattern support
-- ✅ **Enhanced address validation** - Now accepts 53-56 character REV addresses (previously 54-56)
+- ✅ **Enhanced address validation** - Now accepts 53-56 character ASI addresses (previously 54-56)
 - ✅ **Bash-based Hasura configuration** - Zero Python dependencies for GraphQL setup
 - ✅ **Transfer analysis script** - `analyze_transfers.py` for comprehensive transfer reports
 - ✅ **Improved deployment script** - Pre-pulls Docker images with retry logic
