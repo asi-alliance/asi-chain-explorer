@@ -6,11 +6,11 @@ A high-performance blockchain indexer for ASI-Chain that synchronizes data from 
 
 The indexer now features complete automation with zero manual configuration:
 - ⚡ **Fully automatic Hasura relationships** - no manual GraphQL setup required
-- **Automatic genesis data extraction** - validator bonds and REV allocations
+- **Automatic genesis data extraction** - validator bonds and ASI allocations
 - **Full blockchain sync from genesis (block 0)** - no API limitations
-- **Enhanced REV transfer detection** - supports match-based Rholang patterns
+- **Enhanced ASI transfer detection** - supports match-based Rholang patterns
 - **Comprehensive database schema** - single migration with all enhancements
-- **Enhanced balance tracking** - bonded vs unbonded REV balances with computed totals
+- **Enhanced balance tracking** - bonded vs unbonded ASI balances with computed totals
 - **Network-agnostic design** - works with any ASI-Chain network
 - **One-command deployment** - `echo "Yes" | ./deploy.sh` for complete setup
 
@@ -19,15 +19,15 @@ The indexer now features complete automation with zero manual configuration:
 ✅ **Working Features:**
 - **Genesis block processing** with automatic extraction of validator bonds and initial allocations
 - **Full blockchain synchronization from block 0** using Rust CLI
-- **Enhanced REV transfer detection** - now supports match-based Rholang patterns
+- **Enhanced ASI transfer detection** - now supports match-based Rholang patterns
 - **Balance state tracking** - separate bonded and unbonded balances per address
 - **GraphQL API** via Hasura with automatic bash-based configuration
 - Enhanced block metadata extraction (state roots, bonds, validators, justifications)
 - PostgreSQL storage with 150-char address fields (supports both ASI addresses and validator keys)
 - Deployment extraction with full Rholang code
-- Smart contract type classification (REV transfers, validator ops, etc.)
-- REV transfer extraction with both variable-based and match-based pattern matching
-- Address validation supporting 53-56 character REV addresses
+- Smart contract type classification (ASI transfers, validator ops, etc.)
+- ASI transfer extraction with both variable-based and match-based pattern matching
+- Address validation supporting 53-56 character ASI addresses
 - Validator tracking with full public keys (130+ characters)
 - Network consensus monitoring
 - Advanced search capabilities (blocks by hash, deployments by ID/deployer)
@@ -281,7 +281,7 @@ Environment variables for Rust indexer:
 - `START_FROM_BLOCK`: Initial block to sync from (default: 0)
 - `LOG_LEVEL`: Logging level (default: INFO)
 - `MONITORING_PORT`: API server port (default: 9090)
-- `ENABLE_REV_TRANSFER_EXTRACTION`: Extract REV transfers (default: true)
+- `ENABLE_REV_TRANSFER_EXTRACTION`: Extract ASI transfers (default: true)
 
 ## Database Schema
 
@@ -297,8 +297,8 @@ Environment variables for Rust indexer:
   - Automatic type classification
   - Error tracking and status management
 
-- **transfers**: REV token transfers
-  - Supports both REV addresses (54-56 chars) and validator public keys (130+ chars)
+- **transfers**: ASI token transfers
+  - Supports both ASI addresses (52-57 chars) and validator public keys (130+ chars)
   - Tracks amounts in both dust and ASI (8 decimal precision)
   - Links to deployments and blocks
 

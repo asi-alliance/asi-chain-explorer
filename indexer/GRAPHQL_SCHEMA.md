@@ -116,9 +116,9 @@ Stores address balance snapshots with bonded/unbonded separation.
 - `unbonded_balance_dust` (bigint): Unbonded balance in dust
 - `unbonded_balance_asi` (numeric): Unbonded balance in ASI
 - `bonded_balance_dust` (bigint): Bonded balance in dust
-- `bonded_balance_asi` (numeric): Bonded balance in REV
+- `bonded_balance_asi` (numeric): Bonded balance in ASI
 - `total_balance_dust` (bigint): Computed total in dust
-- `total_balance_asi` (numeric): Computed total in REV
+- `total_balance_asi` (numeric): Computed total in ASI
 - `block_number` (bigint): Block number
 - `updated_at` (timestamp): When updated
 

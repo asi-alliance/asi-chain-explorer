@@ -74,8 +74,8 @@ const BlockDetailPage: React.FC = () => {
     }
     
     if (deploy.term) {
-      if (deploy.term.includes('RevVault') && deploy.term.includes('transfer')) {
-        return 'REV Transfer';
+      if (deploy.term.includes('ASIVault') && deploy.term.includes('transfer')) {
+        return 'ASI Transfer';
       } else if (deploy.term.includes('validator') || deploy.term.includes('bond')) {
         return 'Validator Operation';
       } else if (deploy.term.includes('ch_')) {
@@ -328,7 +328,7 @@ const BlockDetailPage: React.FC = () => {
           <div>
             {block.deployments.map((deploy: any, index: number) => {
               const transactionType = getTransactionType(deploy);
-              const isTransfer = transactionType === 'REV Transfer';
+              const isTransfer = transactionType === 'ASI Transfer';
               const transferDetails = isTransfer && deploy.term ? extractTransferDetails(deploy.term) : null;
               
               return (
