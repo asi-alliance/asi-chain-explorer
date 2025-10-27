@@ -111,7 +111,7 @@ const DeploymentsPage: React.FC = () => {
     // Use existing type from database if available
     if (existingType && existingType !== 'Unknown') {
       const typeColorMap: { [key: string]: string } = {
-        'REV Transfer': 'var(--asi-lime)',
+        'ASI Transfer': 'var(--asi-lime)',
         'Contract Deployment': 'var(--asi-pulse-blue)',
         'Channel Operation': 'var(--warning-orange)',
         'Validator Operation': 'var(--text-secondary)',
@@ -121,8 +121,8 @@ const DeploymentsPage: React.FC = () => {
     }
 
     // Otherwise determine from term content
-    if (term.includes('RevVault') && term.includes('transfer')) {
-      return { type: 'REV Transfer', color: 'var(--asi-lime)' };
+    if (term.includes('ASIVault') && term.includes('transfer')) {
+      return { type: 'ASI Transfer', color: 'var(--asi-lime)' };
     } else if (term.includes('validator') || term.includes('bond')) {
       return { type: 'Validator Operation', color: 'var(--asi-pulse-blue)' };
     } else if (term.includes('finalizer')) {

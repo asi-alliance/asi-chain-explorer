@@ -61,8 +61,9 @@ case $ACTION in
             echo ""
             echo "📊 Service Information:"
             echo "  • Local URL: http://localhost:3001"
-            echo "  • GraphQL Endpoint: http://13.251.66.61:8080/v1/graphql"
-            echo "  • Indexer API: http://13.251.66.61:9090"
+            echo "  • GraphQL Endpoint: ${REACT_APP_GRAPHQL_URL}"
+            echo "  • GraphQL WS: ${REACT_APP_GRAPHQL_WS_URL}"
+            echo "  • Indexer API: ${REACT_APP_INDEXER_API_URL}"
             echo ""
             echo "📝 View logs: docker logs -f asi-explorer"
         else

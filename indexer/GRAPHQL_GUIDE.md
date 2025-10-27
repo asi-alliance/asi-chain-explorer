@@ -80,18 +80,18 @@ Smart contract deployments and transactions.
 | status | String | Deployment status |
 
 ### 3. **transfers**
-REV token transfers extracted from deployments.
+ASI token transfers extracted from deployments.
 
-| Field | Type | Description |
-|-------|------|-------------|
-| id | BigInt | Auto-increment transfer ID |
-| from_address | String | Sender address (REV address or validator public key) |
-| to_address | String | Recipient address (REV address or validator public key) |
-| amount_dust | BigInt | Amount in dust (smallest unit) |
-| amount_rev | Numeric | REV amount (8 decimals) |
-| deploy_id | String | Associated deployment |
-| block_number | String | Block containing transfer |
-| status | String | Transfer status |
+| Field | Type | Description                                             |
+|-------|------|---------------------------------------------------------|
+| id | BigInt | Auto-increment transfer ID                              |
+| from_address | String | Sender address (ASI address or validator public key)    |
+| to_address | String | Recipient address (ASI address or validator public key) |
+| amount_dust | BigInt | Amount in dust (smallest unit)                          |
+| amount_asi | Numeric | ASI amount (8 decimals)                                 |
+| deploy_id | String | Associated deployment                                   |
+| block_number | String | Block containing transfer                               |
+| status | String | Transfer status                                         |
 
 ### 4. **validator_bonds**
 Historical validator stake records per block (including genesis bonds).
@@ -122,12 +122,12 @@ Address balance tracking with bonded/unbonded separation.
 | Field | Type | Description |
 |-------|------|-------------|
 | id | BigInt | Unique record ID |
-| address | String | REV address or validator public key (up to 150 chars) |
+| address | String | ASI address or validator public key (up to 150 chars) |
 | block_number | BigInt | Block height for this balance snapshot |
 | unbonded_balance_dust | BigInt | Unbonded balance in dust |
-| unbonded_balance_rev | Numeric | Unbonded balance in REV |
+| unbonded_balance_asi | Numeric | Unbonded balance in ASI |
 | bonded_balance_dust | BigInt | Bonded/staked balance in dust |
-| bonded_balance_rev | Numeric | Bonded/staked balance in REV |
+| bonded_balance_asi | Numeric | Bonded/staked balance in ASI |
 | updated_at | Timestamp | Last update time |
 
 ### 7. **epoch_transitions**
@@ -181,7 +181,7 @@ The following relationships are configured for nested queries:
 - `blocks` → `validator_bonds`: Validator stakes at block
 - `blocks` → `block_validators`: Validators who justified block
 - `blocks` → `balance_states`: Balance snapshots at block
-- `deployments` → `transfers`: REV transfers from deployment
+- `deployments` → `transfers`: ASI transfers from deployment
 
 ### Many-to-One (Object Relationships)
 - `deployments` → `block`: Parent block details
@@ -241,7 +241,7 @@ query BlocksWithDetails {
       transfers {
         from_address
         to_address
-        amount_rev
+        amount_asi
       }
     }
     
@@ -254,13 +254,13 @@ query BlocksWithDetails {
 }
 ```
 
-#### REV Transfer Analysis (Enhanced in v2.1)
+#### ASI Transfer Analysis (Enhanced in v2.1)
 ```graphql
 query TransferAnalysis {
-  transfers(order_by: {amount_rev: desc}, limit: 10) {
+  transfers(order_by: {amount_asi: desc}, limit: 10) {
     from_address  # Now supports 53-56 char addresses
-    to_address    # Both REV addresses and validator keys
-    amount_rev
+    to_address    # Both ASI addresses and validator keys
+    amount_asi
     
     # Parent deployment details
     deployment {
@@ -284,13 +284,13 @@ query AllTransfers {
     block_number
     from_address
     to_address
-    amount_rev
+    amount_asi
     status
   }
   transfers_aggregate {
     aggregate {
       count
-      sum { amount_rev }
+      sum { amount_asi }
     }
   }
 }
@@ -320,13 +320,13 @@ query NetworkStats {
     aggregate {
       count
       sum {
-        amount_rev
+        amount_asi
       }
       avg {
-        amount_rev
+        amount_asi
       }
       max {
-        amount_rev
+        amount_asi
       }
     }
   }
@@ -390,7 +390,7 @@ query GetWalletBalance($address: String!) {
     where: {to_address: {_eq: $address}}
   ) {
     aggregate {
-      sum { amount_rev }
+      sum { amount_asi }
       count
     }
   }
@@ -400,7 +400,7 @@ query GetWalletBalance($address: String!) {
     where: {from_address: {_eq: $address}}
   ) {
     aggregate {
-      sum { amount_rev }
+      sum { amount_asi }
       count
     }
   }
@@ -417,7 +417,7 @@ query GetWalletBalance($address: String!) {
   ) {
     from_address
     to_address
-    amount_rev
+    amount_asi
     block_number
     status
     deployment {
@@ -436,7 +436,7 @@ curl -X POST http://localhost:8080/v1/graphql \
   -H "Content-Type: application/json" \
   -H "x-hasura-admin-secret: myadminsecretkey" \
   -d '{
-    "query": "query { incoming: transfers_aggregate(where: {to_address: {_eq: \"111129p33f7vaRrpLqK8Nr35Y2aacAjrR5pd6PCzqcdrMuPHzymczH\"}}) { aggregate { sum { amount_rev } count } } outgoing: transfers_aggregate(where: {from_address: {_eq: \"111129p33f7vaRrpLqK8Nr35Y2aacAjrR5pd6PCzqcdrMuPHzymczH\"}}) { aggregate { sum { amount_rev } count } } }"
+    "query": "query { incoming: transfers_aggregate(where: {to_address: {_eq: \"111129p33f7vaRrpLqK8Nr35Y2aacAjrR5pd6PCzqcdrMuPHzymczH\"}}) { aggregate { sum { amount_asi } count } } outgoing: transfers_aggregate(where: {from_address: {_eq: \"111129p33f7vaRrpLqK8Nr35Y2aacAjrR5pd6PCzqcdrMuPHzymczH\"}}) { aggregate { sum { amount_asi } count } } }"
   }'
 ```
 
@@ -492,7 +492,7 @@ query BlockchainAnalysis($start_block: String!, $end_block: String!) {
   ) {
     aggregate {
       sum {
-        amount_rev
+        amount_asi
       }
       count
     }
@@ -569,11 +569,11 @@ subscription TransferStream {
   transfers(
     order_by: {created_at: desc},
     limit: 10,
-    where: {amount_rev: {_gt: "100"}}
+    where: {amount_asi: {_gt: "100"}}
   ) {
     from_address
     to_address
-    amount_rev
+    amount_asi
     created_at
   }
 }
@@ -639,10 +639,10 @@ async function getWalletBalance(address) {
   const query = `
     query GetBalance($address: String!) {
       incoming: transfers_aggregate(where: {to_address: {_eq: $address}}) {
-        aggregate { sum { amount_rev } count }
+        aggregate { sum { amount_asi } count }
       }
       outgoing: transfers_aggregate(where: {from_address: {_eq: $address}}) {
-        aggregate { sum { amount_rev } count }
+        aggregate { sum { amount_asi } count }
       }
       transactions: transfers(
         where: {_or: [{from_address: {_eq: $address}}, {to_address: {_eq: $address}}]},
@@ -651,7 +651,7 @@ async function getWalletBalance(address) {
       ) {
         from_address
         to_address
-        amount_rev
+        amount_asi
         block_number
       }
     }
@@ -668,8 +668,8 @@ async function getWalletBalance(address) {
 
   const { data } = await response.json();
   
-  const received = parseFloat(data.incoming.aggregate.sum?.amount_rev || 0);
-  const sent = parseFloat(data.outgoing.aggregate.sum?.amount_rev || 0);
+  const received = parseFloat(data.incoming.aggregate.sum?.amount_asi || 0);
+  const sent = parseFloat(data.outgoing.aggregate.sum?.amount_asi || 0);
   
   return {
     address,
@@ -683,7 +683,7 @@ async function getWalletBalance(address) {
 
 // Usage
 const balance = await getWalletBalance('111129p33f7vaRrpLqK8Nr35Y2aacAjrR5pd6PCzqcdrMuPHzymczH');
-console.log(`Balance: ${balance.balance} REV`);
+console.log(`Balance: ${balance.balance} ASI`);
 ```
 
 ### Top Wallets by Activity
@@ -697,7 +697,7 @@ query TopWallets {
   ) {
     aggregate {
       count
-      sum { amount_rev }
+      sum { amount_asi }
     }
     group_by {
       from_address
@@ -712,7 +712,7 @@ query TopWallets {
   ) {
     aggregate {
       count
-      sum { amount_rev }
+      sum { amount_asi }
     }
     group_by {
       to_address
@@ -737,7 +737,7 @@ query WalletHistory($address: String!, $offset: Int!, $limit: Int!) {
   ) {
     from_address
     to_address
-    amount_rev
+    amount_asi
     block_number
     status
     deployment {

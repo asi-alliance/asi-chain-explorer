@@ -91,13 +91,13 @@ const SearchResultsPage: React.FC = () => {
             id: 1,
             from_address: '0x1111111111111111',
             to_address: '0x2222222222222222',
-            amount_rev: 100,
+            amount_asi: 100,
             status: 'success',
             block_number: 12344,
             created_at: new Date().toISOString()
           } as Transfer,
           id: 'transfer-1',
-          title: '100 REV Transfer',
+          title: '100 ASI Transfer',
           description: 'From 0x111111... to 0x222222... in block #12344',
           timestamp: Date.now() - 180000,
           relevanceScore: 0.87

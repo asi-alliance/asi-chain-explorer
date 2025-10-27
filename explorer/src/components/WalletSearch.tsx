@@ -107,7 +107,7 @@ const WalletSearch: React.FC<WalletSearchProps> = ({ onSearch }) => {
                       <div className="balance-item">
                         <span className="balance-label">{CURRENT_TOKEN} Balance:</span>
                         <span className="balance-value text-success">
-                          {walletData.balance.rev.toFixed(8)} {CURRENT_TOKEN}
+                          {walletData.balance.asi.toFixed(8)} {CURRENT_TOKEN}
                         </span>
                       </div>
                       <div className="balance-item">
