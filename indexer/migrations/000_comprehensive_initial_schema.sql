@@ -326,4 +326,4 @@ COMMENT ON COLUMN deployments.deployment_type IS 'Type classification for deploy
 COMMENT ON COLUMN validators.status IS 'Validator status: active/bonded/quarantine/inactive';
 COMMENT ON COLUMN validators.name IS 'Validator name (can store full public key up to 160 chars)';
 COMMENT ON COLUMN balance_states.total_balance_dust IS 'Auto-computed total balance in dust units';
-COMMENT ON COLUMN balance_states.total_balance_asi IS 'Auto-computed total balance in REV units';
+COMMENT ON COLUMN balance_states.total_balance_asi IS 'Auto-computed total balance in ASI units';

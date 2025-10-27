@@ -97,7 +97,7 @@ const SearchResultsPage: React.FC = () => {
             created_at: new Date().toISOString()
           } as Transfer,
           id: 'transfer-1',
-          title: '100 REV Transfer',
+          title: '100 ASI Transfer',
           description: 'From 0x111111... to 0x222222... in block #12344',
           timestamp: Date.now() - 180000,
           relevanceScore: 0.87

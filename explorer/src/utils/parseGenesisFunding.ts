@@ -1,5 +1,5 @@
 /**
- * Utility to parse genesis wallet funding from RevGenerator deployment
+ * Utility to parse genesis wallet funding from AsiGenerator deployment
  */
 
 import { CURRENT_TOKEN } from "./constants";
@@ -33,12 +33,12 @@ export function parseGenesisFunding(deploymentTerm: string, deployId: string, ti
       while ((entryMatch = entryRegex.exec(deploymentTerm)) !== null) {
         const walletAddress = entryMatch[1];
         const amountDust = parseInt(entryMatch[2]);
-        const amountRev = amountDust / 100000000; // Convert from dust to REV (8 decimal places)
+        const amountAsi = amountDust / 100000000; // Convert from dust to ASI (8 decimal places)
         
         fundings.push({
           wallet_address: walletAddress,
           amount_dust: amountDust,
-          amount_asi: amountRev,
+          amount_asi: amountAsi,
           status: 'genesis_funding',
           timestamp,
           deploy_id: deployId

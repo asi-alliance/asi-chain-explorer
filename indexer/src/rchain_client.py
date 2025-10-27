@@ -176,7 +176,7 @@ class RChainClient:
         """
         query = f'''
         new return, vaultCh, balanceCh in {{
-            @RevVault!("findOrCreate", "{address}", *vaultCh) |
+            @ASIVault!("findOrCreate", "{address}", *vaultCh) |
             for (@(true, vault) <- vaultCh) {{
                 @vault!("balance", *balanceCh) |
                 for (@balance <- balanceCh) {{

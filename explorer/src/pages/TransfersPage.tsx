@@ -108,7 +108,7 @@ const TransfersPage: React.FC = () => {
         }
     };
 
-    const formatRevAmount = (amount: number | string) => {
+    const formatAsiAmount = (amount: number | string) => {
         const numAmount = parseFloat(amount.toString());
         if (isNaN(numAmount)) return '0';
 
@@ -256,7 +256,7 @@ const TransfersPage: React.FC = () => {
                                         marginBottom: '0.75rem'
                                     }}>
                                         <h4 style={{ margin: 0, color: 'var(--asi-lime)', fontSize: '1.1rem' }}>
-                                            {formatRevAmount(transfer.amount_asi)} {CURRENT_TOKEN}
+                                            {formatAsiAmount(transfer.amount_asi)} {CURRENT_TOKEN}
                                         </h4>
                                         {(transfer.block || transfer.block_number) && (
                                             <Link
