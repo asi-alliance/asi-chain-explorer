@@ -20,7 +20,7 @@ logger = structlog.get_logger(__name__)
 
 class BlockIndexer:
     """Main indexer class for processing blockchain data."""
-    
+
     # Pattern for extracting ASI transfers from Rholang terms
     TRANSFER_PATTERNS = [
         # Standard transfer pattern
@@ -30,8 +30,7 @@ class BlockIndexer:
         # Transfer with different formatting
         r'transfer.*?"([^"]+)".*?(\d{8,})',
     ]
-    
-    
+
     @staticmethod
     def classify_deployment(term: str) -> str:
         """Classify deployment type based on Rholang term content."""
@@ -47,80 +46,80 @@ class BlockIndexer:
             return 'auction_contract'
         else:
             return 'smart_contract'
-    
+
     def __init__(self):
         self.client = None
         self.running = False
-        
+
     async def start(self):
         """Start the indexer."""
         self.running = True
         logger.info("Starting blockchain indexer", node_url=settings.observer_host)
-        
+
         # Initialize database
         await db.connect()
         await db.create_tables()
-        
+
         # Start indexing loop
         async with RChainClient() as client:
             self.client = client
-            
+
             # Check node health
             if not await self.client.health_check():
                 logger.error("RChain node is not healthy")
                 raise RuntimeError("Cannot connect to RChain node")
-            
+
             # Run sync loop
             while self.running:
                 try:
                     await self._sync_blocks()
                 except Exception as e:
                     logger.error("Sync cycle failed", error=str(e))
-                
+
                 await asyncio.sleep(settings.sync_interval)
-    
+
     async def stop(self):
         """Stop the indexer."""
         logger.info("Stopping blockchain indexer")
         self.running = False
         await db.disconnect()
-    
+
     async def _sync_blocks(self):
         """Sync blocks from the chain."""
         try:
             # Get last indexed block
             last_indexed = await db.get_last_indexed_block()
-            
+
             # Get current chain height
             latest_block_number = await self.client.get_latest_block_number()
             if not latest_block_number:
                 logger.warning("Could not get latest block number")
                 return
-            
+
             if last_indexed >= latest_block_number:
                 logger.debug("Already up to date", last_indexed=last_indexed, latest=latest_block_number)
                 return
-            
+
             # Calculate batch range
             start = last_indexed + 1
             end = min(start + settings.batch_size - 1, latest_block_number)
-            
+
             logger.info(
                 "Syncing blocks",
                 start=start,
                 end=end,
                 behind=latest_block_number - last_indexed
             )
-            
+
             # Fetch and process blocks
             blocks = await self.client.get_blocks_range(start, end)
-            
+
             if not blocks:
                 logger.warning("No blocks returned for range", start=start, end=end)
                 return
-            
+
             logger.info(f"Processing {len(blocks)} blocks from range {start}-{end}")
-            
+
             processed_count = 0
             for i, block_summary in enumerate(blocks):
                 try:
@@ -128,7 +127,7 @@ class BlockIndexer:
                     processed_count += 1
                 except Exception as e:
                     logger.error(f"Failed to process block {i}", error=str(e), block=block_summary)
-            
+
             # Update last indexed block
             if processed_count > 0 and blocks:
                 # Find the last successfully processed block
@@ -137,16 +136,17 @@ class BlockIndexer:
                     if "blockNumber" in block:
                         last_processed_block = block
                         break
-                
+
                 if last_processed_block:
                     await db.set_last_indexed_block(last_processed_block["blockNumber"])
-                    logger.info("Sync cycle complete", last_block=last_processed_block["blockNumber"], processed=processed_count)
+                    logger.info("Sync cycle complete", last_block=last_processed_block["blockNumber"],
+                                processed=processed_count)
                 else:
                     logger.error("No valid blocks found to update last indexed")
-                    
+
         except Exception as e:
             logger.error(f"Sync cycle error: {e}", exc_info=True)
-    
+
     async def _process_block(self, block_summary: Dict):
         """Process a single block."""
         try:
@@ -155,7 +155,7 @@ class BlockIndexer:
         except KeyError as e:
             logger.error(f"Missing required field in block summary: {e}", block_summary=block_summary)
             return
-        
+
         # Check if already processed
         async with db.session() as session:
             exists = await session.scalar(
@@ -164,7 +164,7 @@ class BlockIndexer:
             if exists:
                 logger.debug("Block already indexed", block_number=block_number)
                 return
-        
+
         # Get full block details
         try:
             response = await self.client.get_block(block_hash)
@@ -179,14 +179,14 @@ class BlockIndexer:
                 error=str(e)
             )
             return
-        
+
         # Process block in transaction
         async with db.session() as session:
             # Extract additional block data
             parent_hash = block_data["parentsHashList"][0] if block_data.get("parentsHashList") else ""
             state_root_hash = block_data.get("postStateHash", "")
             bonds_map = block_data.get("bonds", [])
-            
+
             # Insert block with new fields
             block = Block(
                 block_number=block_data["blockNumber"],
@@ -207,16 +207,16 @@ class BlockIndexer:
                 deployment_count=len(block_data.get("deploys", []))
             )
             session.add(block)
-            
+
             # Process validators
             await self._process_validators(session, block_data)
-            
+
             # Process deployments (already extracted above)
             for deploy_data in deployments:
                 await self._process_deployment(session, block_data, deploy_data)
-            
+
             await session.commit()
-            
+
             # Process block validators from justifications AFTER commit
             justifications = block_data.get("justifications", [])
             if justifications:
@@ -234,22 +234,22 @@ class BlockIndexer:
                                 {"block_hash": block_data["blockHash"], "validator_key": validator_key}
                             )
                     await validator_session.commit()
-            
+
         logger.info(
             "Indexed block",
             block_number=block_number,
             deployments=len(deployments),
             timestamp=datetime.fromtimestamp(block_data["timestamp"] / 1000)
         )
-    
+
     async def _process_validators(self, session, block_data: Dict):
         """Process validator bonds for a block."""
         bonds = block_data.get("bonds", [])
-        
+
         for bond_data in bonds:
             validator_key = bond_data["validator"]
             stake = bond_data["stake"]
-            
+
             # Upsert validator
             stmt = insert(Validator).values(
                 public_key=validator_key,
@@ -267,7 +267,7 @@ class BlockIndexer:
                 }
             )
             await session.execute(stmt)
-            
+
             # Add validator bond
             bond = ValidatorBond(
                 block_hash=block_data["blockHash"],
@@ -276,18 +276,18 @@ class BlockIndexer:
                 stake=stake
             )
             session.add(bond)
-    
+
     async def _process_deployment(self, session, block_data: Dict, deploy_data: Dict):
         """Process a single deployment."""
         # Classify deployment type
         term = deploy_data.get("term", "")
         deployment_type = self.classify_deployment(term)
-        
+
         # Create deployment record
         # Check for error message and set errored flag appropriately
         error_message = deploy_data.get("systemDeployError")
         errored = deploy_data.get("errored", False) or bool(error_message)
-        
+
         deployment = Deployment(
             deploy_id=deploy_data["sig"],
             block_hash=block_data["blockHash"],
@@ -306,26 +306,26 @@ class BlockIndexer:
             deployment_type=deployment_type  # New field
         )
         session.add(deployment)
-        
+
         # Extract ASI transfers if enabled
         if settings.enable_rev_transfer_extraction:
             transfers = self._extract_transfers(deploy_data, block_data["blockNumber"])
             for transfer in transfers:
                 session.add(transfer)
-    
+
     def _extract_transfers(self, deploy_data: Dict, block_number: int) -> List[Transfer]:
         """Extract ASI transfers from deployment term."""
         transfers = []
         term = deploy_data.get("term", "")
-        
+
         # Check if term contains AsiVault operations
         if "ASIVault" not in term and "transfer" not in term:
             return transfers
-        
+
         # Try each pattern
         for pattern in self.TRANSFER_PATTERNS:
             matches = re.findall(pattern, term)
-            
+
             for match in matches:
                 try:
                     if len(match) == 2:
@@ -337,16 +337,17 @@ class BlockIndexer:
                         from_address, to_address, amount_str = match
                     else:
                         continue
-                    
+
                     # Parse amount
                     amount_dust = int(amount_str)
                     if amount_dust <= 0:
                         continue
-                    
+
                     amount_asi = Decimal(amount_dust) / Decimal(100_000_000)
-                    
+
                     # Create transfer record
                     transfer = Transfer(
+                        timestamp=deploy_data.get("timestamp", 0),
                         deploy_id=deploy_data["sig"],
                         block_number=block_number,
                         from_address=from_address,
@@ -356,14 +357,14 @@ class BlockIndexer:
                         status="success" if not deploy_data.get("errored") else "failed"
                     )
                     transfers.append(transfer)
-                    
+
                     logger.debug(
                         "Found ASI transfer",
                         from_address=from_address[:20],
                         to_address=to_address[:20],
                         amount_asi=float(amount_asi)
                     )
-                    
+
                 except (ValueError, IndexError) as e:
                     logger.warning(
                         "Failed to parse transfer",
@@ -371,5 +372,5 @@ class BlockIndexer:
                         match=match,
                         error=str(e)
                     )
-        
+
         return transfers

@@ -669,6 +669,7 @@ class RustBlockIndexer:
 
                             transfer = Transfer(
                                 deploy_id=deploy_data.get("sig"),
+                                timestamp=deploy_data.get("timestamp", 0),
                                 block_number=block_number,
                                 from_address=from_address[:150],
                                 to_address=to_address[:150],
@@ -790,6 +791,7 @@ class RustBlockIndexer:
 
                     # Create transfer record
                     transfer = Transfer(
+                        timestamp=deploy_data["timestamp"],
                         deploy_id=deploy_data.get("sig"),
                         block_number=block_number,
                         from_address=from_address[:150],  # Use 150 char limit as per schema
@@ -1036,6 +1038,7 @@ class RustBlockIndexer:
 
             # Create genesis allocation transfer
             transfer = Transfer(
+                timestamp=block_info.get("timestamp", 0),
                 deploy_id=deploy_id,
                 block_number=0,
                 from_address="0000000000000000000000000000000000000000000000000000000000000000",  # Genesis mint
@@ -1070,6 +1073,7 @@ class RustBlockIndexer:
 
             # Create genesis bond transfer (validator -> PoS contract)
             transfer = Transfer(
+                timestamp=block_info.get("timestamp", 0),
                 deploy_id=deploy_id,
                 block_number=0,
                 from_address=validator_pubkey,
