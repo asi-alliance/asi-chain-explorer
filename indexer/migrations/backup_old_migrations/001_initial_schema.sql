@@ -2,10 +2,10 @@
 -- Version: 001
 
 -- Enable extensions
-CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+create EXTENSION IF NOT EXISTS "uuid-ossp";
 
 -- Blocks table
-CREATE TABLE IF NOT EXISTS blocks (
+create TABLE IF NOT EXISTS blocks (
     block_number BIGINT PRIMARY KEY,
     block_hash VARCHAR(64) UNIQUE NOT NULL,
     parent_hash VARCHAR(64) NOT NULL,
@@ -22,16 +22,16 @@ CREATE TABLE IF NOT EXISTS blocks (
     created_at TIMESTAMP DEFAULT NOW() NOT NULL
 );
 
-CREATE INDEX idx_blocks_hash ON blocks(block_hash);
-CREATE INDEX idx_blocks_timestamp ON blocks(timestamp DESC);
-CREATE INDEX idx_blocks_proposer ON blocks(proposer);
-CREATE INDEX idx_blocks_created_at ON blocks(created_at DESC);
+create index idx_blocks_hash on blocks(block_hash);
+create index idx_blocks_timestamp on blocks(timestamp desc);
+create index idx_blocks_proposer on blocks(proposer);
+create index idx_blocks_created_at on blocks(created_at desc);
 
 -- Deployments table
-CREATE TABLE IF NOT EXISTS deployments (
+create TABLE IF NOT EXISTS deployments (
     deploy_id VARCHAR(200) PRIMARY KEY,
-    block_hash VARCHAR(64) NOT NULL REFERENCES blocks(block_hash) ON DELETE CASCADE,
-    block_number BIGINT NOT NULL REFERENCES blocks(block_number) ON DELETE CASCADE,
+    block_hash VARCHAR(64) NOT NULL REFERENCES blocks(block_hash) ON delete CASCADE,
+    block_number BIGINT NOT NULL REFERENCES blocks(block_number) ON delete CASCADE,
     deployer VARCHAR(200) NOT NULL,
     term TEXT NOT NULL,
     timestamp BIGINT NOT NULL,
@@ -46,33 +46,34 @@ CREATE TABLE IF NOT EXISTS deployments (
     created_at TIMESTAMP DEFAULT NOW() NOT NULL
 );
 
-CREATE INDEX idx_deployments_block_hash ON deployments(block_hash);
-CREATE INDEX idx_deployments_block_number ON deployments(block_number);
-CREATE INDEX idx_deployments_deployer ON deployments(deployer);
-CREATE INDEX idx_deployments_timestamp ON deployments(timestamp DESC);
-CREATE INDEX idx_deployments_errored ON deployments(errored);
+create index idx_deployments_block_hash on deployments(block_hash);
+create index idx_deployments_block_number on deployments(block_number);
+create index idx_deployments_deployer on deployments(deployer);
+create index idx_deployments_timestamp on deployments(timestamp desc);
+create index idx_deployments_errored on deployments(errored);
 
 -- Transfers table
-CREATE TABLE IF NOT EXISTS transfers (
+create TABLE IF NOT EXISTS transfers (
     id BIGSERIAL PRIMARY KEY,
-    deploy_id VARCHAR(200) NOT NULL REFERENCES deployments(deploy_id) ON DELETE CASCADE,
-    block_number BIGINT NOT NULL REFERENCES blocks(block_number) ON DELETE CASCADE,
+    deploy_id VARCHAR(200) NOT NULL REFERENCES deployments(deploy_id) ON delete CASCADE,
+    block_number BIGINT NOT NULL REFERENCES blocks(block_number) ON delete CASCADE,
     from_address VARCHAR(150) NOT NULL,
     to_address VARCHAR(150) NOT NULL,
     amount_dust BIGINT NOT NULL,
     amount_asi NUMERIC(20, 8) NOT NULL,
     status VARCHAR(20) DEFAULT 'success',
+    timestamp BIGINT NOT NULL,
     created_at TIMESTAMP DEFAULT NOW() NOT NULL
 );
 
-CREATE INDEX idx_transfers_deploy_id ON transfers(deploy_id);
-CREATE INDEX idx_transfers_block_number ON transfers(block_number DESC);
-CREATE INDEX idx_transfers_from ON transfers(from_address);
-CREATE INDEX idx_transfers_to ON transfers(to_address);
-CREATE INDEX idx_transfers_created_at ON transfers(created_at DESC);
+create index idx_transfers_deploy_id on transfers(deploy_id);
+create index idx_transfers_block_number on transfers(block_number desc);
+create index idx_transfers_from on transfers(from_address);
+create index idx_transfers_to on transfers(to_address);
+create index idx_transfers_created_at on transfers(created_at desc);
 
 -- Validators table
-CREATE TABLE IF NOT EXISTS validators (
+create TABLE IF NOT EXISTS validators (
     public_key VARCHAR(200) PRIMARY KEY,
     name VARCHAR(50),
     total_stake BIGINT DEFAULT 0,
@@ -83,58 +84,58 @@ CREATE TABLE IF NOT EXISTS validators (
 );
 
 -- Validator bonds table
-CREATE TABLE IF NOT EXISTS validator_bonds (
+create TABLE IF NOT EXISTS validator_bonds (
     id BIGSERIAL PRIMARY KEY,
-    block_hash VARCHAR(64) NOT NULL REFERENCES blocks(block_hash) ON DELETE CASCADE,
-    block_number BIGINT NOT NULL REFERENCES blocks(block_number) ON DELETE CASCADE,
+    block_hash VARCHAR(64) NOT NULL REFERENCES blocks(block_hash) ON delete CASCADE,
+    block_number BIGINT NOT NULL REFERENCES blocks(block_number) ON delete CASCADE,
     validator_public_key VARCHAR(200) NOT NULL REFERENCES validators(public_key),
     stake BIGINT NOT NULL,
     UNIQUE(block_hash, validator_public_key)
 );
 
-CREATE INDEX idx_validator_bonds_block_number ON validator_bonds(block_number);
-CREATE INDEX idx_validator_bonds_validator ON validator_bonds(validator_public_key);
+create index idx_validator_bonds_block_number on validator_bonds(block_number);
+create index idx_validator_bonds_validator on validator_bonds(validator_public_key);
 
 -- Indexer state table
-CREATE TABLE IF NOT EXISTS indexer_state (
+create TABLE IF NOT EXISTS indexer_state (
     key VARCHAR(50) PRIMARY KEY,
     value TEXT NOT NULL,
     updated_at TIMESTAMP DEFAULT NOW() NOT NULL
 );
 
 -- Insert initial state
-INSERT INTO indexer_state (key, value) VALUES
+insert into indexer_state (key, value) values
     ('last_indexed_block', '0'),
     ('indexer_version', '1.0.0'),
     ('schema_version', '001')
 ON CONFLICT (key) DO NOTHING;
 
 -- Create function to update deployment count
-CREATE OR REPLACE FUNCTION update_block_deployment_count()
-RETURNS TRIGGER AS $$
-BEGIN
-    IF TG_OP = 'INSERT' THEN
-        UPDATE blocks 
-        SET deployment_count = deployment_count + 1 
-        WHERE block_hash = NEW.block_hash;
-    ELSIF TG_OP = 'DELETE' THEN
-        UPDATE blocks 
-        SET deployment_count = deployment_count - 1 
-        WHERE block_hash = OLD.block_hash;
-    END IF;
-    RETURN NULL;
-END;
+create or replace function update_block_deployment_count()
+RETURNS trigger AS $$
+begin
+    if TG_OP = 'INSERT' then
+        update blocks
+        set deployment_count = deployment_count + 1
+        where block_hash = NEW.block_hash;
+    elsif TG_OP = 'DELETE' then
+        update blocks
+        set deployment_count = deployment_count - 1
+        where block_hash = OLD.block_hash;
+    end if;
+    return null;
+end;
 $$ LANGUAGE plpgsql;
 
 -- Create trigger for deployment count
-CREATE TRIGGER update_deployment_count
-AFTER INSERT OR DELETE ON deployments
-FOR EACH ROW EXECUTE FUNCTION update_block_deployment_count();
+create trigger update_deployment_count
+after insert or delete on deployments
+for each row EXECUTE function update_block_deployment_count();
 
 -- Create function to notify on new blocks
-CREATE OR REPLACE FUNCTION notify_new_block()
-RETURNS TRIGGER AS $$
-BEGIN
+create or replace function notify_new_block()
+RETURNS trigger AS $$
+begin
     PERFORM pg_notify(
         'new_block',
         json_build_object(
@@ -148,14 +149,14 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- Create trigger for new block notifications
-CREATE TRIGGER new_block_notify
-AFTER INSERT ON blocks
-FOR EACH ROW EXECUTE FUNCTION notify_new_block();
+create trigger new_block_notify
+after insert on blocks
+for each row EXECUTE function notify_new_block();
 
 -- Create function to notify on new transfers
-CREATE OR REPLACE FUNCTION notify_new_transfer()
-RETURNS TRIGGER AS $$
-BEGIN
+create or replace function notify_new_transfer()
+RETURNS trigger AS $$
+begin
     PERFORM pg_notify(
         'new_transfer',
         json_build_object(
@@ -171,12 +172,12 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- Create trigger for new transfer notifications
-CREATE TRIGGER new_transfer_notify
-AFTER INSERT ON transfers
-FOR EACH ROW EXECUTE FUNCTION notify_new_transfer();
+create trigger new_transfer_notify
+after insert on transfers
+for each row EXECUTE function notify_new_transfer();
 
 -- Balance states table for tracking bonded vs unbonded balances
-CREATE TABLE IF NOT EXISTS balance_states (
+create TABLE IF NOT EXISTS balance_states (
     id BIGSERIAL PRIMARY KEY,
     address VARCHAR(150) NOT NULL,
     block_number BIGINT NOT NULL REFERENCES blocks(block_number) ON DELETE CASCADE,
@@ -188,6 +189,6 @@ CREATE TABLE IF NOT EXISTS balance_states (
     UNIQUE(address, block_number)
 );
 
-CREATE INDEX idx_balance_states_address ON balance_states(address);
-CREATE INDEX idx_balance_states_block ON balance_states(block_number DESC);
-CREATE INDEX idx_balance_states_updated ON balance_states(updated_at DESC);
+create INDEX idx_balance_states_address ON balance_states(address);
+create INDEX idx_balance_states_block ON balance_states(block_number DESC);
+create INDEX idx_balance_states_updated ON balance_states(updated_at DESC);
