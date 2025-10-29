@@ -2,8 +2,8 @@
 
 # ASI Chain: Block Explorer
 
-[![Status](https://img.shields.io/badge/Status-Alpha-FFA500?style=for-the-badge)](https://github.com/asi-alliance/asi-chain-explorer)
-[![Version](https://img.shields.io/badge/Version-1.0.0-A8E6A3?style=for-the-badge)](https://github.com/asi-alliance/asi-chain-explorer/releases)
+[![Status](https://img.shields.io/badge/Status-BETA-FFA500?style=for-the-badge)](https://github.com/asi-alliance/asi-chain-explorer)
+[![Version](https://img.shields.io/badge/Version-0.1.0-A8E6A3?style=for-the-badge)](https://github.com/asi-alliance/asi-chain-explorer/releases)
 [![License](https://img.shields.io/badge/License-Apache%202.0-1A1A1A?style=for-the-badge)](LICENSE)
 [![Docs](https://img.shields.io/badge/Docs-Available-C4F0C1?style=for-the-badge)](https://docs.asichain.io/explorer/usage/)
 
