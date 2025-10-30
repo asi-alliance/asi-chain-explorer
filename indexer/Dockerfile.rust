@@ -33,7 +33,7 @@ ENV PATH="/root/.cargo/bin:${PATH}"
 
 # Clone and build rust-client
 WORKDIR /tmp
-RUN git clone https://github.com/singnet/rust-client.git && \
+RUN git clone --branch v0.1 --depth 1 https://github.com/singnet/rust-client.git && \
     cd rust-client && \
     cargo build --release && \
     cp target/release/node_cli /usr/local/bin/ && \
