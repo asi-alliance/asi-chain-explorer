@@ -64,7 +64,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                 </div>
 
                 {/* Navigation Tabs */}
-                <nav className="nav-tabs">
+                <h3 className="nav-tabs">
                     {navigation.map((item) => (
                         <Link
                             key={item.name}
@@ -76,7 +76,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                             {item.name}
                         </Link>
                     ))}
-                </nav>
+                </h3>
             </header>
 
             <main className="fade-in">{children}</main>

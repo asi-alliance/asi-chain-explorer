@@ -56,8 +56,7 @@ html {
 }
 
 body {
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
-        'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+    font-family: "Roboto Mono", monospace;
     background: var(--deep-space);
     color: var(--off-white);
     line-height: 1.5;
@@ -214,7 +213,6 @@ tbody tr:last-child td {
 
 .nav-tab {
     padding: var(--spacing-sm) var(--spacing-md);
-    font-size: 16px;
     font-weight: 500;
     color: var(--text-secondary);
     background: transparent;
@@ -238,9 +236,7 @@ tbody tr:last-child td {
 
 /* Hash/Address Display - Monospace */
 .hash-cell, .mono {
-    font-family: 'Fira Mono', 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', monospace;
     font-weight: 500;
-    font-size: 13px;
     line-height: 20px;
 }
 
@@ -284,7 +280,6 @@ a:hover {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    font-family: 'Inter', sans-serif;
     font-weight: 500;
     border-radius: 8px;
     transition: all 0.2s ease;
@@ -295,7 +290,6 @@ a:hover {
     outline: none;
     letter-spacing: -0.01em;
     padding: 12px 24px;
-    font-size: 16px;
     line-height: 24px;
     box-shadow: var(--shadow);
 }
@@ -337,7 +331,6 @@ a:hover {
 
 /* Input Fields - ASI Wallet Style */
 input, textarea, select {
-    font-family: inherit;
     font-size: 16px;
     line-height: 26px;
     background: var(--charcoal-500);
@@ -365,7 +358,6 @@ input:disabled {
 
 /* Code/Monospace Text */
 code, .code {
-    font-family: 'Fira Mono', monospace;
     background: var(--charcoal-500);
     padding: 0.2em 0.4em;
     border-radius: 4px;
@@ -718,7 +710,6 @@ code, .code {
     border: 1px solid var(--border-color);
     border-radius: 8px;
     color: var(--off-white);
-    font-family: 'SF Mono', monospace;
     font-size: 14px;
 }
 
@@ -797,7 +788,6 @@ input::-webkit-inner-spin-button {
     word-wrap: normal;
     max-width: 100%;
     overflow-x: auto;
-    font-family: 'Fira Mono', 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', monospace;
 }
 
 .deployment-item pre code {
@@ -941,7 +931,6 @@ input::-webkit-inner-spin-button {
     background: var(--deep-space);
     border: 1px solid var(--border-color);
     border-radius: 4px;
-    font-family: 'Fira Mono', monospace;
     font-size: 12px;
     word-break: break-all;
     line-height: 1.4;
@@ -971,7 +960,6 @@ input::-webkit-inner-spin-button {
 }
 
 .balance-value {
-    font-family: 'Fira Mono', monospace;
     font-size: 18px;
     font-weight: 700;
     letter-spacing: -0.5px;
@@ -1038,4 +1026,46 @@ input::-webkit-inner-spin-button {
     .info-row {
         margin-bottom: var(--spacing-sm);
     }
+}
+
+h1, h2, h3, h4, h5 {
+  letter-spacing: 0;
+  margin: 0;
+  padding: 0;
+}
+
+h1 {
+    font-size: 2rem;
+}
+
+h2 {
+    font-size: 1.5rem;
+}
+
+h3 {
+    font-size: 1.125rem;
+}
+
+h4 {
+    font-size: 1rem;
+}
+
+h5 {
+    font-size: 0.875rem;
+}
+
+.text-1 {
+    font-size: 1.125rem;
+}
+
+.text-2 {
+    font-size: 1rem;
+}
+
+.text-3 {
+    font-size: 0.875rem;
+}
+
+.text-4 {
+    font-size: 0.75rem;
 }

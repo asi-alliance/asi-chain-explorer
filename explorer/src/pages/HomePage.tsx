@@ -166,52 +166,52 @@ const HomePage: React.FC = () => {
                     {/* Summary Cards Row */}
                     <div className="summary-grid">
                         <div className="asi-card glass">
-                            <p
+                            <h3
                                 className="text-muted"
                                 style={{ marginBottom: "0.5rem" }}
                             >
                                 Latest Block
-                            </p>
-                            <h3 className="text-success" style={{ margin: 0 }}>
-                                {statsLoading ? "-" : latestBlockNumber}
                             </h3>
+                            <h2 className="text-success" style={{ margin: 0 }}>
+                                {statsLoading ? "-" : latestBlockNumber}
+                            </h2>
                         </div>
                         <div className="asi-card glass">
-                            <p
+                            <h3
                                 className="text-muted"
                                 style={{ marginBottom: "0.5rem" }}
                             >
                                 Active Validators
-                            </p>
-                            <h3 style={{ margin: 0 }}>
+                            </h3>
+                            <h2 style={{ margin: 0 }}>
                                 {stats?.active_validators ||
                                     stats?.total_validators ||
                                     "-"}
-                            </h3>
+                            </h2>
                         </div>
                         <div className="asi-card glass">
-                            <p
+                            <h3
                                 className="text-muted"
                                 style={{ marginBottom: "0.5rem" }}
                             >
                                 Avg Block Time
-                            </p>
-                            <h3 style={{ margin: 0 }}>
+                            </h3>
+                            <h2 style={{ margin: 0 }}>
                                 {avgBlockTime !== null
                                     ? `${(avgBlockTime as number).toFixed(1)}s`
                                     : "N/A"}
-                            </h3>
+                            </h2>
                         </div>
                         <div className="asi-card glass">
-                            <p
+                            <h3
                                 className="text-muted"
                                 style={{ marginBottom: "0.5rem" }}
                             >
                                 Network Status
-                            </p>
-                            <h3 className="text-success" style={{ margin: 0 }}>
-                                {blocks.length > 0 ? "Active" : "Inactive"}
                             </h3>
+                            <h2 className="text-success" style={{ margin: 0 }}>
+                                {blocks.length > 0 ? "Active" : "Inactive"}
+                            </h2>
                         </div>
                     </div>
                 </div>
@@ -230,7 +230,7 @@ const HomePage: React.FC = () => {
                 <div className="section-header">
                     <div className="header-content-wrapper">
                         <div className="title">
-                            <h2
+                            <h1
                                 style={
                                     isSearching && searchQuery.length > 20
                                         ? { fontSize: "1.5rem" }
@@ -242,7 +242,6 @@ const HomePage: React.FC = () => {
                                         Search Results for{" "}
                                         <span
                                             style={{
-                                                fontFamily: "monospace",
                                                 fontSize: "0.9em",
                                                 wordBreak: "break-all",
                                             }}
@@ -253,7 +252,7 @@ const HomePage: React.FC = () => {
                                 ) : (
                                     "Recent Blocks"
                                 )}
-                            </h2>
+                            </h1>
                         </div>
                         <div className="export-data-container">
                           <RecentTransactionsExporter />
@@ -262,6 +261,7 @@ const HomePage: React.FC = () => {
                     <div className="section-controls">
                         <div className="search-box">
                             <input
+                                className="text-3"
                                 type="text"
                                 placeholder="Search by block number or hash..."
                                 style={{
@@ -278,7 +278,9 @@ const HomePage: React.FC = () => {
                                 onClick={() => setCurrentPage(1)}
                                 disabled={searchQuery === ""}
                             >
-                                Search
+                                <h3>
+                                    Search
+                                </h3>
                             </button>
                             {isSearching && (
                                 <button
@@ -304,12 +306,11 @@ const HomePage: React.FC = () => {
                                 className="status-indicator"
                                 style={{ background: "var(--asi-lime)" }}
                             ></span>
-                            <span
-                                className="text-muted"
-                                style={{ fontSize: "14px" }}
+                            <h3
+                                className="text-muted"  
                             >
                                 Live Updates
-                            </span>
+                            </h3>
                         </div>
                     </div>
                 </div>
@@ -339,30 +340,33 @@ const HomePage: React.FC = () => {
                                 {blocks.map((block: Block) => (
                                     <tr key={block.block_number}>
                                         <td>
-                                            <Link
-                                                to={`/block/${block.block_number}`}
-                                                className="block-number"
-                                            >
-                                                {block.block_number}
-                                            </Link>
+                                            <h5>
+                                                <Link
+                                                    to={`/block/${block.block_number}`}
+                                                    className="block-number"
+                                                >
+                                                    {block.block_number}
+                                                </Link>
+                                            </h5>
                                         </td>
                                         <td className="hash-cell">
                                             <Link
+                                                className="text-3"
                                                 to={`/block/${block.block_number}`}
                                             >
                                                 {truncateHash(block.block_hash)}
                                             </Link>
                                         </td>
-                                        <td className="mono">
+                                        <td className="text-3 mono">
                                             {truncateHash(block.proposer)}
                                         </td>
                                         <td className="timestamp">
                                             {formatTimestamp(block.timestamp)}
                                         </td>
                                         <td>
-                                            <span className="text-success">
+                                            <h5 className="text-success">
                                                 ✓ Confirmed
-                                            </span>
+                                            </h5>
                                         </td>
                                     </tr>
                                 ))}
@@ -378,13 +382,15 @@ const HomePage: React.FC = () => {
                             className="pagination-controls"
                             style={{ marginTop: "2rem" }}
                         >
-                            <button
-                                className="btn btn-secondary"
-                                disabled={currentPage === 1}
-                                onClick={() => goToPage(currentPage - 1)}
-                            >
-                                ← Previous
-                            </button>
+                            <h3>
+                                <button
+                                    className="btn btn-secondary"
+                                    disabled={currentPage === 1}
+                                    onClick={() => goToPage(currentPage - 1)}
+                                >
+                                    ← Previous
+                                </button>
+                            </h3>
                             <div
                                 className="pagination-info"
                                 style={{
@@ -432,13 +438,15 @@ const HomePage: React.FC = () => {
                                     of {totalPages}
                                 </span>
                             </div>
-                            <button
-                                className="btn btn-secondary"
-                                disabled={currentPage === totalPages}
-                                onClick={() => goToPage(currentPage + 1)}
-                            >
-                                Next →
-                            </button>
+                            <h3>
+                                <button
+                                    className="btn btn-secondary"
+                                    disabled={currentPage === totalPages}
+                                    onClick={() => goToPage(currentPage + 1)}
+                                >
+                                    Next →
+                                </button>
+                            </h3>
                         </div>
                         <div style={{ marginTop: "1rem", textAlign: "center" }}>
                             <span className="text-muted">
