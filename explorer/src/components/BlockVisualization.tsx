@@ -427,7 +427,7 @@ const BlockVisualization: React.FC<BlockVisualizationProps> = ({
                                                     backgroundColor: proposer.color
                                                 }}
                                             />
-                                            <span style={{ fontFamily: 'monospace' }}>{proposer.proposer}</span>
+                                            <span>{proposer.proposer}</span>
                                         </div>
                                     </td>
                                     <td style={{ textAlign: 'right', padding: '1rem 0.75rem' }}>

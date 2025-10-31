@@ -208,7 +208,7 @@ const ValidatorHistoryPage: React.FC = () => {
                       <tr key={bond.validator_public_key} className="fade-in">
                         <td className="text-center">{index + 1}</td>
                         <td className="hash-cell">
-                          <span className="mono" title={bond.validator_public_key}>
+                          <span className="text-3 mono" title={bond.validator_public_key}>
                             {truncateKey(bond.validator_public_key)}
                           </span>
                         </td>

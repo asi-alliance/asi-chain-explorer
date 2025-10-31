@@ -140,7 +140,7 @@ const WalletSearch: React.FC<WalletSearchProps> = ({ onSearch }) => {
                           <tbody>
                             {walletData.transactions.slice(0, 5).map((tx, index) => (
                               <tr key={index}>
-                                <td className="hash-cell">
+                                <td className="text-3 hash-cell">
                                   <code>{tx.deploy_id?.substring(0, 20)}...</code>
                                 </td>
                                 <td>
