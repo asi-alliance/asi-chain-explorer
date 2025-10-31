@@ -3,6 +3,7 @@ import { useQuery } from '@apollo/client';
 import { gql } from '@apollo/client';
 import { formatDistanceToNow } from 'date-fns';
 import { CURRENT_TOKEN } from '../utils/constants';
+import { fromCogs } from '../utils/calculateBlockTime';
 
 const GET_VALIDATOR_HISTORY = gql`
   query GetValidatorHistory($blockNumber: bigint) {
@@ -74,7 +75,7 @@ const ValidatorHistoryPage: React.FC = () => {
     const stakeNum = typeof stake === 'string' ? parseFloat(stake) : stake;
     if (!stakeNum || stakeNum === 0 || isNaN(stakeNum)) return '0.00';
     // Stake values from API appear to already be in ASI
-    const revAmount = stakeNum;
+    const revAmount = fromCogs(stakeNum);
     
     if (revAmount >= 1000000) {
       return (revAmount / 1000000).toFixed(2) + 'M';
@@ -251,7 +252,7 @@ const ValidatorHistoryPage: React.FC = () => {
                       Total Stake
                     </dt>
                     <dd style={{ margin: 0, fontSize: '18px', fontWeight: 600 }}>
-                      {(totalStake / 1e8).toLocaleString(undefined, {
+                      {(fromCogs(totalStake)).toLocaleString(undefined, {
                         minimumFractionDigits: 2,
                         maximumFractionDigits: 2
                       })} {CURRENT_TOKEN}
@@ -263,7 +264,7 @@ const ValidatorHistoryPage: React.FC = () => {
                     </dt>
                     <dd style={{ margin: 0, fontSize: '18px', fontWeight: 600 }}>
                       {validators.length > 0 
-                        ? (totalStake / validators.length / 1e8).toLocaleString(undefined, {
+                        ? (fromCogs(totalStake) / validators.length).toLocaleString(undefined, {
                             minimumFractionDigits: 2,
                             maximumFractionDigits: 2
                           })
@@ -277,7 +278,7 @@ const ValidatorHistoryPage: React.FC = () => {
                     </dt>
                     <dd style={{ margin: 0, fontSize: '18px', fontWeight: 600 }}>
                       {validators.length > 0 
-                        ? (Math.min(...validators.map((v: any) => v.stake || 0)) / 1e8).toLocaleString(undefined, {
+                        ? (fromCogs(Math.min(...validators.map((v: any) => v.stake || 0)))).toLocaleString(undefined, {
                             minimumFractionDigits: 2,
                             maximumFractionDigits: 2
                           })
@@ -291,7 +292,7 @@ const ValidatorHistoryPage: React.FC = () => {
                     </dt>
                     <dd style={{ margin: 0, fontSize: '18px', fontWeight: 600 }}>
                       {validators.length > 0 
-                        ? (Math.max(...validators.map((v: any) => v.stake || 0)) / 1e8).toLocaleString(undefined, {
+                        ? (fromCogs(Math.max(...validators.map((v: any) => v.stake || 0)))).toLocaleString(undefined, {
                             minimumFractionDigits: 2,
                             maximumFractionDigits: 2
                           })

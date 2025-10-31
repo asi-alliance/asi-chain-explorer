@@ -272,16 +272,6 @@ const HomePage: React.FC = () => {
                                 onChange={(e) => setSearchQuery(e.target.value)}
                                 onKeyUp={handleSearch}
                             />
-                            <button
-                                className="btn btn-secondary"
-                                style={{ padding: "8px 16px" }}
-                                onClick={() => setCurrentPage(1)}
-                                disabled={searchQuery === ""}
-                            >
-                                <h3>
-                                    Search
-                                </h3>
-                            </button>
                             {isSearching && (
                                 <button
                                     className="btn btn-secondary"
