@@ -162,7 +162,7 @@ const DeploymentsPage: React.FC = () => {
         <h2>All Deployments</h2>
         <div className="section-controls">
           <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
-            <div className="search-box" style={{ display: 'flex', gap: '0.5rem' }}>
+            <h3 className="search-box" style={{ display: 'flex', gap: '0.5rem' }}>
               <input 
                 type="text"
                 value={searchInput}
@@ -187,11 +187,11 @@ const DeploymentsPage: React.FC = () => {
               >
                 Search
               </button>
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            </h3>
+            <h3 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
               <span className="status-indicator" style={{ background: 'var(--asi-lime)' }}></span>
-              <span className="text-muted" style={{ fontSize: '14px' }}>Live Updates</span>
-            </div>
+              <span className="text-muted">Live Updates</span>
+            </h3>
           </div>
         </div>
       </div>
@@ -280,8 +280,8 @@ const DeploymentsPage: React.FC = () => {
                       {deployment.deploy_id}
                     </dd>
                     
-                    <dt style={{ fontSize: '12px', color: 'var(--text-tertiary)', margin: 0 }}>Deployer</dt>
-                    <dd className="mono" style={{ fontSize: '11px', margin: 0, wordBreak: 'break-all' }}>
+                    <dt style={{ color: 'var(--text-tertiary)', margin: 0 }}>Deployer</dt>
+                    <dd className="text-3 mono" style={{ fontSize: '11px', margin: 0, wordBreak: 'break-all' }}>
                       {deployment.deployer}
                     </dd>
                     
@@ -324,7 +324,7 @@ const DeploymentsPage: React.FC = () => {
                     {deployment.block_hash && (
                       <>
                         <dt style={{ fontSize: '12px', color: 'var(--text-tertiary)', margin: 0 }}>Block Hash</dt>
-                        <dd className="mono" style={{ fontSize: '11px', margin: 0, wordBreak: 'break-all' }}>
+                        <dd className="mono text-3" style={{ fontSize: '11px', margin: 0, wordBreak: 'break-all' }}>
                           {deployment.block_hash.length > 32 
                             ? `${deployment.block_hash.slice(0, 16)}...${deployment.block_hash.slice(-16)}`
                             : deployment.block_hash
