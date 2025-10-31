@@ -350,7 +350,6 @@ Exported at: ${new Date().toLocaleString()}
                 display: 'flex',
                 alignItems: 'center',
                 gap: '0.5rem',
-                fontFamily: 'monospace',
                 fontSize: '0.875rem',
                 wordBreak: 'break-all'
               }}>
@@ -378,7 +377,6 @@ Exported at: ${new Date().toLocaleString()}
                 display: 'flex',
                 alignItems: 'center',
                 gap: '0.5rem',
-                fontFamily: 'monospace',
                 fontSize: '0.875rem',
                 wordBreak: 'break-all'
               }}>
@@ -492,7 +490,6 @@ Exported at: ${new Date().toLocaleString()}
                   Signature
                 </div>
                 <div style={{
-                  fontFamily: 'monospace',
                   fontSize: '0.75rem',
                   wordBreak: 'break-all',
                   padding: '0.75rem',
@@ -549,7 +546,6 @@ Exported at: ${new Date().toLocaleString()}
                 display: 'flex',
                 alignItems: 'center',
                 gap: '0.5rem',
-                fontFamily: 'monospace',
                 fontSize: '0.875rem',
                 wordBreak: 'break-all'
               }}>
@@ -835,7 +831,6 @@ Exported at: ${new Date().toLocaleString()}
                     From
                   </div>
                   <div style={{
-                    fontFamily: 'monospace',
                     fontSize: '0.875rem',
                     wordBreak: 'break-all'
                   }}>
@@ -857,7 +852,6 @@ Exported at: ${new Date().toLocaleString()}
                     To
                   </div>
                   <div style={{
-                    fontFamily: 'monospace',
                     fontSize: '0.875rem',
                     wordBreak: 'break-all'
                   }}>
@@ -950,7 +944,6 @@ Exported at: ${new Date().toLocaleString()}
               Proposer
             </div>
             <div style={{
-              fontFamily: 'monospace',
               fontSize: '0.875rem',
               wordBreak: 'break-all'
             }}>
@@ -975,7 +968,6 @@ Exported at: ${new Date().toLocaleString()}
               display: 'flex',
               alignItems: 'center',
               gap: '0.5rem',
-              fontFamily: 'monospace',
               fontSize: '0.875rem',
               wordBreak: 'break-all',
               padding: '0.75rem',
@@ -1004,7 +996,6 @@ Exported at: ${new Date().toLocaleString()}
                 Parent Hash
               </div>
               <div style={{
-                fontFamily: 'monospace',
                 fontSize: '0.875rem',
                 wordBreak: 'break-all',
                 padding: '0.75rem',
@@ -1022,7 +1013,6 @@ Exported at: ${new Date().toLocaleString()}
                 State Hash
               </div>
               <div style={{
-                fontFamily: 'monospace',
                 fontSize: '0.875rem',
                 wordBreak: 'break-all',
                 padding: '0.75rem',
@@ -1073,7 +1063,6 @@ Exported at: ${new Date().toLocaleString()}
           
           <h1 style={{ margin: '0 0 0.5rem 0' }}>Transaction Details</h1>
           <div style={{
-            fontFamily: 'monospace',
             fontSize: '0.875rem',
             color: '#9ca3af',
             wordBreak: 'break-all'
