@@ -503,7 +503,6 @@ const AdvancedSearch: React.FC<AdvancedSearchProps> = ({
                     style={{
                         width: "100%",
                         padding: "0.75rem 3rem 0.75rem 2.5rem",
-                        fontSize: "1rem",
                         border: "2px solid rgba(255, 255, 255, 0.1)",
                         borderRadius: "12px",
                         backgroundColor: "rgba(255, 255, 255, 0.05)",
@@ -511,7 +510,7 @@ const AdvancedSearch: React.FC<AdvancedSearchProps> = ({
                         transition: "all 0.2s ease",
                         outline: "none",
                     }}
-                    className="search-input"
+                    className="text-3 search-input"
                 />
 
                 <Search

@@ -132,7 +132,7 @@ const RealtimeActivityFeed: React.FC<RealtimeActivityFeedProps> = ({
         <div className="section-header">
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
             <Activity size={20} />
-            <h3 style={{ margin: 0 }}>Live Activity</h3>
+            <h1 style={{ margin: 0 }}>Live Activity</h1>
           </div>
           {showConnectionStatus && (
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
@@ -190,31 +190,37 @@ const RealtimeActivityFeed: React.FC<RealtimeActivityFeedProps> = ({
                   {activity.icon}
                 </div>
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ 
-                    fontSize: '0.875rem', 
-                    fontWeight: '500',
-                    marginBottom: '0.25rem',
-                    color: '#fff'
-                  }}>
+                  <div
+                    className="text-3"
+                    style={{ 
+                      fontWeight: '500',
+                      marginBottom: '0.25rem',
+                      color: '#fff'
+                    }}
+                  >
                     {activity.title}
                   </div>
-                  <div style={{ 
-                    fontSize: '0.75rem', 
-                    color: '#9ca3af',
-                    marginBottom: '0.25rem',
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                    whiteSpace: 'nowrap'
-                  }}>
+                  <div
+                    className="text-3"
+                    style={{ 
+                      color: '#9ca3af',
+                      marginBottom: '0.25rem',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      whiteSpace: 'nowrap'
+                    }}
+                  >
                     {activity.description}
                   </div>
-                  <div style={{ 
-                    fontSize: '0.75rem', 
-                    color: '#6b7280',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '0.25rem'
-                  }}>
+                  <div 
+                    className="text-3"
+                    style={{ 
+                      color: '#6b7280',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.25rem'
+                    }}
+                  >
                     <Clock size={10} />
                     {activity.timestamp && !isNaN(activity.timestamp) 
                       ? formatDistanceToNow(new Date(activity.timestamp), { addSuffix: true })
@@ -257,7 +263,7 @@ const RealtimeActivityFeed: React.FC<RealtimeActivityFeedProps> = ({
               <div style={{ fontSize: '0.875rem', fontWeight: '500' }}>
                 {getConnectionStatusText()}
               </div>
-              <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>
+              <div style={{ color: '#6b7280' }}>
                 {activities.length} recent activities
               </div>
             </div>
@@ -311,12 +317,14 @@ const RealtimeActivityFeed: React.FC<RealtimeActivityFeedProps> = ({
                 {activity.icon}
               </div>
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ 
-                  fontSize: '1rem', 
-                  fontWeight: '600',
-                  marginBottom: '0.5rem',
-                  color: '#fff'
-                }}>
+                <div
+                  className="text-3"
+                  style={{ 
+                    fontWeight: '600',
+                    marginBottom: '0.5rem',
+                    color: '#fff'
+                  }}
+                >
                   {activity.title}
                 </div>
                 <div style={{ 
