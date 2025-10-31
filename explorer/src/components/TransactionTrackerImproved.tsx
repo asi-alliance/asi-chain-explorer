@@ -347,12 +347,11 @@ const TransactionTrackerImproved: React.FC<TransactionTrackerImprovedProps> = ({
         <div className={embedded ? "" : "asi-card"}>
             {/* Header */}
             <div style={{ marginBottom: "2rem" }}>
-                <h2 style={{ margin: "0 0 0.5rem 0" }}>{heading.title}</h2>
+                <h1 style={{ margin: "0 0 0.5rem 0" }}>{heading.title}</h1>
                 <p
                     style={{
                         margin: 0,
                         color: "#9ca3af",
-                        fontSize: "0.875rem",
                     }}
                 >
                     {heading.subtitle}
@@ -379,7 +378,7 @@ const TransactionTrackerImproved: React.FC<TransactionTrackerImprovedProps> = ({
                         }}
                     >
                         <FileText size={16} style={{ color: "#f59e0b" }} />
-                        <span>{totalDeployments} Deployments</span>
+                        <h3>{totalDeployments} Deployments</h3>
                     </div>
                     <div
                         style={{
@@ -392,7 +391,7 @@ const TransactionTrackerImproved: React.FC<TransactionTrackerImprovedProps> = ({
                             size={16}
                             style={{ color: "#3b82f6" }}
                         />
-                        <span>{totalTransfers} Transfers</span>
+                        <h3>{totalTransfers} Transfers</h3>
                     </div>
                     <div
                         style={{
@@ -402,7 +401,7 @@ const TransactionTrackerImproved: React.FC<TransactionTrackerImprovedProps> = ({
                         }}
                     >
                         <Activity size={16} style={{ color: "#10b981" }} />
-                        <span>{totalTransactions} Total</span>
+                        <h3>{totalTransactions} Total</h3>
                     </div>
                 </div>
             )}
@@ -452,6 +451,7 @@ const TransactionTrackerImproved: React.FC<TransactionTrackerImprovedProps> = ({
             <div style={{ marginBottom: "2rem" }}>
                 <div style={{ display: "flex", gap: "0.5rem" }}>
                     <input
+                        className="text-3"
                         type="text"
                         placeholder="Search by ID, address, or block hash..."
                         value={searchQuery}
@@ -508,7 +508,7 @@ const TransactionTrackerImproved: React.FC<TransactionTrackerImprovedProps> = ({
                                 onClick={() => onTransactionSelect?.(tx)}
                             >
                                 {/* Type Badge */}
-                                <div
+                                <h5
                                     style={{
                                         padding: "0.25rem 0.5rem",
                                         borderRadius: "4px",
@@ -520,25 +520,24 @@ const TransactionTrackerImproved: React.FC<TransactionTrackerImprovedProps> = ({
                                             tx.type === "deployment"
                                                 ? "#f59e0b"
                                                 : "#3b82f6",
-                                        fontSize: "0.75rem",
                                         fontWeight: "600",
                                     }}
                                 >
                                     {tx.type === "deployment"
                                         ? "DEPLOY"
                                         : "TRANSFER"}
-                                </div>
+                                </h5>
 
                                 {/* Transaction Info */}
                                 <div style={{ flex: 1 }}>
-                                    <div
+                                    <h5
                                         style={{
                                             fontWeight: "500",
                                             marginBottom: "0.25rem",
                                         }}
                                     >
                                         {tx.displayTitle}
-                                    </div>
+                                    </h5>
                                     <div
                                         style={{
                                             fontSize: "0.875rem",
