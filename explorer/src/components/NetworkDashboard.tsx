@@ -1,15 +1,9 @@
-import React, { useState, useEffect, useMemo } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import React, { useState, useMemo } from "react";
+import { motion } from "framer-motion";
 import {
-    LineChart,
     AreaChart,
-    BarChart,
-    PieChart,
     Line,
     Area,
-    Bar,
-    Pie,
-    Cell,
     XAxis,
     YAxis,
     CartesianGrid,
@@ -19,24 +13,11 @@ import {
     ComposedChart,
 } from "recharts";
 import {
-    TrendingUp,
-    TrendingDown,
-    Activity,
-    Users,
     Database,
     Zap,
     Clock,
-    Target,
-    AlertTriangle,
-    CheckCircle,
-    DollarSign,
-    Layers,
-    Globe,
-    Shield,
-    Cpu,
-    HardDrive,
 } from "lucide-react";
-import { format, subHours, subDays } from "date-fns";
+import { format } from "date-fns";
 import { gql, useQuery } from "@apollo/client";
 import {
     BLOCK_FRAGMENT,
@@ -44,9 +25,7 @@ import {
     GET_ALL_TRANSFERS,
     GET_LATEST_BLOCKS,
     GET_NETWORK_STATS,
-    TRANSFER_FRAGMENT,
 } from "../graphql/queries";
-import { CURRENT_TOKEN } from "../utils/constants";
 
 interface MetricCard {
     title: string;
@@ -57,26 +36,6 @@ interface MetricCard {
     color: string;
     description?: string;
     trend?: number[];
-}
-
-interface NetworkHealth {
-    overall: "excellent" | "good" | "warning" | "critical";
-    score: number;
-    metrics: {
-        blockTime: { value: number; status: "good" | "warning" | "critical" };
-        finalityTime: {
-            value: number;
-            status: "good" | "warning" | "critical";
-        };
-        validatorUptime: {
-            value: number;
-            status: "good" | "warning" | "critical";
-        };
-        networkLatency: {
-            value: number;
-            status: "good" | "warning" | "critical";
-        };
-    };
 }
 
 const getLatestBlocksCount = gql`
@@ -173,14 +132,14 @@ const NetworkDashboard: React.FC = () => {
     );
 
     // Real-time data hooks using GraphQL polling
-    const { data: statsData, loading } = useQuery(GET_NETWORK_STATS, {
+    const { data: statsData } = useQuery(GET_NETWORK_STATS, {
         variables: {
             timeRange: currentTimeRangeTimestamp,
         },
         pollInterval: 3000,
     });
 
-    const { data: blocksCountData, loading: isBlocksLoading } = useQuery(
+    const { data: blocksCountData } = useQuery(
         getLatestBlocksCount,
         {
             variables: { timeRange: currentTimeRangeTimestamp },
@@ -188,7 +147,7 @@ const NetworkDashboard: React.FC = () => {
         }
     );
 
-    const { data: transfersCountData, loading: isTransfersLoading } = useQuery(
+    const { data: transfersCountData } = useQuery(
         getTransfersCount,
         {
             variables: { timeRange: currentTimeRangeTimestamp },
@@ -197,15 +156,6 @@ const NetworkDashboard: React.FC = () => {
     );
 
     const { data: lastBlockData } = useQuery(getLastBlock, {
-        pollInterval: 3000,
-    });
-
-    const { data: blocksData } = useQuery(GET_LATEST_BLOCKS, {
-        pollInterval: 3000,
-    });
-
-    const { data: transfersData } = useQuery(GET_ALL_TRANSFERS, {
-        variables: { timeRange: currentTimeRangeTimestamp },
         pollInterval: 3000,
     });
 
@@ -280,100 +230,26 @@ const NetworkDashboard: React.FC = () => {
         currentTimeRangeTimestamp,
     ]);
 
-    // Calculate network health from real metrics
-    const networkHealth = useMemo((): NetworkHealth => {
-        if (!historicalData || historicalData.length === 0) {
-            return {
-                overall: "good",
-                score: 100,
-                metrics: {
-                    blockTime: { value: 30, status: "good" },
-                    finalityTime: { value: 60, status: "good" },
-                    validatorUptime: { value: 100, status: "good" },
-                    networkLatency: { value: 150, status: "good" },
-                },
-            };
-        }
-
-        const avgBlockTime = historicalData[0]?.blockTime || 30;
-        const activeValidators = networkStats?.active_validators || 3;
-        const totalValidators = networkStats?.total_validators || 3;
-        const validatorUptime =
-            totalValidators > 0
-                ? (activeValidators / totalValidators) * 100
-                : 100;
-
-        // Status based on actual thresholds
-        const blockTimeStatus =
-            avgBlockTime < 35
-                ? "good"
-                : avgBlockTime < 60
-                ? "warning"
-                : "critical";
-        const validatorStatus =
-            activeValidators >= 3
-                ? "good"
-                : activeValidators >= 2
-                ? "warning"
-                : "critical";
-        const uptimeStatus =
-            validatorUptime >= 90
-                ? "good"
-                : validatorUptime >= 70
-                ? "warning"
-                : "critical";
-
-        const healthScores = {
-            good: 100,
-            warning: 70,
-            critical: 30,
-        };
-
-        const avgScore =
-            (healthScores[blockTimeStatus] +
-                healthScores[validatorStatus] +
-                healthScores[uptimeStatus]) /
-            3;
-
-        return {
-            overall:
-                avgScore > 90
-                    ? "excellent"
-                    : avgScore > 70
-                    ? "good"
-                    : avgScore > 50
-                    ? "warning"
-                    : "critical",
-            score: avgScore,
-            metrics: {
-                blockTime: { value: avgBlockTime, status: blockTimeStatus },
-                finalityTime: {
-                    value: avgBlockTime * 2,
-                    status: blockTimeStatus,
-                },
-                validatorUptime: {
-                    value: validatorUptime,
-                    status: uptimeStatus,
-                },
-                networkLatency: { value: 150, status: "good" }, // Default as we don't have this metric
-            },
-        };
-    }, [historicalData, networkStats]);
-
-    // Key metrics calculation from real data
     const keyMetrics = useMemo((): MetricCard[] => {
-        const avgBlockTime = historicalData[0]?.blockTime || 30;
-        const activeValidators = networkStats?.active_validators || 3;
-        const totalValidators = networkStats?.total_validators || 3;
+        
+        const avgBlockTime = historicalData[0]?.blockTime || 0;
+        const activeValidators = networkStats?.active_validators || 0;
 
         // Calculate TPS from actual data (transfers per block * blocks per second)
         const tps =
             avgBlockTime > 0 ? transfersCount / blocksCount / avgBlockTime : 0;
 
-        // Total stake from validators (each has 1000 ASI)
-        const totalStake = totalValidators * 1000;
 
         return [
+            {
+                title: "Latest Block",
+                value: lastBlockData?.blocks[0]?.block_number || "0",
+                change: 0,
+                changeType: "increase",
+                icon: <Database size={20} />,
+                color: "#f59e0b",
+                description: "Most recent block",
+            },
             {
                 title: "Block Time",
                 value: `${avgBlockTime.toFixed(1)}s`,
@@ -399,83 +275,48 @@ const NetworkDashboard: React.FC = () => {
                 value: activeValidators,
                 change: 0,
                 changeType: "increase",
-                icon: <Users size={20} />,
-                color: "#8b5cf6",
-                description: "Currently validating nodes",
+                icon: <Zap size={20} />,
+                color: "#3b82f6",
+                description: "Network throughput",
                 trend: [],
-            },
-            {
-                title: "Network Health",
-                value: `${networkHealth.score.toFixed(0)}%`,
-                change: 0,
-                changeType: "increase",
-                icon: <Activity size={20} />,
-                color:
-                    networkHealth.overall === "excellent"
-                        ? "#10b981"
-                        : networkHealth.overall === "good"
-                        ? "#3b82f6"
-                        : networkHealth.overall === "warning"
-                        ? "#f59e0b"
-                        : "#ef4444",
-                description: "Overall network performance",
-            },
-            {
-                title: "Total Stake",
-                value: `${totalStake.toLocaleString()} ${CURRENT_TOKEN}`,
-                change: 0,
-                changeType: "increase",
-                icon: <DollarSign size={20} />,
-                color: "#06b6d4",
-                description: "Total staked tokens",
-            },
-            {
-                title: "Latest Block",
-                value: lastBlockData?.blocks[0]?.block_number || "0",
-                change: 0,
-                changeType: "increase",
-                icon: <Database size={20} />,
-                color: "#f59e0b",
-                description: "Most recent block",
             },
         ];
     }, [
         historicalData,
-        networkHealth,
         networkStats,
         transfersCount,
         blocksCount,
         lastBlockData,
     ]);
 
-    const getHealthColor = (status: string) => {
-        switch (status) {
-            case "excellent":
-                return "#10b981";
-            case "good":
-                return "#3b82f6";
-            case "warning":
-                return "#f59e0b";
-            case "critical":
-                return "#ef4444";
-            default:
-                return "#6b7280";
-        }
-    };
+    // const getHealthColor = (status: string) => {
+    //     switch (status) {
+    //         case "excellent":
+    //             return "#10b981";
+    //         case "good":
+    //             return "#3b82f6";
+    //         case "warning":
+    //             return "#f59e0b";
+    //         case "critical":
+    //             return "#ef4444";
+    //         default:
+    //             return "#6b7280";
+    //     }
+    // };
 
-    const getHealthIcon = (status: string) => {
-        switch (status) {
-            case "excellent":
-            case "good":
-                return <CheckCircle size={20} />;
-            case "warning":
-                return <AlertTriangle size={20} />;
-            case "critical":
-                return <AlertTriangle size={20} />;
-            default:
-                return <Activity size={20} />;
-        }
-    };
+    // const getHealthIcon = (status: string) => {
+    //     switch (status) {
+    //         case "excellent":
+    //         case "good":
+    //             return <CheckCircle size={20} />;
+    //         case "warning":
+    //             return <AlertTriangle size={20} />;
+    //         case "critical":
+    //             return <AlertTriangle size={20} />;
+    //         default:
+    //             return <Activity size={20} />;
+    //     }
+    // };
 
     const CustomTooltip = ({ active, payload, label }: any) => {
         if (active && payload && payload.length) {
@@ -570,104 +411,12 @@ const NetworkDashboard: React.FC = () => {
                 </div>
             </div>
 
-            {/* Network Health Overview */}
-            <div className="asi-card" style={{ marginBottom: "2rem" }}>
-                <div
-                    style={{
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "space-between",
-                        marginBottom: "1.5rem",
-                    }}
-                >
-                    <h2 style={{ margin: 0, fontSize: "18px" }}>
-                        Network Health
-                    </h2>
-                    <div
-                        style={{
-                            display: "flex",
-                            alignItems: "center",
-                            gap: "0.5rem",
-                            color: getHealthColor(networkHealth.overall),
-                        }}
-                    >
-                        {getHealthIcon(networkHealth.overall)}
-                        <span
-                            style={{
-                                fontWeight: "600",
-                                textTransform: "capitalize",
-                                fontSize: "18px",
-                            }}
-                        >
-                            {networkHealth.overall}
-                        </span>
-                    </div>
-                </div>
-
-                <div
-                    style={{
-                        display: "grid",
-                        gridTemplateColumns:
-                            "repeat(auto-fit, minmax(200px, 1fr))",
-                        gap: "1rem",
-                    }}
-                >
-                    {Object.entries(networkHealth.metrics).map(
-                        ([key, metric]) => (
-                            <div key={key} className="asi-card glass">
-                                <div
-                                    style={{
-                                        display: "flex",
-                                        justifyContent: "space-between",
-                                        alignItems: "center",
-                                        marginBottom: "0.5rem",
-                                    }}
-                                >
-                                    <span
-                                        style={{
-                                            fontSize: "0.875rem",
-                                            color: "#9ca3af",
-                                            textTransform: "capitalize",
-                                        }}
-                                    >
-                                        {key.replace(/([A-Z])/g, " $1")}
-                                    </span>
-                                    <div
-                                        style={{
-                                            width: "8px",
-                                            height: "8px",
-                                            borderRadius: "50%",
-                                            backgroundColor: getHealthColor(
-                                                metric.status
-                                            ),
-                                        }}
-                                    />
-                                </div>
-                                <div
-                                    style={{
-                                        fontSize: "24px",
-                                        fontWeight: "600",
-                                        color: getHealthColor(metric.status),
-                                    }}
-                                >
-                                    {metric.value.toFixed(1)}
-                                    {key.includes("Time") && "s"}
-                                    {key.includes("Uptime") && "%"}
-                                    {key.includes("Latency") && "ms"}
-                                </div>
-                            </div>
-                        )
-                    )}
-                </div>
-            </div>
-
             {/* Key Metrics Grid */}
             <div
                 style={{
                     display: "grid",
-                    gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))",
-                    gap: "1.5rem",
-                    marginBottom: "2rem",
+                    gridTemplateColumns: "repeat(auto-fit, minmax(250px, 1fr))",
+                    columnGap: "1.5rem",
                 }}
             >
                 {keyMetrics.map((metric, index) => (
@@ -742,74 +491,17 @@ const NetworkDashboard: React.FC = () => {
                                 )}
                             </div>
 
-                            {metric.change !== undefined && (
-                                <div
-                                    style={{
-                                        display: "flex",
-                                        alignItems: "center",
-                                        gap: "0.25rem",
-                                        color:
-                                            metric.changeType === "increase"
-                                                ? "#10b981"
-                                                : "#ef4444",
-                                    }}
-                                >
-                                    {metric.changeType === "increase" ? (
-                                        <TrendingUp size={16} />
-                                    ) : (
-                                        <TrendingDown size={16} />
-                                    )}
-                                    <span
-                                        style={{
-                                            fontSize: "0.875rem",
-                                            fontWeight: "500",
-                                        }}
-                                    >
-                                        {Math.abs(metric.change).toFixed(1)}%
-                                    </span>
-                                </div>
-                            )}
+                
                         </div>
-
-                        {/* Mini trend chart */}
-                        {metric.trend && (
-                            <div style={{ height: "60px" }}>
-                                <ResponsiveContainer width="100%" height="100%">
-                                    <LineChart
-                                        data={metric.trend.map((value, i) => ({
-                                            value,
-                                            index: i,
-                                        }))}
-                                    >
-                                        <Line
-                                            type="monotone"
-                                            dataKey="value"
-                                            stroke={metric.color}
-                                            strokeWidth={2}
-                                            dot={false}
-                                        />
-                                    </LineChart>
-                                </ResponsiveContainer>
-                            </div>
-                        )}
                     </motion.div>
                 ))}
             </div>
-
-            {/* Detailed Charts */}
-            {/* <div style={{
-        display: 'grid',
-        gridTemplateColumns: '1fr 1fr',
-        gap: '2rem',
-        marginBottom: '2rem'
-      }}> */}
             <div
                 style={{
                     display: "flex",
                     flexWrap: "wrap",
                     justifyContent: "center",
                     gap: "2rem",
-                    marginBottom: "2rem",
                 }}
             >
                 {/* Block Time & TPS Chart */}
