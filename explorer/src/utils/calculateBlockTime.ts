@@ -101,3 +101,7 @@ export const toMillis = (input: string | number | undefined | null): number => {
 
     return NaN;
 };
+
+export const fromCogs = (value: number, decimals: number = 8): number => {
+    return value / 10 ** decimals;
+}
