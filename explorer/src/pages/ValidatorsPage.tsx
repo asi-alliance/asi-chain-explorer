@@ -3,6 +3,7 @@ import { useQuery } from '@apollo/client';
 import { GET_ACTIVE_VALIDATORS } from '../graphql/queries';
 import { Validator } from '../types';
 import { CURRENT_TOKEN } from '../utils/constants';
+import { fromCogs } from '../utils/calculateBlockTime';
 
 const ValidatorsPage: React.FC = () => {
   const { data, loading, error } = useQuery(GET_ACTIVE_VALIDATORS, {
@@ -111,7 +112,7 @@ const ValidatorsPage: React.FC = () => {
     const stakeNum = typeof stake === 'string' ? parseFloat(stake) : stake;
     if (!stakeNum || stakeNum === 0 || isNaN(stakeNum)) return '0.00';
     // Stake values from API appear to already be in ASI
-    const revAmount = stakeNum;
+    const revAmount = fromCogs(stakeNum); // convert to the readable format using decimals multiplier
     
     // Format based on size
     if (revAmount >= 1000000) {
@@ -229,7 +230,7 @@ const ValidatorsPage: React.FC = () => {
             <div className="asi-card glass">
               <p className="text-muted" style={{ marginBottom: '0.5rem' }}>Total {CURRENT_TOKEN} Staked</p>
               <h3 style={{ margin: 0 }}>
-                {calculateRawStake(totalStake).toLocaleString(undefined, { 
+                {calculateRawStake(fromCogs(totalStake)).toLocaleString(undefined, { 
                   minimumFractionDigits: 2,
                   maximumFractionDigits: 2 
                 })} {CURRENT_TOKEN}
@@ -239,7 +240,7 @@ const ValidatorsPage: React.FC = () => {
               <p className="text-muted" style={{ marginBottom: '0.5rem' }}>Avg. Stake</p>
               <h3 style={{ margin: 0 }}>
                 {validators.length > 0 ? 
-                  calculateRawStake(totalStake / validators.length).toLocaleString(undefined, { 
+                  calculateRawStake(fromCogs(totalStake) / validators.length).toLocaleString(undefined, { 
                     minimumFractionDigits: 2,
                     maximumFractionDigits: 2 
                   }) : 
