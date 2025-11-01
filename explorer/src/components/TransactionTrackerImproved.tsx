@@ -418,6 +418,7 @@ const TransactionTrackerImproved: React.FC<TransactionTrackerImprovedProps> = ({
                 {/* {(['all', 'deployments', 'transfers'] as const).map((tab) => ( */}
                 {(["deployments", "transfers"] as const).map((tab) => (
                     <button
+                        className="text-1"
                         key={tab}
                         onClick={() => {
                             setActiveTab(tab);

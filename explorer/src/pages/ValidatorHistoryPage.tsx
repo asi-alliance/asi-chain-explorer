@@ -190,7 +190,7 @@ const ValidatorHistoryPage: React.FC = () => {
             <div style={{ overflowX: 'auto' }}>
               <table>
                 <thead>
-                  <tr>
+                  <tr className="text-1">
                     <th>#</th>
                     <th>Validator Public Key</th>
                     <th>Stake ({CURRENT_TOKEN})</th>
