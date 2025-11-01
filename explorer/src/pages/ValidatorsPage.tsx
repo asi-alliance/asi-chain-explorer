@@ -194,19 +194,21 @@ const ValidatorsPage: React.FC = () => {
   return (
     <section className="asi-card">
       <div className="section-header">
-        <h2>Active Validators</h2>
+        <h1>Active Validators</h1>
         <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
             <span className="status-indicator" style={{ background: 'var(--asi-lime)' }}></span>
-            <span className="text-muted" style={{ fontSize: '14px' }}>Live Updates</span>
+            <h3 className="text-muted">Live Updates</h3>
           </div>
-          <a 
-            href="/validator-history" 
-            className="btn btn-secondary"
-            style={{ fontSize: '14px', padding: '0.5rem 1rem' }}
-          >
-            View History →
-          </a>
+          <h3>
+            <a 
+              href="/validator-history" 
+              className="btn btn-secondary"
+              style={{ padding: '0.5rem 1rem' }}
+            >
+              View History →
+            </a>
+          </h3>
         </div>
       </div>
 
@@ -224,21 +226,21 @@ const ValidatorsPage: React.FC = () => {
           {/* Summary Cards */}
           <div className="summary-grid mb-3">
             <div className="asi-card glass">
-              <p className="text-muted" style={{ marginBottom: '0.5rem' }}>Total Validators</p>
-              <h3 style={{ margin: 0 }}>{validators.length}</h3>
+              <h5 className="text-muted" style={{ marginBottom: '0.5rem' }}>Total Validators</h5>
+              <h1 style={{ margin: 0 }}>{validators.length}</h1>
             </div>
             <div className="asi-card glass">
-              <p className="text-muted" style={{ marginBottom: '0.5rem' }}>Total {CURRENT_TOKEN} Staked</p>
-              <h3 style={{ margin: 0 }}>
+              <h5 className="text-muted" style={{ marginBottom: '0.5rem' }}>Total {CURRENT_TOKEN} Staked</h5>
+              <h1 style={{ margin: 0 }}>
                 {calculateRawStake(fromCogs(totalStake)).toLocaleString(undefined, { 
                   minimumFractionDigits: 2,
                   maximumFractionDigits: 2 
                 })} {CURRENT_TOKEN}
-              </h3>
+              </h1>
             </div>
             <div className="asi-card glass">
-              <p className="text-muted" style={{ marginBottom: '0.5rem' }}>Avg. Stake</p>
-              <h3 style={{ margin: 0 }}>
+              <h5 className="text-muted" style={{ marginBottom: '0.5rem' }}>Avg. Stake</h5>
+              <h1 style={{ margin: 0 }}>
                 {validators.length > 0 ? 
                   calculateRawStake(fromCogs(totalStake) / validators.length).toLocaleString(undefined, { 
                     minimumFractionDigits: 2,
@@ -246,7 +248,7 @@ const ValidatorsPage: React.FC = () => {
                   }) : 
                   '0.00'
                 } {CURRENT_TOKEN}
-              </h3>
+              </h1>
             </div>
           </div>
 
@@ -261,18 +263,18 @@ const ValidatorsPage: React.FC = () => {
           ) : (
             <div style={{ overflowX: 'auto' }}>
               <table>
-                <thead>
-                  <tr>
-                    <th>Public Key</th>
-                    <th>Stake ({CURRENT_TOKEN})</th>
-                    <th>Stake %</th>
-                    <th>Blocks Proposed</th>
-                    <th>First Seen</th>
-                    <th>Last Seen</th>
-                    <th>Last Active</th>
-                    <th>Status</th>
-                  </tr>
-                </thead>
+                  <thead>
+                    <tr>
+                      <th className="text-1">Public Key</th>
+                      <th className="text-1">Stake ({CURRENT_TOKEN})</th>
+                      <th className="text-1">Stake %</th>
+                      <th className="text-1">Blocks Proposed</th>
+                      <th className="text-1">First Seen</th>
+                      <th className="text-1">Last Seen</th>
+                      <th className="text-1">Last Active</th>
+                      <th className="text-1">Status</th>
+                    </tr>
+                  </thead>
                 <tbody>
                   {sortedValidators.map((validator: Validator) => {
                     const normalizedKey = normalizeValidatorKey(validator.public_key);
@@ -292,35 +294,35 @@ const ValidatorsPage: React.FC = () => {
                     return (
                       <tr key={validator.public_key} className="fade-in">
                         <td className="hash-cell">
-                          <span className="mono" title={validator.public_key}>
+                          <span className="text-3 mono" title={validator.public_key}>
                             {truncateKey(validator.public_key)}
                           </span>
                         </td>
-                        <td style={{ fontWeight: 600 }}>
+                        <td className="text-3" style={{ fontWeight: 600 }}>
                           {calculateStake(stake)}
                         </td>
-                        <td>
+                        <td className="text-3">
                           <span style={{ color: 'var(--text-tertiary)' }}>
                             {stakePercentage}%
                           </span>
                         </td>
-                        <td className="text-center">
+                        <td className="text-3 text-center">
                           {blocksProposed.toLocaleString()}
                         </td>
-                        <td>
+                        <td className="text-3">
                           {validator.first_seen_block ? `#${validator.first_seen_block}` : '--'}
                         </td>
-                        <td>
+                        <td className="text-3">
                           {validator.last_seen_block ? `#${validator.last_seen_block}` : '--'}
                         </td>
-                        <td>
+                        <td className="text-3">
                           {latestBond ? (
                             <span>#{latestBond.block_number.toLocaleString()}</span>
                           ) : (
                             <span className="text-muted">Never bonded</span>
                           )}
                         </td>
-                        <td>
+                        <td className="text-3">
                           <span className={validator.status === 'active' ? "text-success" : "text-muted"}>
                             {validator.status || (latestBond ? 'Bonded' : 'Unbonded')}
                           </span>

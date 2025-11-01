@@ -317,7 +317,7 @@ const HomePage: React.FC = () => {
                 ) : (
                     <div style={{ overflowX: "auto" }}>
                         <table>
-                            <thead>
+                            <thead className="text-1">
                                 <tr>
                                     <th>Block</th>
                                     <th>Hash</th>
@@ -374,7 +374,7 @@ const HomePage: React.FC = () => {
                         >
                             <h3>
                                 <button
-                                    className="btn btn-secondary"
+                                    className="btn btn-secondary text-1"
                                     disabled={currentPage === 1}
                                     onClick={() => goToPage(currentPage - 1)}
                                 >
@@ -430,7 +430,7 @@ const HomePage: React.FC = () => {
                             </div>
                             <h3>
                                 <button
-                                    className="btn btn-secondary"
+                                    className="btn btn-secondary text-1"
                                     disabled={currentPage === totalPages}
                                     onClick={() => goToPage(currentPage + 1)}
                                 >
