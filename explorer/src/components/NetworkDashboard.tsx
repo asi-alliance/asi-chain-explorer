@@ -369,7 +369,7 @@ const NetworkDashboard: React.FC = () => {
                 }}
             >
                 <div>
-                    <h1 style={{ margin: "0 0 0.5rem 0", fontSize: "32px" }}>
+                    <h1 style={{ margin: "0 0 0.5rem 0" }}>
                         Network Dashboard
                     </h1>
                     <p style={{ margin: 0, color: "#9ca3af" }}>
@@ -390,6 +390,7 @@ const NetworkDashboard: React.FC = () => {
                         <button
                             key={range}
                             onClick={() => setTimeRange(range)}
+                            className="text-2"
                             style={{
                                 padding: "0.5rem 1rem",
                                 border: "none",
@@ -400,7 +401,6 @@ const NetworkDashboard: React.FC = () => {
                                         : "transparent",
                                 color: timeRange === range ? "#000" : "#9ca3af",
                                 cursor: "pointer",
-                                fontSize: "16px",
                                 fontWeight: "500",
                                 transition: "all 0.2s ease",
                             }}
@@ -468,26 +468,24 @@ const NetworkDashboard: React.FC = () => {
                                         {metric.title}
                                     </span>
                                 </div>
-                                <div
+                                <h2
                                     style={{
-                                        fontSize: "24px",
                                         fontWeight: "700",
                                         color: "#fff",
                                         lineHeight: "1",
                                     }}
                                 >
                                     {metric.value}
-                                </div>
+                                </h2>
                                 {metric.description && (
-                                    <div
+                                    <h5
                                         style={{
-                                            fontSize: "14px",
                                             color: "#6b7280",
                                             marginTop: "0.25rem",
                                         }}
                                     >
                                         {metric.description}
-                                    </div>
+                                    </h5>
                                 )}
                             </div>
 
@@ -505,8 +503,8 @@ const NetworkDashboard: React.FC = () => {
                 }}
             >
                 {/* Block Time & TPS Chart */}
-                <div className="asi-card" style={{ flex: "auto" }}>
-                    <h3 style={{ marginBottom: "1rem", fontSize: "18px" }}>
+                <div className="text-4 asi-card" style={{ flex: "auto" }}>
+                    <h3 style={{ marginBottom: "1rem" }}>
                         Performance Metrics
                     </h3>
                     <ResponsiveContainer
@@ -565,8 +563,8 @@ const NetworkDashboard: React.FC = () => {
                 </div>
 
                 {/* Validator Activity */}
-                <div className="asi-card" style={{ flex: "auto" }}>
-                    <h3 style={{ marginBottom: "1rem", fontSize: "18px" }}>
+                <div className="text-4 asi-card" style={{ flex: "auto" }}>
+                    <h3 style={{ marginBottom: "1rem" }}>
                         Network Activity
                     </h3>
                     <ResponsiveContainer
@@ -594,21 +592,21 @@ const NetworkDashboard: React.FC = () => {
                             <Legend />
                             <Area
                                 type="monotone"
+                                className="text-4"
                                 dataKey="transfers"
                                 stackId="1"
                                 stroke="#3b82f6"
                                 fill="#3b82f6"
                                 name="Transfers"
-                                fontSize={12}
                             />
                             <Area
                                 type="monotone"
+                                className="text-4"
                                 dataKey="deployments"
                                 stackId="1"
                                 stroke="#10b981"
                                 fill="#10b981"
                                 name="Deployments"
-                                fontSize={12}
                             />
                         </AreaChart>
                     </ResponsiveContainer>
