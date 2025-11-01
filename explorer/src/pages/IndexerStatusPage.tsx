@@ -29,7 +29,7 @@ const IndexerStatusPage: React.FC = () => {
 
   const getSyncStatus = () => {
     const syncPercentage = calculateSyncPercentage();
-    if (syncPercentage >= 99.9) return { status: 'Synced', color: 'var(--asi-lime)' };
+    if (syncPercentage >= 99.9) return { status: 'Synched', color: 'var(--asi-lime)' };
     if (syncPercentage >= 95) return { status: 'Syncing', color: 'var(--asi-pulse-blue)' };
     return { status: 'Behind', color: 'var(--warning)' };
   };
@@ -65,23 +65,23 @@ const IndexerStatusPage: React.FC = () => {
     <>
       <section className="asi-card">
         <div className="section-header">
-          <h2>Indexer Status</h2>
+          <h1>Indexer Status</h1>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
             <span 
               className="status-indicator" 
               style={{ background: syncStatus.color }}
             ></span>
-            <span className="text-muted" style={{ fontSize: '14px' }}>{syncStatus.status}</span>
+            <h3 className="text-muted">{syncStatus.status}</h3>
           </div>
         </div>
 
         {/* Status Cards */}
         <div className="summary-grid mb-3">
           <div className="asi-card glass">
-            <p className="text-muted" style={{ marginBottom: '0.5rem' }}>Sync Progress</p>
-            <h3 style={{ margin: 0, color: syncStatus.color }}>
+            <h5 className="text-muted" style={{ marginBottom: '0.5rem' }}>Sync Progress</h5>
+            <h2 style={{ margin: 0, color: syncStatus.color }}>
               {syncPercentage.toFixed(2)}%
-            </h3>
+            </h2>
             <div style={{ 
               marginTop: '0.5rem',
               height: '4px',
@@ -99,27 +99,27 @@ const IndexerStatusPage: React.FC = () => {
           </div>
 
           <div className="asi-card glass">
-            <p className="text-muted" style={{ marginBottom: '0.5rem' }}>Last Indexed Block</p>
-            <h3 style={{ margin: 0 }}>
-              #{lastIndexedBlock.toLocaleString()}
-            </h3>
-            <p className="text-muted" style={{ fontSize: '12px', margin: '0.5rem 0 0 0' }}>
+            <h5 className="text-muted" style={{ marginBottom: '0.5rem' }}>Last Indexed Block</h5>
+            <h2 style={{ margin: 0 }}>
+              {lastIndexedBlock.toLocaleString()}
+            </h2>
+            <p className="text-3 text-muted" style={{ margin: '0.5rem 0 0 0' }}>
               {highestBlock - lastIndexedBlock} blocks behind
             </p>
           </div>
 
           <div className="asi-card glass">
-            <p className="text-muted" style={{ marginBottom: '0.5rem' }}>Highest Block</p>
-            <h3 style={{ margin: 0 }}>
-              #{highestBlock.toLocaleString()}
-            </h3>
+            <h5 className="text-muted" style={{ marginBottom: '0.5rem' }}>Highest Block</h5>
+            <h2 style={{ margin: 0 }}>
+              {highestBlock.toLocaleString()}
+            </h2>
           </div>
 
           <div className="asi-card glass">
-            <p className="text-muted" style={{ marginBottom: '0.5rem' }}>Last Update</p>
-            <h3 style={{ margin: 0, fontSize: '1.2rem' }}>
+            <h5 className="text-muted" style={{ marginBottom: '0.5rem' }}>Last Update</h5>
+            <h2 style={{ margin: 0, fontSize: '1.2rem' }}>
               {lastUpdate ? formatTimestamp(lastUpdate) : 'Unknown'}
-            </h3>
+            </h2>
           </div>
         </div>
 
@@ -139,7 +139,7 @@ const IndexerStatusPage: React.FC = () => {
               </td>
               <td>
                 <span className="mono" style={{ fontSize: '14px' }}>
-                  #{lastIndexedBlock.toLocaleString()}
+                  {lastIndexedBlock.toLocaleString()}
                 </span>
               </td>
             </tr>
@@ -149,7 +149,7 @@ const IndexerStatusPage: React.FC = () => {
               </td>
               <td>
                 <span className="mono" style={{ fontSize: '14px' }}>
-                  #{highestBlock.toLocaleString()}
+                  {highestBlock.toLocaleString()}
                 </span>
               </td>
             </tr>
