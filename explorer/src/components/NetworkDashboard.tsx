@@ -2,11 +2,7 @@ import CustomTooltip from "./CustomChartTooltip";
 import React, { useState, useMemo, useCallback } from "react";
 import { gql, useQuery } from "@apollo/client";
 import { motion } from "framer-motion";
-import {
-    Database,
-    Zap,
-    Clock,
-} from "lucide-react";
+import { Database, Zap, Clock } from "lucide-react";
 import {
     AreaChart,
     Line,
@@ -32,12 +28,9 @@ interface MetricCard {
 }
 
 const GET_STATS = gql`
-    query GetStats($hours: Int!, $divisions: Int!){
+    query GetStats($hours: Int!, $divisions: Int!) {
         get_network_metrics(
-            args: {
-                p_range_hours: $hours,
-                p_divisions: $divisions
-            }
+            args: { p_range_hours: $hours, p_divisions: $divisions }
         ) {
             bucket_start
             avg_block_time_seconds
@@ -46,10 +39,7 @@ const GET_STATS = gql`
             transfers_count
         }
 
-        network_stats(
-            limit: 1,
-            order_by: {id: desc}
-        ) {
+        network_stats(limit: 1, order_by: { id: desc }) {
             id
             total_validators
             active_validators
@@ -60,36 +50,66 @@ const GET_STATS = gql`
             timestamp
         }
 
-        blocks(
-            limit: 1
-            order_by: { block_number: desc }
-        ) {
+        blocks(limit: 1, order_by: { block_number: desc }) {
             block_number
         }
     }
 `;
 
 interface ITimeSet {
-    value: number,
-    divisions: number,
-    label: string,
+    value: number;
+    divisions: number;
+    label: string;
+    formatter: (date: Date) => string;
 }
 
 enum TimeRanges {
     ONE_HOUR,
     SIX_HOURS,
     ONE_DAY,
-    ONE_WEEK
+    ONE_WEEK,
 }
 
 const timeValues: Record<TimeRanges, ITimeSet> = {
-    [TimeRanges.ONE_HOUR]: {value: 1, label: '1h', divisions: 7},
-    [TimeRanges.SIX_HOURS]: {value: 6, label: '6h', divisions: 7},
-    [TimeRanges.ONE_DAY]: {value: 24, label: '1d', divisions: 7},
-    [TimeRanges.ONE_WEEK]: {value: 168, label: '7d', divisions: 7},
-}
+    [TimeRanges.ONE_HOUR]: {
+        value: 1,
+        label: "1h",
+        divisions: 6,
+        formatter: (date) =>
+            `${String(date.getHours()).padStart(2, "0")}:${String(
+                date.getMinutes()
+            ).padStart(2, "0")}`,
+    },
+    [TimeRanges.SIX_HOURS]: {
+        value: 6,
+        label: "6h",
+        divisions: 6,
+        formatter: (date) =>
+            `${String(date.getHours()).padStart(2, "0")}:${String(
+                date.getMinutes()
+            ).padStart(2, "0")}`,
+    },
+    [TimeRanges.ONE_DAY]: {
+        value: 24,
+        label: "1d",
+        divisions: 8,
+        formatter: (date) =>
+            `${String(date.getHours()).padStart(2, "0")}:${String(
+                date.getMinutes()
+            ).padStart(2, "0")}`,
+    },
+    [TimeRanges.ONE_WEEK]: {
+        value: 168,
+        label: "7d",
+        divisions: 7,
+        formatter: (date) =>
+            date.toLocaleDateString("en-US", {
+                month: "short",
+                day: "numeric",
+            }),
+    },
+};
 
-const timeSetKeys: string[] = Object.keys(timeValues);
 const timeSetData: ITimeSet[] = Object.values(timeValues);
 
 const NetworkDashboard: React.FC = () => {
@@ -98,25 +118,29 @@ const NetworkDashboard: React.FC = () => {
     );
 
     const { data: stats, loading: isStatsLoading } = useQuery(GET_STATS, {
-        variables: {hours: timeRange.value, divisions: timeRange.divisions},
+        variables: { hours: timeRange.value, divisions: timeRange.divisions },
         pollInterval: 3000,
-    })
+    });
 
-    console.log('stats', stats);
+    const getValue = useCallback(
+        (value: string) => {
+            if (isStatsLoading) {
+                return "-";
+            }
 
-    const getValue = useCallback((value: string) => {
-        if (isStatsLoading) {
-            return "-"
-        }
-
-        return value;
-    }, [isStatsLoading])
+            return value;
+        },
+        [isStatsLoading]
+    );
 
     const keyMetrics = useMemo((): MetricCard[] => {
-
-        const lastBlock = stats?.blocks[0] ?? {}
-        const lastRecord = stats?.get_network_metrics[stats?.get_network_metrics?.length - 1] ?? {}
-        const activeValidators = stats?.network_stats[0]?.active_validators || 0;
+        const lastBlock = stats?.blocks[0] ?? {};
+        const lastRecord =
+            stats?.get_network_metrics[
+                stats?.get_network_metrics?.length - 1
+            ] ?? {};
+        const activeValidators =
+            stats?.network_stats[0]?.active_validators || 0;
 
         return [
             {
@@ -130,7 +154,11 @@ const NetworkDashboard: React.FC = () => {
             },
             {
                 title: "Block Time",
-                value: getValue(`${Number(lastRecord?.avg_block_time_seconds || 0).toFixed(4)}s`),
+                value: getValue(
+                    `${Number(lastRecord?.avg_block_time_seconds || 0).toFixed(
+                        4
+                    )}s`
+                ),
                 change: 0, // No historical comparison available
                 changeType: "increase",
                 icon: <Clock size={20} />,
@@ -160,6 +188,20 @@ const NetworkDashboard: React.FC = () => {
             },
         ];
     }, [stats, getValue]);
+
+    const chartsData = useMemo(() => {
+        if (!stats) {
+            return [];
+        }
+
+        return stats?.get_network_metrics.map((item: any) => ({
+            time: timeRange.formatter(new Date(item.bucket_start)),
+            tps: item.avg_tps,
+            blockTime: item.avg_block_time_seconds,
+            transfers: item.transfers_count,
+            deployments: item.deployments_count,
+        }));
+    }, [stats, timeRange]);
 
     return (
         <div>
@@ -202,7 +244,10 @@ const NetworkDashboard: React.FC = () => {
                                     timeRange.value === range.value
                                         ? "#10b981"
                                         : "transparent",
-                                color: timeRange.value=== range.value ? "#000" : "#9ca3af",
+                                color:
+                                    timeRange.value === range.value
+                                        ? "#000"
+                                        : "#9ca3af",
                                 cursor: "pointer",
                                 fontWeight: "500",
                                 transition: "all 0.2s ease",
@@ -281,8 +326,6 @@ const NetworkDashboard: React.FC = () => {
                                     </h5>
                                 )}
                             </div>
-
-                
                         </div>
                     </motion.div>
                 ))}
@@ -305,7 +348,7 @@ const NetworkDashboard: React.FC = () => {
                         height={300}
                         minWidth={300}
                     >
-                        <ComposedChart data={[]}>
+                        <ComposedChart data={chartsData}>
                             <CartesianGrid
                                 strokeDasharray="3 3"
                                 stroke="rgba(255, 255, 255, 0.1)"
@@ -357,15 +400,13 @@ const NetworkDashboard: React.FC = () => {
 
                 {/* Validator Activity */}
                 <div className="text-4 asi-card" style={{ flex: "auto" }}>
-                    <h3 style={{ marginBottom: "1rem" }}>
-                        Network Activity
-                    </h3>
+                    <h3 style={{ marginBottom: "1rem" }}>Network Activity</h3>
                     <ResponsiveContainer
                         width="100%"
                         height={300}
                         minWidth={300}
                     >
-                        <AreaChart data={[]}>
+                        <AreaChart data={chartsData}>
                             <CartesianGrid
                                 strokeDasharray="3 3"
                                 stroke="rgba(255, 255, 255, 0.1)"
