@@ -219,7 +219,7 @@ cp .env.example .env
 # Edit .env with your node configuration
 
 # Step 2: Start indexer services
-docker-compose -f docker-compose.rust.yml up -d
+docker compose -f docker-compose.rust.yml up -d
 
 # Step 3: Configure Hasura relationships (for explorer frontend)
 ./scripts/configure-hasura.sh
@@ -240,8 +240,12 @@ The frontend provides the web UI for browsing blockchain data. Before starting t
 ```bash
 cd ../explorer
 
+# Create and configure .env file in /explorer directory
+cp .env.example .env
+# Edit .env with your node configuration
+
 # Start frontend
-docker-compose -f docker-compose.standalone.yml up -d
+docker compose -f docker-compose.standalone.yml up -d
 ```
 
 Frontend will be available at http://localhost:3001
@@ -277,7 +281,7 @@ cp .env.template .env
 
 6. Start PostgreSQL:
 ```bash
-docker-compose up -d postgres
+docker compose up -d postgres
 ```
 
 7. Run migrations:

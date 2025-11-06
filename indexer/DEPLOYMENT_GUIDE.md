@@ -70,13 +70,13 @@ cp .env.example .env
 ### Step 2: Start Indexer
 
 ```bash
-docker-compose -f docker-compose.rust.yml up -d
+docker compose -f docker-compose.rust.yml up -d
 
 # Monitor deployment
-docker-compose -f docker-compose.rust.yml logs -f
+docker compose -f docker-compose.rust.yml logs -f
 
 # Check service health
-docker-compose -f docker-compose.rust.yml ps
+docker compose -f docker-compose.rust.yml ps
 ```
 
 **What you get:**
@@ -125,7 +125,7 @@ cp .env.example .env
 cp .env.remote-observer .env
 
 # 3. Build and deploy with Rust CLI compilation
-docker-compose -f docker-compose.rust.yml up -d --build
+docker compose -f docker-compose.rust.yml up -d --build
 
 # This will:
 # - Build the Rust CLI from source inside Docker
@@ -145,7 +145,7 @@ For faster deployment using a pre-compiled binary:
 ls -la node_cli_linux  # Should be executable
 
 # 2. Deploy using the simple Dockerfile
-docker-compose -f docker-compose.rust.yml up -d
+docker compose -f docker-compose.rust.yml up -d
 ```
 
 #### Environment Configuration
@@ -251,7 +251,7 @@ Builds the Rust CLI from source inside Docker - best for cross-platform compatib
 # Uses rust:latest to compile node_cli from rust-client source
 # Context: .. (parent directory to access rust-client)
 # Dockerfile: indexer/Dockerfile.rust-builder
-docker-compose -f docker-compose.rust.yml up -d --build
+docker compose -f docker-compose.rust.yml up -d --build
 ```
 
 **Pros**: 
@@ -270,7 +270,7 @@ Uses pre-compiled `node_cli_linux` binary:
 # Uses existing node_cli_linux binary in indexer directory
 # Context: . (indexer directory)
 # Dockerfile: indexer/Dockerfile.rust-simple
-docker-compose -f docker-compose.rust.yml up -d
+docker compose -f docker-compose.rust.yml up -d
 ```
 
 **Pros**: 
@@ -424,22 +424,22 @@ SELECT * FROM validators WHERE is_active = true;
 
 ```bash
 # All services
-docker-compose -f docker-compose.rust.yml logs -f
+docker compose -f docker-compose.rust.yml logs -f
 
 # Specific service
-docker-compose -f docker-compose.rust.yml logs -f rust-indexer
-docker-compose -f docker-compose.rust.yml logs -f postgres
-docker-compose -f docker-compose.rust.yml logs -f hasura
+docker compose -f docker-compose.rust.yml logs -f rust-indexer
+docker compose -f docker-compose.rust.yml logs -f postgres
+docker compose -f docker-compose.rust.yml logs -f hasura
 
 # Last 100 lines
-docker-compose -f docker-compose.rust.yml logs --tail=100 rust-indexer
+docker compose -f docker-compose.rust.yml logs --tail=100 rust-indexer
 ```
 
 ### Check Service Status
 
 ```bash
 # Service health
-docker-compose -f docker-compose.rust.yml ps
+docker compose -f docker-compose.rust.yml ps
 
 # Indexer sync status
 curl http://localhost:9090/status | jq .
@@ -458,24 +458,24 @@ docker exec asi-indexer-db psql -U indexer -d asichain -c "
 
 ```bash
 # Restart all services
-docker-compose -f docker-compose.rust.yml restart
+docker compose -f docker-compose.rust.yml restart
 
 # Restart specific service
-docker-compose -f docker-compose.rust.yml restart rust-indexer
+docker compose -f docker-compose.rust.yml restart rust-indexer
 
 # Stop and start fresh
-docker-compose -f docker-compose.rust.yml down
-docker-compose -f docker-compose.rust.yml up -d
+docker compose -f docker-compose.rust.yml down
+docker compose -f docker-compose.rust.yml up -d
 ```
 
 ### Reset Database
 
 ```bash
 # Stop services and remove volumes
-docker-compose -f docker-compose.rust.yml down -v
+docker compose -f docker-compose.rust.yml down -v
 
 # Start fresh
-docker-compose -f docker-compose.rust.yml up -d
+docker compose -f docker-compose.rust.yml up -d
 ```
 
 ## Troubleshooting
@@ -501,7 +501,7 @@ docker-compose -f docker-compose.rust.yml up -d
 - Check PostgreSQL is running: `docker ps | grep postgres`
 - Verify credentials in .env match docker-compose.yml
 - Check database exists: `docker exec asi-indexer-db psql -U indexer -l`
-- Reset database: `docker-compose -f docker-compose.rust.yml down -v`
+- Reset database: `docker compose -f docker-compose.rust.yml down -v`
 
 #### 3. Rust CLI Not Found
 
@@ -537,7 +537,7 @@ docker-compose -f docker-compose.rust.yml up -d
 - **Rust version**: Build uses `rust:latest`, may need specific version
 - **Network issues**: Check internet connection for crate downloads
 - **Architecture issues**: Use `Dockerfile.rust-builder` for cross-platform builds
-- **Clean rebuild**: `docker system prune -a && docker-compose up -d --build --no-cache`
+- **Clean rebuild**: `docker system prune -a && docker compose up -d --build --no-cache`
 
 #### 6. Architecture Compatibility
 
@@ -559,7 +559,7 @@ docker-compose -f docker-compose.rust.yml up -d
 - **No action required**: These errors don't impact functionality
 - **Root cause**: Race conditions during batch block processing
 - **Monitoring**: Verify `sync_percentage` continues to increase despite errors
-- **If persistent**: Restart indexer with database reset: `docker-compose down -v`
+- **If persistent**: Restart indexer with database reset: `docker compose down -v`
 
 #### 8. Slow Synchronization
 

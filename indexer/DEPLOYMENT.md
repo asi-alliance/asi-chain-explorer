@@ -54,7 +54,7 @@ cp .env.example .env
 # Edit .env with your node configuration
 
 # Step 2: Start services
-docker-compose -f docker-compose.rust.yml up -d
+docker compose -f docker-compose.rust.yml up -d
 
 # Step 3: Configure Hasura relationships (for GraphQL API and explorer frontend)
 ./scripts/configure-hasura.sh
@@ -227,7 +227,7 @@ export DB_PASSWORD=$(openssl rand -base64 32)
 export HASURA_SECRET=$(openssl rand -base64 32)
 
 # Deploy
-docker-compose -f docker-compose.prod.yml up -d
+docker compose -f docker-compose.prod.yml up -d
 ```
 
 ### Kubernetes Deployment
@@ -300,7 +300,7 @@ docker exec asi-indexer-db pg_dump -U indexer asichain > backup_http_indexer.sql
 
 ```bash
 # Stop old indexer
-docker-compose down
+docker compose down
 
 # Remove old images (optional)
 docker rmi indexer:latest
@@ -310,7 +310,7 @@ docker rmi indexer:latest
 
 ```bash
 # Start new Rust indexer
-docker-compose -f docker-compose.rust.yml up -d
+docker compose -f docker-compose.rust.yml up -d
 
 # The indexer will automatically:
 # 1. Apply schema migrations
@@ -355,8 +355,8 @@ MONITORING_PORT=9092
 EOF
 
 # Start multiple indexers
-docker-compose -f docker-compose.rust.yml --env-file .env.mainnet -p mainnet up -d
-docker-compose -f docker-compose.rust.yml --env-file .env.testnet -p testnet up -d
+docker compose -f docker-compose.rust.yml --env-file .env.mainnet -p mainnet up -d
+docker compose -f docker-compose.rust.yml --env-file .env.testnet -p testnet up -d
 ```
 
 ## Cloud Deployment
