@@ -4,12 +4,12 @@
 
 ## 🎯 **Overview**
 
-This guide documents the successful deployment of the ASI-Chain Indexer and Explorer infrastructure, providing blockchain data indexing and visualization capabilities for the ASI/F1R3FLY network with zero-touch deployment and automatic configuration.
+This guide documents the successful deployment of the ASI-Chain Indexer and Explorer infrastructure, providing blockchain data indexing and visualization capabilities for the ASI network with Docker-based deployment.
 
 ## 🏗️ **Architecture**
 
 ```
-Remote F1R3FLY Network (13.251.66.61:40453)
+Remote ASI Network (13.251.66.61:40453)
               ↓
      Rust CLI Client (inside Docker)
               ↓
@@ -27,57 +27,59 @@ Remote F1R3FLY Network (13.251.66.61:40453)
 1. **✅ PostgreSQL Database** - `asi-indexer-db:5432`
 2. **✅ ASI Indexer** - `localhost:9090`
 3. **✅ Hasura GraphQL Engine** - `localhost:8080`
-4. **✅ Explorer Frontend** - `localhost:3000`
+4. **✅ Explorer Frontend** - `localhost:3000` (deployed separately)
 
 ### **Working Features:**
-- ✅ Zero-touch deployment with automatic configuration
 - ✅ Rust CLI built from source inside Docker (cross-platform)
-- ✅ Automatic Hasura relationship configuration
 - ✅ Full blockchain sync from genesis (block 0)
 - ✅ Validator bond detection with new CLI format support
 - ✅ Enhanced data quality with NULL handling
 - ✅ Health monitoring endpoints
 - ✅ GraphQL API with nested relationships
-- ✅ Frontend compilation and serving
-- ✅ Remote F1R3FLY connectivity validated
+- ✅ Remote ASI connectivity validated
 
 ## 🚀 **Quick Start**
 
 ### Prerequisites
 - Docker and Docker Compose
-- Node.js 18+ (for explorer frontend)
+- Node.js 18+ (for explorer frontend, deployed separately)
 - Git access to the repository
 
-### Deployment Steps
+### Indexer Deployment (2 Steps)
 
-1. **One-Command Deployment:**
+1. **Configure Environment:**
    ```bash
-   cd /path/to/asi-chain/indexer
-   echo "1" | ./deploy.sh  # Choose option 1 for remote F1R3FLY node
+   cd /path/to/asi-chain-explorer/indexer
+   
+   # Copy and edit .env file (use .env not .env.local or .env.observer)
+   cp .env.example .env
+   # Edit .env to configure your node connection
    ```
 
-   The deploy.sh script automatically:
-   - Pre-pulls Docker images with retry logic
-   - Builds Rust CLI from source (10-15 min first time, cached thereafter)
-   - Creates proper .env configuration
-   - Sets up PostgreSQL with comprehensive schema
-   - Configures Hasura GraphQL relationships
-   - Starts indexing from genesis
-   - Validates all services are healthy
-
-2. **Alternative: Manual Docker Compose:**
+2. **Start Indexer:**
    ```bash
-   # For pre-compiled binary method
-   docker-compose -f docker-compose.rust.yml up -d
+   docker compose -f docker-compose.rust.yml up -d
    
    # Monitor deployment
-   docker-compose -f docker-compose.rust.yml logs -f
+   docker compose -f docker-compose.rust.yml logs -f
    
    # Check service health
-   docker-compose -f docker-compose.rust.yml ps
+   docker compose -f docker-compose.rust.yml ps
    ```
 
-3. **Verify Deployment:**
+3. **Configure Hasura (for Explorer frontend):**
+   
+   After the indexer is running, configure Hasura GraphQL for the frontend:
+   
+   ```bash
+   # Setup Hasura configuration
+   ./scripts/configure-hasura.sh
+   
+   # Setup GraphQL relationships
+   ./scripts/setup-hasura-relationships.sh
+   ```
+
+4. **Verify Indexer:**
    ```bash
    # Check indexer status
    curl http://localhost:9090/status | jq .
@@ -90,12 +92,15 @@ Remote F1R3FLY Network (13.251.66.61:40453)
      -d '{"query":"{ blocks(limit: 1) { block_number deployments { deploy_id } validator_bonds { stake } } }"}'
    ```
 
-4. **Deploy Explorer:**
-   ```bash
-   cd ../explorer
-   npm install
-   npm start  # Runs on port 3001
-   ```
+### Explorer Frontend Deployment (Separate)
+
+The Explorer frontend is a separate component that runs independently:
+
+```bash
+cd /path/to/asi-chain-explorer/explorer
+npm install
+npm start  # Runs on port 3000 or 3001
+```
 
 ## 🔗 **Service URLs**
 
@@ -105,7 +110,7 @@ Remote F1R3FLY Network (13.251.66.61:40453)
 | **Indexer Status** | http://localhost:9090/status | ✅ Working | System status |
 | **GraphQL API** | http://localhost:8080/v1/graphql | ✅ Working | Data queries |
 | **Hasura Console** | http://localhost:8080/console | ✅ Working | GraphQL admin |
-| **Explorer Frontend** | http://localhost:3001 | ✅ Working | Blockchain explorer |
+| **Explorer Frontend** | http://localhost:3000 | ✅ Working | Blockchain explorer (separate) |
 
 ## 📊 **GraphQL API Examples**
 
@@ -210,7 +215,11 @@ docker ps | grep asi-
 
 2. **GraphQL Schema Issues:**
    ```bash
-   # Reload GraphQL metadata
+   # Run Hasura configuration scripts
+   ./scripts/configure-hasura.sh
+   ./scripts/setup-hasura-relationships.sh
+   
+   # Or reload GraphQL metadata manually
    curl -X POST http://localhost:8080/v1/metadata \
      -H "X-Hasura-Admin-Secret: myadminsecretkey" \
      -d '{"type": "reload_metadata", "args": {}}'
