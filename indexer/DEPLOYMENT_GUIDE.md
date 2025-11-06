@@ -11,7 +11,7 @@ The ASI-Chain Indexer is a high-performance blockchain data synchronization serv
 
 ```
 ┌─────────────────┐     Rust CLI       ┌─────────────────┐
-│  ASI Node   │ ←────────────────→ │  Rust Indexer   │
+│  ASI Node       │ ←────────────────→ │  Rust Indexer   │
 │  (gRPC/HTTP)    │                    │ (Python/asyncio)│
 └─────────────────┘                    └────────┬────────┘
                                                │
