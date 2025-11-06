@@ -54,7 +54,7 @@ class BlockIndexer:
     async def start(self):
         """Start the indexer."""
         self.running = True
-        logger.info("Starting blockchain indexer", node_url=settings.observer_host)
+        logger.info("Starting blockchain indexer", node_url=settings.node_host)
 
         # Initialize database
         await db.connect()

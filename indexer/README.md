@@ -27,7 +27,7 @@ The indexer now features complete automation with zero manual configuration:
 - Deployment extraction with full Rholang code
 - Smart contract type classification (ASI transfers, validator ops, etc.)
 - ASI transfer extraction with both variable-based and match-based pattern matching
-- Address validation supporting 53-56 character ASI addresses
+- Address validation supporting 52-56 character ASI addresses
 - Validator tracking with full public keys (130+ characters)
 - Network consensus monitoring
 - Advanced search capabilities (blocks by hash, deployments by ID/deployer)
@@ -151,10 +151,7 @@ open http://localhost:8080/console
 git clone <repository-url>
 cd indexer
 
-# Option 1: Use automated deployment script (recommended)
-echo "1" | ./deploy.sh  # Chooses remote F1R3FLY node configuration
-
-# Option 2: Manual Docker Compose
+# Manual Docker Compose
 docker-compose -f docker-compose.rust.yml up -d
 
 # Verify it's working
