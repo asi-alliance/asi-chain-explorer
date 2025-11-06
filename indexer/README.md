@@ -98,17 +98,21 @@ The indexer leverages these Rust CLI commands for comprehensive data extraction:
 
 ## ⚡ Quick Start
 
-**Two simple steps to get started:**
+**Three simple steps to get started:**
 
 ```bash
 cd indexer
 
-# Step 1: Create .env file
+# Step 1: Create and configure .env file in /indexer directory
 cp .env.example .env
 # Edit .env with your node configuration if needed
 
 # Step 2: Start the indexer
 docker compose -f docker-compose.rust.yml up -d
+
+# Step 3: Configure Hasura (for GraphQL API and explorer frontend)
+./scripts/configure-hasura.sh
+./scripts/setup-hasura-relationships.sh
 
 # Check status
 curl http://localhost:9090/status | jq .
@@ -117,13 +121,18 @@ curl http://localhost:9090/status | jq .
 **That's it!** The indexer will automatically:
 - Build Rust CLI from source (10-15 min first time, cached after)
 - Set up PostgreSQL database with complete schema
-- Configure Hasura GraphQL with relationships
 - Start syncing from genesis block
+
+After running the Hasura configuration scripts in Step 3:
+- GraphQL relationships will be configured
+- API will be ready for complex queries
 
 **Access services:**
 - Indexer API: http://localhost:9090
 - Hasura Console: http://localhost:8080/console
 - GraphQL endpoint: http://localhost:8080/v1/graphql
+
+**Note:** Step 3 (Hasura scripts) is required if you want to use the GraphQL API or run the explorer frontend.
 
 ## Requirements
 

@@ -214,12 +214,16 @@ The indexer syncs blockchain data and provides the GraphQL API:
 ```bash
 cd indexer
 
-# Step 1: Create and configure .env
+# Step 1: Create and configure .env file in /indexer directory
 cp .env.example .env
 # Edit .env with your node configuration
 
 # Step 2: Start indexer services
-docker compose -f docker-compose.rust.yml up -d
+docker-compose -f docker-compose.rust.yml up -d
+
+# Step 3: Configure Hasura relationships (for explorer frontend)
+./scripts/configure-hasura.sh
+./scripts/setup-hasura-relationships.sh
 ```
 
 This starts:
@@ -227,15 +231,17 @@ This starts:
 - Indexer service (monitoring on port 9090)
 - Hasura GraphQL Engine (port 8080)
 
+**Note:** Step 3 (Hasura scripts) is only needed if you plan to run the explorer frontend.
+
 #### 2. Start Explorer Frontend (Separately) - OPTIONAL
 
-The frontend provides the web UI for browsing blockchain data:
+The frontend provides the web UI for browsing blockchain data. Before starting the frontend, ensure you've completed Step 3 from the indexer setup (Hasura configuration scripts).
 
 ```bash
 cd ../explorer
 
 # Start frontend
-docker compose -f docker-compose.standalone.yml up -d
+docker-compose -f docker-compose.standalone.yml up -d
 ```
 
 Frontend will be available at http://localhost:3001
@@ -271,7 +277,7 @@ cp .env.template .env
 
 6. Start PostgreSQL:
 ```bash
-docker compose up -d postgres
+docker-compose up -d postgres
 ```
 
 7. Run migrations:

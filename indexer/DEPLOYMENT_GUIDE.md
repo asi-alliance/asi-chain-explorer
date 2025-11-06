@@ -1,7 +1,7 @@
 # ASI-Chain Indexer Deployment Guide
 
 **Version**: 2.1.1 | **Updated**: January 2025  
-**Features**: Automatic Hasura relationships, Cross-platform Docker builds, Smart configuration templates, Remote F1R3FLY node support, Enhanced data quality
+**Features**: Cross-platform Docker builds, Smart configuration templates, Remote F1R3FLY node support, Enhanced data quality
 
 ## Overview
 
@@ -24,7 +24,7 @@ The ASI-Chain Indexer is a high-performance blockchain data synchronization serv
                                                ▼
                                        ┌─────────────────┐
                                        │ Hasura GraphQL  │
-                                       │   (optional)    │
+                                       │   (configured)  │
                                        └─────────────────┘
 ```
 
@@ -50,22 +50,53 @@ The ASI-Chain Indexer is a high-performance blockchain data synchronization serv
    - 20GB+ disk space
    - Network access to F1R3FLY node
 
-## ⚡ Quick Start (v2.1.1)
+## ⚡ Quick Start (2 Steps)
 
-**One command deployment with automatic Hasura relationships:**
+### Step 1: Configure Environment
 
 ```bash
-cd /path/to/asi-chain/indexer
-echo "Yes" | ./deploy.sh
+cd /path/to/asi-chain-explorer/indexer
+
+# Copy and edit .env file (use .env, NOT .env.local or .env.observer)
+cp .env.example .env
+
+# Edit .env to configure your node connection
+# Example configuration for remote node:
+# NODE_HOST=13.251.66.61
+# GRPC_PORT=40452
+# HTTP_PORT=40453
+```
+
+### Step 2: Start Indexer
+
+```bash
+docker-compose -f docker-compose.rust.yml up -d
+
+# Monitor deployment
+docker-compose -f docker-compose.rust.yml logs -f
+
+# Check service health
+docker-compose -f docker-compose.rust.yml ps
 ```
 
 **What you get:**
 - ✅ Complete indexer deployment (10-15 minutes first time with Rust build, 2-3 minutes thereafter)
 - ✅ Comprehensive database schema with enhanced features
-- ✅ **Automatic GraphQL relationships** - no manual configuration
 - ✅ Real-time blockchain synchronization from genesis block
 - ✅ Working REST API (port 9090) and GraphQL API (port 8080)
 - ✅ Enhanced data quality with proper NULL handling
+
+### Step 3: Configure Hasura (for Explorer Frontend)
+
+After the indexer is running, run these scripts to configure Hasura GraphQL:
+
+```bash
+# Setup Hasura configuration
+./scripts/configure-hasura.sh
+
+# Setup GraphQL relationships
+./scripts/setup-hasura-relationships.sh
+```
 
 **Immediately test complex nested queries:**
 ```graphql
@@ -80,61 +111,7 @@ echo "Yes" | ./deploy.sh
 
 ## Deployment Methods
 
-### Method 1: Automated Deploy Script (Recommended)
-
-The deploy script handles the entire deployment process with comprehensive error handling, build method detection, and interactive configuration.
-
-```bash
-cd /path/to/asi-chain/indexer
-./deploy.sh
-```
-
-#### What the Deploy Script Does (v2.1.1)
-
-1. **System & Build Method Detection**
-   - Detects build-from-source vs pre-compiled binary deployment
-   - Checks system requirements (RAM, disk space) for Rust builds
-   - Pre-pulls Docker images including Rust compiler if needed
-   - Sets appropriate timeouts (3min for builds, 1min for pre-compiled)
-
-2. **Smart Configuration Management**
-   - Interactive configuration template selection:
-     - Remote F1R3FLY node (13.251.66.61) - **recommended**
-     - Local F1R3FLY node (host.docker.internal)
-     - Manual configuration
-   - Creates optimized `.env` files from templates
-   - Validates Rust CLI availability (binary exists or will be built)
-
-3. **Enhanced Connectivity Testing**
-   - Tests F1R3FLY node connectivity with proper host resolution
-   - Validates F1R3FLY API endpoints (not just port connectivity)
-   - Provides detailed troubleshooting guidance for connection failures
-   - Supports both local and remote node configurations
-
-4. **Intelligent Deployment Process**
-   - Build-from-source: Shows progress, estimates time, checks resources
-   - Pre-compiled binary: Fast deployment with validation
-   - Extended health check timeouts for build processes
-   - Comprehensive error handling with recovery suggestions
-
-5. **Fully Automatic Hasura Configuration** ⚡
-   - **Zero manual configuration required** - relationships setup automatically
-   - Tracks all database tables (blocks, deployments, transfers, validators, etc.)
-   - Creates bidirectional GraphQL relationships between all tables
-   - Manual relationships for validator tables (no foreign key dependency)
-   - Configures public read permissions for all tables
-   - **Real-time verification** - tests nested queries immediately after setup
-   - **60-second timeout protection** - never hangs during relationship setup
-   - **Detailed error reporting** - shows specific issues if setup fails
-
-6. **Comprehensive Verification**
-   - Real-time sync progress monitoring
-   - API endpoint health checks (REST + GraphQL)
-   - Database initialization validation
-   - Final deployment summary with configuration details
-   - Next steps guidance and monitoring commands
-
-### Method 2: Docker Compose with Built-in Rust CLI Building
+### Method 1: Docker Compose with Built-in Rust CLI Building (Recommended)
 
 Build the Rust CLI from source inside Docker (recommended for cross-platform compatibility):
 
@@ -159,7 +136,7 @@ docker-compose -f docker-compose.rust.yml up -d --build
 
 **Note**: Building the Rust CLI requires ~10-15 minutes on first run and ~8GB RAM.
 
-### Method 3: Docker Compose with Pre-compiled Binary
+### Method 2: Docker Compose with Pre-compiled Binary
 
 For faster deployment using a pre-compiled binary:
 
@@ -212,57 +189,7 @@ LOG_FORMAT=json
 HASURA_ADMIN_SECRET=myadminsecretkey
 ```
 
-```bash
-# 3. Deploy services
-docker-compose -f docker-compose.rust.yml up -d
-
-# 4. Configure Hasura (if not auto-configured)
-bash scripts/configure-hasura.sh
-```
-
-## Docker Build Options
-
-The indexer supports multiple Docker build configurations:
-
-### 1. Dockerfile.rust-builder (Recommended)
-Builds the Rust CLI from source inside Docker - best for cross-platform compatibility:
-
-```bash
-# Uses rust:latest to compile node_cli from rust-client source
-# Context: .. (parent directory to access rust-client)
-# Dockerfile: indexer/Dockerfile.rust-builder
-docker-compose -f docker-compose.rust.yml up -d --build
-```
-
-**Pros**: 
-- Works on any platform (macOS ARM64, Linux x86_64, etc.)
-- Always uses latest Rust CLI code
-- No pre-compiled binary required
-
-**Cons**: 
-- Longer build time (10-15 minutes first time)
-- Requires more RAM (8GB recommended)
-
-### 2. Dockerfile.rust-simple (Fast)
-Uses pre-compiled `node_cli_linux` binary:
-
-```bash
-# Uses existing node_cli_linux binary in indexer directory
-# Context: . (indexer directory)
-# Dockerfile: indexer/Dockerfile.rust-simple
-docker-compose -f docker-compose.rust.yml up -d
-```
-
-**Pros**: 
-- Fast deployment (2-3 minutes)
-- Lower resource requirements
-
-**Cons**: 
-- Requires pre-compiled binary
-- Architecture specific (Linux x86_64)
-- Binary must be manually updated
-
-### Method 4: Local Development Setup
+### Method 3: Local Development Setup
 
 For development and testing without Docker:
 
@@ -312,6 +239,48 @@ python -m src.main --start-from 100
 # Optional: Reset database before starting
 python -m src.main --reset
 ```
+
+## Docker Build Options
+
+The indexer supports multiple Docker build configurations:
+
+### 1. Dockerfile.rust-builder (Recommended)
+Builds the Rust CLI from source inside Docker - best for cross-platform compatibility:
+
+```bash
+# Uses rust:latest to compile node_cli from rust-client source
+# Context: .. (parent directory to access rust-client)
+# Dockerfile: indexer/Dockerfile.rust-builder
+docker-compose -f docker-compose.rust.yml up -d --build
+```
+
+**Pros**: 
+- Works on any platform (macOS ARM64, Linux x86_64, etc.)
+- Always uses latest Rust CLI code
+- No pre-compiled binary required
+
+**Cons**: 
+- Longer build time (10-15 minutes first time)
+- Requires more RAM (8GB recommended)
+
+### 2. Dockerfile.rust-simple (Fast)
+Uses pre-compiled `node_cli_linux` binary:
+
+```bash
+# Uses existing node_cli_linux binary in indexer directory
+# Context: . (indexer directory)
+# Dockerfile: indexer/Dockerfile.rust-simple
+docker-compose -f docker-compose.rust.yml up -d
+```
+
+**Pros**: 
+- Fast deployment (2-3 minutes)
+- Lower resource requirements
+
+**Cons**: 
+- Requires pre-compiled binary
+- Architecture specific (Linux x86_64)
+- Binary must be manually updated
 
 ## Successful Deployment Verification
 
@@ -409,7 +378,7 @@ curl -X POST http://localhost:8080/v1/graphql \
   -H "Content-Type: application/json" \
   -d '{"query": "{ blocks(limit: 5) { block_number block_hash timestamp } }"}'
 
-# Query blocks with deployments relationship
+# Query blocks with deployments relationship (requires Hasura configuration)
 curl -X POST http://localhost:8080/v1/graphql \
   -H "Content-Type: application/json" \
   -d '{"query": "{ blocks(limit: 1) { block_number deployments { deploy_id } } }"}'
@@ -506,8 +475,7 @@ docker-compose -f docker-compose.rust.yml up -d
 docker-compose -f docker-compose.rust.yml down -v
 
 # Start fresh
-./deploy.sh
-# Choose 'y' when prompted to reset database
+docker-compose -f docker-compose.rust.yml up -d
 ```
 
 ## Troubleshooting
@@ -547,10 +515,14 @@ docker-compose -f docker-compose.rust.yml down -v
 
 #### 4. GraphQL Not Working
 
-**Symptom**: Hasura console shows no tables
+**Symptom**: Hasura console shows no tables or relationships
 
 **Solutions**:
-- Run configuration script: `bash scripts/configure-hasura.sh`
+- Run configuration scripts: 
+  ```bash
+  ./scripts/configure-hasura.sh
+  ./scripts/setup-hasura-relationships.sh
+  ```
 - Check Hasura logs: `docker logs asi-hasura`
 - Verify admin secret in requests
 - Manually track tables in Hasura console
@@ -630,85 +602,6 @@ docker image inspect indexer-rust-indexer:latest | jq '.[0].Config.Labels'
 # Verify Rust CLI architecture
 docker exec asi-rust-indexer file /usr/local/bin/node_cli
 ```
-
-## Recent Deployment Success Stories
-
-### v2.1.1 Deployment - Full Automation with Data Quality (January 2025)
-
-**Environment**: macOS ARM64 → Docker Linux x86_64  
-**Build Method**: build-from-source (Dockerfile.rust-builder)  
-**F1R3FLY Node**: Remote observer (13.251.66.61:40453)  
-**Key Enhancements**: 
-- ⚡ **Zero-touch Hasura relationship setup**
-- 🔧 **Enhanced data quality** - proper NULL handling for error messages
-- 📊 **Improved deployment classification**
-
-**Results**:
-- ✅ **Build Time**: 10-15 minutes for initial Rust CLI compilation (cached thereafter)  
-- ✅ **Full Deployment**: Complete automation including relationship setup  
-- ✅ **GraphQL Relationships**: **Configured automatically** - no manual steps  
-- ✅ **Sync Performance**: Processes 50 blocks per batch from genesis  
-- ✅ **Zero Downtime**: All services healthy with working relationships  
-- ✅ **Cross-platform**: Seamless macOS → Linux Docker compilation  
-- ✅ **Data Quality**: Proper NULL handling prevents false error reports  
-
-**Automatic Hasura Setup Output**:
-```
---- Setting up Hasura GraphQL relationships... ---
-Running Hasura relationship setup...
-Setting up GraphQL relationships for nested queries...
-✅ Hasura relationships configured successfully!
-Testing nested GraphQL query...
-✅ Nested queries working! You can now use relationships like blocks->deployments
-```
-
-**Enhanced GraphQL Capabilities**:
-```graphql
-# Complex nested queries work immediately after deployment
-{
-  blocks(limit: 1) { 
-    block_number 
-    deployments { deploy_id deployment_type }
-    validator_bonds { stake }
-  }
-  validators { 
-    name              # VARCHAR(160) for full public keys
-    validator_bonds { stake block { block_number } }
-  }
-  balance_states { 
-    total_balance_asi # Auto-computed from bonded + unbonded
-    block { block_number }
-  }
-}
-```
-
-**Key Metrics**:
-```json
-{
-  "indexer": {
-    "sync_percentage": 100.0,
-    "sync_lag": 0,
-    "last_indexed_block": 172
-  },
-  "database": {
-    "total_blocks": 172,
-    "total_deployments": 185,
-    "total_transfers": 3,
-    "total_validators": 3
-  }
-}
-```
-
-**What Changed in v2.1.1**:
-- ✅ **No more manual Hasura configuration** required (v2.1.0)
-- ✅ **Relationship setup moved** before interactive prompts (v2.1.0)
-- ✅ **Timeout protection** prevents deployment hanging (v2.1.0)
-- ✅ **Immediate verification** tests relationships automatically (v2.1.0)
-- ✅ **Better error handling** with detailed troubleshooting (v2.1.0)
-- ✅ **Data quality improvements** - empty error messages converted to NULL (v2.1.1)
-- ✅ **Enhanced deployment monitoring** - better progress tracking (v2.1.1)
-
-This demonstrates the enhanced automation and reliability of the v2.1.1 deployment system with improved data quality handling.
 
 ## Performance Tuning
 
