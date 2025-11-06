@@ -371,6 +371,4 @@ Copyright 2025 Artificial Superintelligence Alliance
 
 Licensed under the Apache License, Version 2.0. See [LICENSE](LICENSE) file for details.
 
-This project builds upon the F1R3FLY and RChain codebases. For submodule licensing, see individual LICENSE files in respective directories.
-
 ASI Alliance founding members: Fetch.ai, SingularityNET, and CUDOS
