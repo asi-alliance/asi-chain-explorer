@@ -42,40 +42,34 @@ This guide covers various deployment scenarios for the ASI-Chain Indexer with ne
 
 ## Quick Start
 
-Deploy with the automated deployment script:
+Deploy manually with three simple steps:
 
 ```bash
 # Clone repository
 git clone <repository-url>
 cd indexer
 
-# One-command deployment (recommended)
-echo "1" | ./deploy.sh  # Choose option 1 for remote F1R3FLY node
+# Step 1: Create and configure .env file in /indexer directory
+cp .env.example .env
+# Edit .env with your node configuration
 
-# The script will:
-# - Pre-pull Docker images with retry logic
-# - Build Rust CLI from source (10-15 min first time, cached thereafter)
-# - Check Docker and network connectivity
-# - Build and start all services (PostgreSQL, Indexer, Hasura)
-# - Configure Hasura relationships automatically
-# - Verify genesis block processing with validator bonds
-# - Display service URLs and status
-# - Run functionality tests
+# Step 2: Start services
+docker compose -f docker-compose.rust.yml up -d
 
-# When prompted for fresh database, choose 'y' for clean start
+# Step 3: Configure Hasura relationships (for GraphQL API and explorer frontend)
+./scripts/configure-hasura.sh
+./scripts/setup-hasura-relationships.sh
+
+# Verify deployment
+curl http://localhost:9090/status | jq .
 ```
 
-Or deploy manually:
+**Services started:**
+- PostgreSQL database (port 5432)
+- Indexer with Rust CLI (port 9090)
+- Hasura GraphQL Engine (port 8080)
 
-```bash
-# Start services manually
-docker-compose -f docker-compose.rust.yml up -d
-
-# Configure Hasura (if not using deploy.sh)
-bash scripts/configure-hasura.sh
-# Or if you have Python dependencies installed:
-# python3 scripts/configure-hasura.py
-```
+**Note:** Step 3 (Hasura scripts) is required if you want to use the GraphQL API or run the explorer frontend.
 
 ## Rust CLI Setup
 
@@ -148,9 +142,9 @@ docker run -d \
   -v $(pwd)/migrations:/docker-entrypoint-initdb.d \
   postgres:14-alpine
 
-# Configure environment for remote F1R3FLY node
+# Configure environment for remote node
 export RUST_CLI_PATH=/path/to/rust-client/target/release/node_cli
-export NODE_HOST=13.251.66.61  # Remote F1R3FLY node
+export NODE_HOST=13.251.66.61  # Remote node
 export GRPC_PORT=40452          # Observer gRPC port
 export HTTP_PORT=40453          # Observer HTTP port
 export DATABASE_URL=postgresql://indexer:indexer_pass@localhost:5432/asichain
@@ -233,7 +227,7 @@ export DB_PASSWORD=$(openssl rand -base64 32)
 export HASURA_SECRET=$(openssl rand -base64 32)
 
 # Deploy
-docker-compose -f docker-compose.prod.yml up -d
+docker compose -f docker-compose.prod.yml up -d
 ```
 
 ### Kubernetes Deployment
@@ -306,7 +300,7 @@ docker exec asi-indexer-db pg_dump -U indexer asichain > backup_http_indexer.sql
 
 ```bash
 # Stop old indexer
-docker-compose down
+docker compose down
 
 # Remove old images (optional)
 docker rmi indexer:latest
@@ -316,7 +310,7 @@ docker rmi indexer:latest
 
 ```bash
 # Start new Rust indexer
-docker-compose -f docker-compose.rust.yml up -d
+docker compose -f docker-compose.rust.yml up -d
 
 # The indexer will automatically:
 # 1. Apply schema migrations
@@ -361,8 +355,8 @@ MONITORING_PORT=9092
 EOF
 
 # Start multiple indexers
-docker-compose -f docker-compose.rust.yml --env-file .env.mainnet -p mainnet up -d
-docker-compose -f docker-compose.rust.yml --env-file .env.testnet -p testnet up -d
+docker compose -f docker-compose.rust.yml --env-file .env.mainnet -p mainnet up -d
+docker compose -f docker-compose.rust.yml --env-file .env.testnet -p testnet up -d
 ```
 
 ## Cloud Deployment
