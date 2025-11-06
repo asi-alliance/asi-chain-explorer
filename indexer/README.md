@@ -2,17 +2,14 @@
 
 A high-performance blockchain indexer for ASI-Chain that synchronizes data from RChain nodes using the Rust CLI client and stores it in PostgreSQL for efficient querying.
 
-## 🚀 Major Update: Zero-Touch Deployment (v2.1.1)
+## Latest Version
 
-The indexer now features complete automation with zero manual configuration:
-- ⚡ **Fully automatic Hasura relationships** - no manual GraphQL setup required
-- **Automatic genesis data extraction** - validator bonds and ASI allocations
-- **Full blockchain sync from genesis (block 0)** - no API limitations
-- **Enhanced ASI transfer detection** - supports match-based Rholang patterns
-- **Comprehensive database schema** - single migration with all enhancements
-- **Enhanced balance tracking** - bonded vs unbonded ASI balances with computed totals
-- **Network-agnostic design** - works with any ASI-Chain network
-- **One-command deployment** - `echo "Yes" | ./deploy.sh` for complete setup
+The indexer provides complete automation for blockchain data synchronization:
+- Full blockchain sync from genesis (block 0) using Rust CLI
+- Automatic Hasura GraphQL relationships setup
+- Enhanced ASI transfer detection with Rholang pattern matching
+- Comprehensive database schema with single migration
+- Balance tracking with bonded/unbonded separation
 
 ## Current Status
 
@@ -41,13 +38,11 @@ The indexer now features complete automation with zero manual configuration:
 - **Epoch transitions tracking** - Table exists but data not populated (epoch rewards not tracked)
 - **Validator rewards** - Not tracked in current implementation
 
-✅ **Recently Fixed (v2.1.1):**
-- **Manual Hasura configuration eliminated** - relationships setup automatically during deployment
-- **Deployment script enhanced** - relationship setup moved before interactive prompts
-- **Timeout protection** - prevents hanging during GraphQL relationship configuration
-- **Comprehensive migration** - single `000_comprehensive_initial_schema.sql` includes all enhancements
-- **Data quality improvements** - proper NULL handling for deployment error messages
-- **Enhanced error tracking** - prevents false positives in failed deployment counts
+✅ **Recent Improvements:**
+- Manual Hasura configuration eliminated - relationships setup automatically
+- Comprehensive migration - single `000_comprehensive_initial_schema.sql`
+- Data quality improvements - proper NULL handling
+- Enhanced error tracking
 
 📊 **Performance:**
 - Syncs up to 50 blocks per batch
@@ -454,14 +449,13 @@ indexer/
 │   ├── main.py                # Entry point with CLI detection
 │   └── monitoring.py          # REST API and metrics endpoints
 ├── migrations/
-│   ├── 000_comprehensive_initial_schema.sql  # Complete v2.1.1 schema
+│   ├── 000_comprehensive_initial_schema.sql  # Complete schema
 │   ├── 001_initial_schema.sql               # Legacy
 │   └── 002_add_enhanced_tables.sql          # Legacy
 ├── scripts/
-│   ├── deploy.sh                    # One-command deployment script
-│   ├── configure-hasura.sh          # Bash-based Hasura setup
-│   ├── setup-hasura-relationships.sh # Automatic relationship config
-│   └── test-relationships.sh         # GraphQL relationship tests
+│   ├── configure-hasura.sh          # Hasura setup
+│   ├── setup-hasura-relationships.sh # Relationship configuration
+│   └── test-relationships.sh         # GraphQL tests
 ├── examples/
 │   └── graphql-queries.md           # Sample GraphQL queries
 ├── Docker Configuration:
@@ -478,7 +472,7 @@ indexer/
 │   ├── .env.template                # Blank template
 │   └── .env.example                 # Reference with all options
 ├── Documentation:
-│   ├── README.md                    # This file (v2.1.1)
+│   ├── README.md                    # This file
 │   ├── API.md                       # REST API documentation
 │   ├── CHANGELOG.md                 # Version history
 │   ├── DEPLOYMENT.md                # Deployment scenarios
