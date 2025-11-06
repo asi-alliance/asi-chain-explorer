@@ -16,7 +16,7 @@ logger = structlog.get_logger(__name__)
 class RustCLIClient:
     """Client for interacting with ASI-Chain using rust-client CLI."""
 
-    def __init__(self, cli_path: str = None, observer_host: str = None, observer_grpc_port: int = None, observer_http_port: int = None):
+    def __init__(self, cli_path: str = None, node_host: str = None, grpc_port: int = None, http_port: int = None):
         """Initialize the Rust CLI client.
         
         Args:
@@ -30,13 +30,13 @@ class RustCLIClient:
         # self.grpc_port = grpc_port or settings.grpc_port or 40412
         # self.http_port = http_port or settings.http_port or 40413
 
-        self.observer_http_port = observer_http_port or settings.observer_http_port or 40453
-        self.observer_grpc_port = observer_grpc_port or settings.observer_grpc_port or 40452
+        self.http_port = http_port or settings.http_port or 40453
+        self.grpc_port = grpc_port or settings.grpc_port or 40452
 
         # self.VALIDATOR_HTTP_PORT = http_port or settings.http_port or 40413
         # self.VALIDATOR_GRPC_PORT = http_port or settings.http_port or 40413
 
-        self.observer_host = observer_host or settings.observer_host or "localhost"
+        self.node_host = node_host or settings.node_host or "localhost"
         # self.validator_host = node_host or settings.validator_host or "localhost"
 
         # Verify CLI exists
@@ -120,8 +120,8 @@ class RustCLIClient:
         try:
             stdout, _ = await self._run_command([
                 "last-finalized-block",
-                "-H", self.observer_host,
-                "--http-port", str(self.observer_http_port),
+                "-H", self.node_host,
+                "--http-port", str(self.http_port),
             ])
 
             # Parse the text output for last-finalized-block
@@ -174,8 +174,8 @@ class RustCLIClient:
                 "get-blocks-by-height",
                 "-s", str(start),
                 "-e", str(end),
-                "-H", self.observer_host,
-                "--grpc-port", str(self.observer_grpc_port)
+                "-H", self.node_host,
+                "--grpc-port", str(self.grpc_port)
             ], timeout=60)  # Longer timeout for potentially many blocks
 
             # Extract blocks from output
@@ -243,8 +243,8 @@ class RustCLIClient:
             stdout, _ = await self._run_command([
                 "blocks",
                 "--block-hash", block_hash,
-                "-H", self.observer_host,
-                "--http-port", str(self.observer_http_port)
+                "-H", self.node_host,
+                "--http-port", str(self.http_port)
             ], timeout=30)
 
             # Parse the JSON response
@@ -268,8 +268,8 @@ class RustCLIClient:
                 "get-deploy",
                 "-d", deploy_id,
                 "--format", "json",
-                "-H", self.observer_host,
-                "--http-port", str(self.observer_http_port),
+                "-H", self.node_host,
+                "--http-port", str(self.http_port),
             ])
 
             # Parse the JSON response
@@ -288,8 +288,8 @@ class RustCLIClient:
         try:
             stdout, _ = await self._run_command([
                 "bonds",
-                "-H", self.observer_host,
-                "--http-port", str(self.observer_http_port)
+                "-H", self.node_host,
+                "--http-port", str(self.http_port)
             ])
 
             # Parse bonds from output
@@ -336,8 +336,8 @@ class RustCLIClient:
         try:
             stdout, _ = await self._run_command([
                 "active-validators",
-                "-H", self.observer_host,
-                "--http-port", str(self.observer_http_port)
+                "-H", self.node_host,
+                "--http-port", str(self.http_port)
             ])
 
             # Parse validator list from output
@@ -392,9 +392,9 @@ class RustCLIClient:
         try:
             stdout, _ = await self._run_command([
                 "epoch-info",
-                "-H", self.observer_host,
-                "--grpc-port", str(self.observer_grpc_port),  # Observer port for PoS queries, old: 40452
-                "--http-port", str(self.observer_http_port)
+                "-H", self.node_host,
+                "--grpc-port", str(self.grpc_port),  # Observer port for PoS queries, old: 40452
+                "--http-port", str(self.http_port)
             ])
 
             # Parse epoch info from output
@@ -442,9 +442,9 @@ class RustCLIClient:
             stdout, _ = await self._run_command([
                 "show-deploys",
                 "-b", str(block_number),
-                "-H", self.observer_host,
-                "-p", str(self.observer_grpc_port),
-                "--http-port", str(self.observer_http_port)
+                "-H", self.node_host,
+                "-p", str(self.grpc_port),
+                "--http-port", str(self.http_port)
             ])
 
             # Parse deployments from output
@@ -498,9 +498,9 @@ class RustCLIClient:
         try:
             stdout, _ = await self._run_command([
                 "network-consensus",
-                "-H", self.observer_host,
-                "--grpc-port", str(self.observer_grpc_port),  # Observer port, old 40452
-                "--http-port", str(self.observer_http_port)
+                "-H", self.node_host,
+                "--grpc-port", str(self.grpc_port),  # Observer port, old 40452
+                "--http-port", str(self.http_port)
             ])
 
             # Parse consensus info from output
@@ -560,8 +560,8 @@ class RustCLIClient:
             stdout, _ = await self._run_command([
                 "show-main-chain",
                 "-d", str(depth),
-                "-H", self.observer_host,
-                "--grpc-port", str(self.observer_grpc_port)
+                "-H", self.node_host,
+                "--grpc-port", str(self.grpc_port)
             ])
 
             # Parse similar to get_blocks_by_height

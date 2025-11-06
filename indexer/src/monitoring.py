@@ -270,11 +270,11 @@ class MonitoringServer:
                     # "node_host": settings.node_host,
                     # "grpc_port": settings.grpc_port,
                     # "http_port": settings.http_port,
-                    "observer_host": settings.observer_host
+                    "node_host": settings.node_host
                 },
                 "node": {
                     "connected": node_status.get("connected", False),
-                    "host": settings.observer_host,
+                    "host": settings.node_host,
                     # "grpc_port": settings.grpc_port,
                     # "http_port": settings.http_port,
                     "latest_block": node_status.get("latest_block")

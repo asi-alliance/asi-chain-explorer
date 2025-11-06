@@ -27,30 +27,18 @@ class Settings(BaseSettings):
         description="Path to Rust CLI executable (node_cli)"
     )
 
-    # node_host: str = Field(
-    #     default="localhost",
-    #     description="Node hostname for Rust CLI"
-    # )
-    # grpc_port: int = Field(
-    #     default=40412,
-    #     description="gRPC port for blockchain operations"
-    # )
-    # http_port: int = Field(
-    #     default=40413,
-    #     description="HTTP port for status queries"
-    # )
 
-    observer_http_port: int = Field(
+    http_port: int = Field(
         default=40453,
         description="HTTP port for status queries"
     )
 
-    observer_grpc_port: int = Field(
+    grpc_port: int = Field(
         default=40452,
         description="GRPC port for status queries"
     )
 
-    observer_host: str = Field(
+    node_host: str = Field(
         default="localhost",
         description="host port for status queries"
     )
