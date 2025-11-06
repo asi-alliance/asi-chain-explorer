@@ -75,13 +75,13 @@ The explorer is fully functional with real-time data synchronization:
 ### Manual Docker Deployment
 ```bash
 # Build and run
-docker-compose -f docker-compose.standalone.yml up -d
+docker compose -f docker-compose.standalone.yml up -d
 
 # View logs
 docker logs -f asi-explorer
 
 # Stop
-docker-compose -f docker-compose.standalone.yml down
+docker compose -f docker-compose.standalone.yml down
 ```
 
 ### Development Mode
