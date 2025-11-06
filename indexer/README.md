@@ -206,20 +206,20 @@ curl http://localhost:9090/status | jq .
 
 1. **.env.remote-observer** (Recommended for production)
    ```bash
-   NODE_HOST=13.251.66.61  # Remote F1R3FLY server
+   NODE_HOST=13.251.66.61  # Remote ASI Chain server
    GRPC_PORT=40452         # Observer gRPC port
    HTTP_PORT=40453         # Observer HTTP port
    ```
-   - Connects to production F1R3FLY network
+   - Connects to production ASI Chain network
    - Read-only observer node (best for indexing)
 
-2. **.env.rust** (Local F1R3FLY)
+2. **.env.rust** (Local development)
    ```bash
    NODE_HOST=host.docker.internal  # Docker host
    GRPC_PORT=40412                # Local validator gRPC
    HTTP_PORT=40413                # Local validator HTTP
    ```
-   - For local F1R3FLY development
+   - For local ASI Chain development
 
 3. **.env.template** (Manual configuration)
    - Blank template for custom setup
@@ -251,11 +251,11 @@ cp target/x86_64-unknown-linux-musl/release/node_cli ../indexer/node_cli_linux
 ### Switching Between Configurations
 
 ```bash
-# Switch to remote F1R3FLY (production)
+# Switch to remote ASI Chain (production)
 cp .env.remote-observer .env
 docker-compose -f docker-compose.rust.yml restart rust-indexer
 
-# Switch to local F1R3FLY (development)
+# Switch to local ASI Chain (development)
 cp .env.rust .env
 docker-compose -f docker-compose.rust.yml restart rust-indexer
 

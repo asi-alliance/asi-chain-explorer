@@ -2,7 +2,7 @@
 
 ## Overview
 
-The ASI Chain Explorer is a modern, real-time blockchain explorer for the ASI Chain (F1R3FLY/RChain) network. It provides comprehensive insights into blocks, transactions, validators, and network statistics through an intuitive web interface.
+The ASI Chain Explorer is a modern, real-time blockchain explorer for the ASI Chain network. It provides comprehensive insights into blocks, transactions, validators, and network statistics through an intuitive web interface.
 
 ## Status
 
