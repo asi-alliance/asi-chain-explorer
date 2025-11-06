@@ -4,12 +4,12 @@
 
 ## 🎯 **Overview**
 
-This guide documents the successful deployment of the ASI-Chain Indexer and Explorer infrastructure, providing blockchain data indexing and visualization capabilities for the ASI/F1R3FLY network with Docker-based deployment.
+This guide documents the successful deployment of the ASI-Chain Indexer and Explorer infrastructure, providing blockchain data indexing and visualization capabilities for the ASI network with Docker-based deployment.
 
 ## 🏗️ **Architecture**
 
 ```
-Remote F1R3FLY Network (13.251.66.61:40453)
+Remote ASI Network (13.251.66.61:40453)
               ↓
      Rust CLI Client (inside Docker)
               ↓
@@ -36,7 +36,7 @@ Remote F1R3FLY Network (13.251.66.61:40453)
 - ✅ Enhanced data quality with NULL handling
 - ✅ Health monitoring endpoints
 - ✅ GraphQL API with nested relationships
-- ✅ Remote F1R3FLY connectivity validated
+- ✅ Remote ASI connectivity validated
 
 ## 🚀 **Quick Start**
 

@@ -531,7 +531,6 @@ Currently, all endpoints are public. In production, consider adding authenticati
 The indexer includes a fully configured Hasura GraphQL engine at `http://localhost:8080`.
 
 ### Key Features
-- **Auto-configuration**: deploy.sh automatically sets up all tables and relationships
 - **Real-time subscriptions**: Live updates as blocks are indexed
 - **Complex queries**: Join data across multiple tables in one request
 - **Aggregations**: Count, sum, avg operations built-in
@@ -552,7 +551,6 @@ See `GRAPHQL_GUIDE.md` for comprehensive examples.
 - ✅ Balance state tracking (bonded vs unbonded)
 - ✅ Enhanced ASI transfer pattern matching (variable and match-based)
 - ✅ GraphQL API with Hasura integration
-- ✅ One-command deployment with deploy.sh
 - ✅ Support for 150-char addresses (validators and ASI)
 - ✅ 10 comprehensive database tables
 - ✅ Integrated Rust CLI for full blockchain access
