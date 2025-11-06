@@ -42,40 +42,34 @@ This guide covers various deployment scenarios for the ASI-Chain Indexer with ne
 
 ## Quick Start
 
-Deploy with the automated deployment script:
+Deploy manually with three simple steps:
 
 ```bash
 # Clone repository
 git clone <repository-url>
 cd indexer
 
-# One-command deployment (recommended)
-echo "1" | ./deploy.sh  # Choose option 1 for remote F1R3FLY node
+# Step 1: Create and configure .env file in /indexer directory
+cp .env.example .env
+# Edit .env with your node configuration
 
-# The script will:
-# - Pre-pull Docker images with retry logic
-# - Build Rust CLI from source (10-15 min first time, cached thereafter)
-# - Check Docker and network connectivity
-# - Build and start all services (PostgreSQL, Indexer, Hasura)
-# - Configure Hasura relationships automatically
-# - Verify genesis block processing with validator bonds
-# - Display service URLs and status
-# - Run functionality tests
-
-# When prompted for fresh database, choose 'y' for clean start
-```
-
-Or deploy manually:
-
-```bash
-# Start services manually
+# Step 2: Start services
 docker-compose -f docker-compose.rust.yml up -d
 
-# Configure Hasura (if not using deploy.sh)
-bash scripts/configure-hasura.sh
-# Or if you have Python dependencies installed:
-# python3 scripts/configure-hasura.py
+# Step 3: Configure Hasura relationships (for GraphQL API and explorer frontend)
+./scripts/configure-hasura.sh
+./scripts/setup-hasura-relationships.sh
+
+# Verify deployment
+curl http://localhost:9090/status | jq .
 ```
+
+**Services started:**
+- PostgreSQL database (port 5432)
+- Indexer with Rust CLI (port 9090)
+- Hasura GraphQL Engine (port 8080)
+
+**Note:** Step 3 (Hasura scripts) is required if you want to use the GraphQL API or run the explorer frontend.
 
 ## Rust CLI Setup
 
