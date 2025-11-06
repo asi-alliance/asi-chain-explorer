@@ -58,13 +58,13 @@ Remote ASI Network (13.251.66.61:40453)
 
 2. **Start Indexer:**
    ```bash
-   docker-compose -f docker-compose.rust.yml up -d
+   docker compose -f docker-compose.rust.yml up -d
    
    # Monitor deployment
-   docker-compose -f docker-compose.rust.yml logs -f
+   docker compose -f docker-compose.rust.yml logs -f
    
    # Check service health
-   docker-compose -f docker-compose.rust.yml ps
+   docker compose -f docker-compose.rust.yml ps
    ```
 
 3. **Configure Hasura (for Explorer frontend):**
