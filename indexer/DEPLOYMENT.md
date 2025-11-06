@@ -142,9 +142,9 @@ docker run -d \
   -v $(pwd)/migrations:/docker-entrypoint-initdb.d \
   postgres:14-alpine
 
-# Configure environment for remote F1R3FLY node
+# Configure environment for remote node
 export RUST_CLI_PATH=/path/to/rust-client/target/release/node_cli
-export NODE_HOST=13.251.66.61  # Remote F1R3FLY node
+export NODE_HOST=13.251.66.61  # Remote node
 export GRPC_PORT=40452          # Observer gRPC port
 export HTTP_PORT=40453          # Observer HTTP port
 export DATABASE_URL=postgresql://indexer:indexer_pass@localhost:5432/asichain
