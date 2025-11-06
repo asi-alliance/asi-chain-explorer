@@ -1,17 +1,17 @@
 # ASI-Chain Indexer Deployment Guide
 
 **Version**: 2.1.1 | **Updated**: January 2025  
-**Features**: Cross-platform Docker builds, Smart configuration templates, Remote F1R3FLY node support, Enhanced data quality
+**Features**: Cross-platform Docker builds, Smart configuration templates, Remote ASI node support, Enhanced data quality
 
 ## Overview
 
-The ASI-Chain Indexer is a high-performance blockchain data synchronization service that uses the Rust CLI (`node_cli`) to extract comprehensive data from F1R3FLY blockchain nodes. It stores this data in PostgreSQL and provides both REST and GraphQL APIs for efficient querying.
+The ASI-Chain Indexer is a high-performance blockchain data synchronization service that uses the Rust CLI (`node_cli`) to extract comprehensive data from ASI blockchain nodes. It stores this data in PostgreSQL and provides both REST and GraphQL APIs for efficient querying.
 
 ## Architecture
 
 ```
 ┌─────────────────┐     Rust CLI       ┌─────────────────┐
-│  F1R3FLY Node   │ ←────────────────→ │  Rust Indexer   │
+│  ASI Node   │ ←────────────────→ │  Rust Indexer   │
 │  (gRPC/HTTP)    │                    │ (Python/asyncio)│
 └─────────────────┘                    └────────┬────────┘
                                                │
@@ -30,7 +30,7 @@ The ASI-Chain Indexer is a high-performance blockchain data synchronization serv
 
 ## Prerequisites
 
-1. **F1R3FLY blockchain network**
+1. **ASI blockchain network**
    - Can use local nodes or remote nodes
    - Observer node recommended for indexing (ports 40452/40453)
    - Validator nodes for transactions (ports 40412/40413)
@@ -48,7 +48,7 @@ The ASI-Chain Indexer is a high-performance blockchain data synchronization serv
 4. **System Requirements**
    - 4GB+ RAM (8GB recommended for building Rust CLI)
    - 20GB+ disk space
-   - Network access to F1R3FLY node
+   - Network access to ASI node
 
 ## ⚡ Quick Start (2 Steps)
 
@@ -150,16 +150,16 @@ docker-compose -f docker-compose.rust.yml up -d
 
 #### Environment Configuration
 
-**For Remote F1R3FLY Node (Recommended):**
+**For Remote ASI Node (Recommended):**
 ```env
-NODE_HOST=13.251.66.61  # Or your F1R3FLY node IP
+NODE_HOST=13.251.66.61  # Or your ASI node IP
 GRPC_PORT=40452         # Observer node gRPC
 HTTP_PORT=40453         # Observer node HTTP
 DATABASE_URL=postgresql://indexer:indexer_pass@postgres:5432/asichain
 RUST_CLI_PATH=/usr/local/bin/node_cli
 ```
 
-**For Local F1R3FLY Node on Mac/Windows:**
+**For Local ASI Node on Mac/Windows:**
 ```env
 NODE_HOST=host.docker.internal
 GRPC_PORT=40452
@@ -487,7 +487,7 @@ docker-compose -f docker-compose.rust.yml up -d
 **Symptom**: Indexer logs show "Cannot connect to ASI-Chain node"
 
 **Solutions**:
-- Verify F1R3FLY network is running: `docker ps | grep rnode`
+- Verify ASI network is running: `docker ps | grep rnode`
 - Check node ports are accessible: `nc -zv localhost 40412`
 - Update NODE_HOST in .env file
 - For Docker Desktop: use `host.docker.internal`
@@ -586,7 +586,7 @@ docker exec asi-rust-indexer curl -v http://host.docker.internal:40413/status
 # Check Rust CLI functionality
 docker exec asi-rust-indexer /usr/local/bin/node_cli --version
 
-# Test Rust CLI connection to F1R3FLY node
+# Test Rust CLI connection to ASI node
 docker exec asi-rust-indexer /usr/local/bin/node_cli last-finalized-block \
   --host 13.251.66.61 --port 40452
 

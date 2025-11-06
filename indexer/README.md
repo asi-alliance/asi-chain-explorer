@@ -476,8 +476,8 @@ indexer/
 │   └── docker-compose.rust.yml      # Production Rust compose
 ├── Environment Templates:
 │   ├── .env                         # Active configuration
-│   ├── .env.remote-observer         # Remote F1R3FLY (production)
-│   ├── .env.rust                    # Local F1R3FLY setup
+│   ├── .env.remote-observer        
+│   ├── .env.rust                    
 │   ├── .env.template                # Blank template
 │   └── .env.example                 # Reference with all options
 ├── Documentation:
