@@ -131,7 +131,7 @@ This release represents a revolutionary upgrade with network-agnostic genesis pr
   - Added JSONB fields for bonds_map and justifications
 
 ### Migration Guide
-1. Stop existing indexer: `docker-compose down`
+1. Stop existing indexer: `docker compose down`
 2. Backup data (optional): `docker exec asi-indexer-db pg_dump -U indexer asichain > backup.sql`
 3. Run deployment script: `./deploy.sh`
 4. Script will:

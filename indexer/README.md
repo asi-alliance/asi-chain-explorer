@@ -2,17 +2,14 @@
 
 A high-performance blockchain indexer for ASI-Chain that synchronizes data from RChain nodes using the Rust CLI client and stores it in PostgreSQL for efficient querying.
 
-## 🚀 Major Update: Zero-Touch Deployment (v2.1.1)
+## Latest Version
 
-The indexer now features complete automation with zero manual configuration:
-- ⚡ **Fully automatic Hasura relationships** - no manual GraphQL setup required
-- **Automatic genesis data extraction** - validator bonds and ASI allocations
-- **Full blockchain sync from genesis (block 0)** - no API limitations
-- **Enhanced ASI transfer detection** - supports match-based Rholang patterns
-- **Comprehensive database schema** - single migration with all enhancements
-- **Enhanced balance tracking** - bonded vs unbonded ASI balances with computed totals
-- **Network-agnostic design** - works with any ASI-Chain network
-- **One-command deployment** - `echo "Yes" | ./deploy.sh` for complete setup
+The indexer provides complete automation for blockchain data synchronization:
+- Full blockchain sync from genesis (block 0) using Rust CLI
+- Automatic Hasura GraphQL relationships setup
+- Enhanced ASI transfer detection with Rholang pattern matching
+- Comprehensive database schema with single migration
+- Balance tracking with bonded/unbonded separation
 
 ## Current Status
 
@@ -41,13 +38,11 @@ The indexer now features complete automation with zero manual configuration:
 - **Epoch transitions tracking** - Table exists but data not populated (epoch rewards not tracked)
 - **Validator rewards** - Not tracked in current implementation
 
-✅ **Recently Fixed (v2.1.1):**
-- **Manual Hasura configuration eliminated** - relationships setup automatically during deployment
-- **Deployment script enhanced** - relationship setup moved before interactive prompts
-- **Timeout protection** - prevents hanging during GraphQL relationship configuration
-- **Comprehensive migration** - single `000_comprehensive_initial_schema.sql` includes all enhancements
-- **Data quality improvements** - proper NULL handling for deployment error messages
-- **Enhanced error tracking** - prevents false positives in failed deployment counts
+✅ **Recent Improvements:**
+- Manual Hasura configuration eliminated - relationships setup automatically
+- Comprehensive migration - single `000_comprehensive_initial_schema.sql`
+- Data quality improvements - proper NULL handling
+- Enhanced error tracking
 
 📊 **Performance:**
 - Syncs up to 50 blocks per batch
@@ -101,39 +96,43 @@ The indexer leverages these Rust CLI commands for comprehensive data extraction:
 8. **network-consensus** - Monitor network health and participation
 9. **show-main-chain** - Verify main chain consistency
 
-## ⚡ Quick Start (v2.1.1)
+## ⚡ Quick Start
+
+**Three simple steps to get started:**
 
 ```bash
-# One-command deployment with zero manual configuration
 cd indexer
-echo "Yes" | ./deploy.sh
 
-# What happens automatically:
-# ✅ Pre-pull Docker images with retry logic
-# ✅ Cross-platform Rust CLI build from source (10-15 min first time, cached thereafter)
-# ✅ Complete database schema with enhancements (single migration)
-# ✅ All services started and health-checked
-# ✅ Hasura GraphQL relationships configured automatically
-# ✅ Nested query capabilities verified in real-time
-# ✅ Blockchain sync from genesis starts immediately
-# ✅ Data quality validation with proper NULL handling
+# Step 1: Create and configure .env file in /indexer directory
+cp .env.example .env
+# Edit .env with your node configuration if needed
 
-# Check deployment status
+# Step 2: Start the indexer
+docker compose -f docker-compose.rust.yml up -d
+
+# Step 3: Configure Hasura (for GraphQL API and explorer frontend)
+./scripts/configure-hasura.sh
+./scripts/setup-hasura-relationships.sh
+
+# Check status
 curl http://localhost:9090/status | jq .
-
-# Test enhanced nested GraphQL queries (work immediately!)
-curl http://localhost:8080/v1/graphql \
-  -X POST \
-  -H "Content-Type: application/json" \
-  -H "x-hasura-admin-secret: myadminsecretkey" \
-  -d '{"query":"{ blocks(limit: 1) { block_number deployments { deploy_id deployment_type } validator_bonds { stake } } }"}'
-
-# Access GraphQL Console with working relationships
-open http://localhost:8080/console
-
-# Comprehensive relationship testing
-./scripts/test-relationships.sh
 ```
+
+**That's it!** The indexer will automatically:
+- Build Rust CLI from source (10-15 min first time, cached after)
+- Set up PostgreSQL database with complete schema
+- Start syncing from genesis block
+
+After running the Hasura configuration scripts in Step 3:
+- GraphQL relationships will be configured
+- API will be ready for complex queries
+
+**Access services:**
+- Indexer API: http://localhost:9090
+- Hasura Console: http://localhost:8080/console
+- GraphQL endpoint: http://localhost:8080/v1/graphql
+
+**Note:** Step 3 (Hasura scripts) is required if you want to use the GraphQL API or run the explorer frontend.
 
 ## Requirements
 
@@ -152,7 +151,7 @@ git clone <repository-url>
 cd indexer
 
 # Manual Docker Compose
-docker-compose -f docker-compose.rust.yml up -d
+docker compose -f docker-compose.rust.yml up -d
 
 # Verify it's working
 curl http://localhost:9090/status | jq .
@@ -197,34 +196,23 @@ curl http://localhost:9090/status | jq .
    - Original HTTP-based configuration
    - Deprecated - use rust.yml version
 
-### Environment Configuration Files
+### Environment Configuration
 
-#### Available .env Templates
+Create a `.env` file in the indexer directory:
 
-1. **.env.remote-observer** (Recommended for production)
-   ```bash
-   NODE_HOST=13.251.66.61  # Remote ASI Chain server
-   GRPC_PORT=40452         # Observer gRPC port
-   HTTP_PORT=40453         # Observer HTTP port
-   ```
-   - Connects to production ASI Chain network
-   - Read-only observer node (best for indexing)
+```bash
+cp .env.example .env
+```
 
-2. **.env.rust** (Local development)
-   ```bash
-   NODE_HOST=host.docker.internal  # Docker host
-   GRPC_PORT=40412                # Local validator gRPC
-   HTTP_PORT=40413                # Local validator HTTP
-   ```
-   - For local ASI Chain development
+**Key variables:**
+```bash
+NODE_HOST=13.251.66.61  # Your ASI Chain node
+GRPC_PORT=40452         # gRPC port
+HTTP_PORT=40453         # HTTP port
+DATABASE_URL=postgresql://indexer:indexer_pass@postgres:5432/asichain
+```
 
-3. **.env.template** (Manual configuration)
-   - Blank template for custom setup
-   - Copy and modify as needed
-
-4. **.env.example** (Reference)
-   - Shows all available configuration options
-   - Includes descriptions
+See `.env.example` for all available options.
 
 ### Building Rust CLI (Optional)
 
@@ -248,20 +236,18 @@ cp target/x86_64-unknown-linux-musl/release/node_cli ../indexer/node_cli_linux
 ### Switching Between Configurations
 
 ```bash
-# Switch to remote ASI Chain (production)
-cp .env.remote-observer .env
-docker-compose -f docker-compose.rust.yml restart rust-indexer
+# Edit your .env file with new configuration
+vim .env
 
-# Switch to local ASI Chain (development)
-cp .env.rust .env
-docker-compose -f docker-compose.rust.yml restart rust-indexer
+# Restart indexer to apply changes
+docker compose -f docker-compose.rust.yml restart rust-indexer
 
 # Use pre-compiled binary instead of building from source
 # 1. Edit docker-compose.rust.yml
 # 2. Change: dockerfile: indexer/Dockerfile.rust-builder
 #    To: dockerfile: indexer/Dockerfile.rust-simple
 # 3. Ensure node_cli_linux exists in indexer directory
-# 4. Rebuild: docker-compose -f docker-compose.rust.yml build
+# 4. Rebuild: docker compose -f docker-compose.rust.yml build
 ```
 
 ### Environment Variables
@@ -400,10 +386,10 @@ The Rust indexer provides enhanced metrics:
 2. **Container health checks failing**
    ```bash
    # Check container logs
-   docker-compose -f docker-compose.rust.yml logs rust-indexer
+   docker compose -f docker-compose.rust.yml logs rust-indexer
    
    # Verify all services are running
-   docker-compose -f docker-compose.rust.yml ps
+   docker compose -f docker-compose.rust.yml ps
    
    # Check network connectivity between containers
    docker exec asi-rust-indexer ping postgres
@@ -415,18 +401,18 @@ The Rust indexer provides enhanced metrics:
    sudo chown -R 999:999 ./postgres_data
    
    # Or remove and recreate volumes
-   docker-compose -f docker-compose.rust.yml down -v
-   docker-compose -f docker-compose.rust.yml up -d
+   docker compose -f docker-compose.rust.yml down -v
+   docker compose -f docker-compose.rust.yml up -d
    ```
 
 ### Reset and Start Fresh
 
 ```bash
 # Stop services and remove data
-docker-compose -f docker-compose.rust.yml down -v
+docker compose -f docker-compose.rust.yml down -v
 
 # Start fresh sync from block 0
-docker-compose -f docker-compose.rust.yml up -d
+docker compose -f docker-compose.rust.yml up -d
 ```
 
 ## Performance Characteristics
@@ -449,12 +435,12 @@ To migrate from the HTTP-based indexer:
 
 2. **Stop old indexer**:
    ```bash
-   docker-compose down
+   docker compose down
    ```
 
 3. **Start Rust indexer**:
    ```bash
-   docker-compose -f docker-compose.rust.yml up -d
+   docker compose -f docker-compose.rust.yml up -d
    ```
 
 The Rust indexer will start syncing from block 0 by default, building a complete chain history.
@@ -472,14 +458,13 @@ indexer/
 │   ├── main.py                # Entry point with CLI detection
 │   └── monitoring.py          # REST API and metrics endpoints
 ├── migrations/
-│   ├── 000_comprehensive_initial_schema.sql  # Complete v2.1.1 schema
+│   ├── 000_comprehensive_initial_schema.sql  # Complete schema
 │   ├── 001_initial_schema.sql               # Legacy
 │   └── 002_add_enhanced_tables.sql          # Legacy
 ├── scripts/
-│   ├── deploy.sh                    # One-command deployment script
-│   ├── configure-hasura.sh          # Bash-based Hasura setup
-│   ├── setup-hasura-relationships.sh # Automatic relationship config
-│   └── test-relationships.sh         # GraphQL relationship tests
+│   ├── configure-hasura.sh          # Hasura setup
+│   ├── setup-hasura-relationships.sh # Relationship configuration
+│   └── test-relationships.sh         # GraphQL tests
 ├── examples/
 │   └── graphql-queries.md           # Sample GraphQL queries
 ├── Docker Configuration:
@@ -491,12 +476,12 @@ indexer/
 │   └── docker-compose.rust.yml      # Production Rust compose
 ├── Environment Templates:
 │   ├── .env                         # Active configuration
-│   ├── .env.remote-observer         # Remote F1R3FLY (production)
-│   ├── .env.rust                    # Local F1R3FLY setup
+│   ├── .env.remote-observer        
+│   ├── .env.rust                    
 │   ├── .env.template                # Blank template
 │   └── .env.example                 # Reference with all options
 ├── Documentation:
-│   ├── README.md                    # This file (v2.1.1)
+│   ├── README.md                    # This file
 │   ├── API.md                       # REST API documentation
 │   ├── CHANGELOG.md                 # Version history
 │   ├── DEPLOYMENT.md                # Deployment scenarios

@@ -37,10 +37,12 @@ Part of the [**Artificial Superintelligence Alliance**](https://superintelligenc
 
 ## Overview
 
-ASI Chain Explorer consists of two primary components:
+ASI Chain Explorer consists of **two independent components**:
 
-- **Indexer**: Python-based blockchain data synchronization service that extracts and stores blockchain data in PostgreSQL
-- **Explorer**: React-based web interface that provides visualization and querying capabilities through GraphQL
+- **Indexer** (Backend): Python-based blockchain data synchronization service that extracts and stores blockchain data in PostgreSQL
+- **Explorer** (Frontend): React-based web interface that provides visualization and querying capabilities through GraphQL
+
+**These services run separately and can be deployed independently.**
 
 The system indexes blockchain data including blocks, deployments, transfers, validators, and network statistics, making it accessible through a GraphQL API powered by Hasura.
 
@@ -203,16 +205,25 @@ asi-chain-explorer/
 
 ### Quick Start with Docker Compose
 
-1. Clone the repository:
-```bash
-git clone https://github.com/your-org/asi-chain-explorer.git
-cd asi-chain-explorer
-```
+**IMPORTANT: ASI Chain Explorer has two separate services that must be started independently:**
 
-2. Start the indexer stack:
+#### 1. Start Indexer (Backend) - REQUIRED FIRST
+
+The indexer syncs blockchain data and provides the GraphQL API:
+
 ```bash
 cd indexer
-docker compose up -d
+
+# Step 1: Create and configure .env file in /indexer directory
+cp .env.example .env
+# Edit .env with your node configuration
+
+# Step 2: Start indexer services
+docker compose -f docker-compose.rust.yml up -d
+
+# Step 3: Configure Hasura relationships (for explorer frontend)
+./scripts/configure-hasura.sh
+./scripts/setup-hasura-relationships.sh
 ```
 
 This starts:
@@ -220,13 +231,26 @@ This starts:
 - Indexer service (monitoring on port 9090)
 - Hasura GraphQL Engine (port 8080)
 
-3. Start the explorer frontend:
+**Note:** Step 3 (Hasura scripts) is only needed if you plan to run the explorer frontend.
+
+#### 2. Start Explorer Frontend (Separately) - OPTIONAL
+
+The frontend provides the web UI for browsing blockchain data. Before starting the frontend, ensure you've completed Step 3 from the indexer setup (Hasura configuration scripts).
+
 ```bash
 cd ../explorer
+
+# Create and configure .env file in /explorer directory
+cp .env.example .env
+# Edit .env with your node configuration
+
+# Start frontend
 docker compose -f docker-compose.standalone.yml up -d
 ```
 
 Frontend will be available at http://localhost:3001
+
+**Note:** The indexer works independently - you can use the GraphQL API (http://localhost:8080/v1/graphql) without running the frontend.
 
 ### Local Development Setup
 
