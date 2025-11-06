@@ -934,7 +934,7 @@ class RustBlockIndexer:
             if not bonds:
                 # Get initial validator bonds from read-only node
                 # Temporarily switch to read-only port
-                # original_port = self.client.observer_http_port
+                # original_port = self.client.http_port
                 # self.client.http_port = 40453  # TODO Read-only node port, old: 40453
 
                 try:
@@ -954,12 +954,12 @@ class RustBlockIndexer:
                     # Get bonds (which shows abbreviated keys with stakes)
                     stdout, _ = await self.client._run_command([
                         "bonds",
-                        "-H", self.client.observer_host,
-                        "--http-port", str(self.client.observer_http_port)
+                        "-H", self.client.node_host,
+                        "--http-port", str(self.client.http_port)
                     ])
 
                     # Restore original port
-                    # self.client.observer_http_port = original_port
+                    # self.client.http_port = original_port
 
                     # Parse bonds output to get stakes
                     if stdout:
@@ -986,7 +986,7 @@ class RustBlockIndexer:
                     logger.error(f"Error getting validator bonds: {e}")
                 # finally:
                 # Restore original port
-                # self.client.observer_http_port = original_port
+                # self.client.http_port = original_port
 
             # For a network-agnostic approach, we can try to detect initial allocations
             # by looking at the first few blocks for large transfers from genesis

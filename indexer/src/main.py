@@ -68,9 +68,9 @@ class IndexerService:
         logger.info(
             "🚀 Starting ASI-Chain Enhanced Indexer (Rust CLI)",
             rust_cli_path=settings.rust_cli_path,
-            observer_host=settings.observer_host,
-            observer_grpc_port=settings.observer_grpc_port,
-            observer_http_port=settings.observer_http_port,
+            node_host=settings.node_host,
+            grpc_port=settings.grpc_port,
+            http_port=settings.http_port,
             database_url=db_url_masked,
             sync_interval=settings.sync_interval,
             batch_size=settings.batch_size
