@@ -264,7 +264,7 @@ Environment variables for Rust indexer:
 - `START_FROM_BLOCK`: Initial block to sync from (default: 0)
 - `LOG_LEVEL`: Logging level (default: INFO)
 - `MONITORING_PORT`: API server port (default: 9090)
-- `ENABLE_REV_TRANSFER_EXTRACTION`: Extract ASI transfers (default: true)
+- `ENABLE_ASI_TRANSFER_EXTRACTION`: Extract ASI transfers (default: true)
 
 ## Database Schema
 

@@ -3,13 +3,12 @@
 import asyncio
 import re
 from datetime import datetime
-from typing import Dict, List, Optional, Tuple
 from decimal import Decimal
+from typing import Dict, List, Optional
 
 import structlog
 from sqlalchemy import select, text, and_
 from sqlalchemy.dialects.postgresql import insert
-
 from src.config import settings
 from src.database import db
 from src.models import (
@@ -301,10 +300,10 @@ class RustBlockIndexer:
                         if validator_key:
                             await validator_session.execute(
                                 text("""
-                                    INSERT INTO block_validators (block_hash, validator_public_key)
-                                    VALUES (:block_hash, :validator_key)
-                                    ON CONFLICT DO NOTHING
-                                """),
+                                     INSERT INTO block_validators (block_hash, validator_public_key)
+                                     VALUES (:block_hash, :validator_key)
+                                     ON CONFLICT DO NOTHING
+                                     """),
                                 {"block_hash": block_hash, "validator_key": validator_key}
                             )
                     await validator_session.commit()
@@ -328,16 +327,16 @@ class RustBlockIndexer:
             )
 
     async def _process_deployment_enhanced(self, session, block_data: Dict, deploy_data: Dict):
-        """Process deployment with enhanced data from get-deploy command."""
+        """Process deployment with enhanced data from get-deploy command (idempotent, no migrations)."""
         deploy_id = deploy_data.get("sig")
         if not deploy_id:
             return
 
-        # Try to get enhanced deployment info
+        # Try to fetch enhanced deployment info
         enhanced_info = None
         try:
             enhanced_info = await self.client.get_deploy_info(deploy_id)
-            await asyncio.sleep(0.05)  # Small delay to avoid overwhelming
+            await asyncio.sleep(0.05)  # small delay to avoid overwhelming the node
         except Exception as e:
             logger.debug(f"Could not get enhanced deploy info for {deploy_id}: {e}")
 
@@ -358,18 +357,21 @@ class RustBlockIndexer:
                     "status": enhanced_info.get("status", "included")
                 })
 
-        # Process deployment
+        # Classify deployment and normalize error flags
         term = deploy_data.get("term", "")
         deployment_type = self.classify_deployment(term)
 
         error_message = deploy_data.get("systemDeployError")
-        # Only set error_message if it's not None and not empty string
+        # Only set error_message if it's not an empty string
         if error_message == "":
             error_message = None
         errored = deploy_data.get("errored", False) or bool(error_message)
 
-        deployment = Deployment(
-            deploy_id=deploy_data.get("sig"),
+        # -------------------------
+        # 1) DEPLOYMENTS: UPSERT
+        # -------------------------
+        dep_insert = insert(Deployment).values(
+            deploy_id=deploy_id,
             block_hash=block_data.get("blockHash"),
             block_number=block_data.get("blockNumber"),
             deployer=deploy_data.get("deployer", deploy_data.get("sender", "")),
@@ -386,18 +388,83 @@ class RustBlockIndexer:
             deployment_type=deployment_type,
             seq_num=deploy_data.get("seqNum"),
             shard_id=deploy_data.get("shardId"),
-            status=deploy_data.get("status", "included")
+            status=deploy_data.get("status", "included"),
         )
-        session.add(deployment)
+        dep_upsert = dep_insert.on_conflict_do_update(
+            index_elements=["deploy_id"],
+            set_={
+                "block_hash": dep_insert.excluded.block_hash,
+                "block_number": dep_insert.excluded.block_number,
+                "status": dep_insert.excluded.status,
+                "phlo_cost": dep_insert.excluded.phlo_cost,
+                "errored": dep_insert.excluded.errored,
+                "error_message": dep_insert.excluded.error_message,
+                "deployment_type": dep_insert.excluded.deployment_type,
+                "timestamp": dep_insert.excluded.timestamp,
+                "sig_algorithm": dep_insert.excluded.sig_algorithm,
+                "seq_num": dep_insert.excluded.seq_num,
+                "shard_id": dep_insert.excluded.shard_id,
+                "deployer": dep_insert.excluded.deployer,
+                "term": dep_insert.excluded.term,
+                "phlo_price": dep_insert.excluded.phlo_price,
+                "phlo_limit": dep_insert.excluded.phlo_limit,
+                "valid_after_block_number": dep_insert.excluded.valid_after_block_number,
+            },
+        )
 
-        # Extract ASI transfers if enabled
-        if settings.enable_rev_transfer_extraction:
-            transfers = self._extract_transfers(deploy_data, block_data.get("blockNumber"))
-            if transfers:
-                logger.info(
-                    f"📤 Found {len(transfers)} transfers in deploy {deploy_data.get('deployId', 'unknown')[:16]}...")
-            for transfer in transfers:
-                session.add(transfer)
+        try:
+            await session.execute(dep_upsert)
+            await session.flush()  # surface FK/NOT NULL issues early
+        except Exception as e:
+            logger.warning("deployment upsert failed", deploy_id=deploy_id, err=str(e))
+
+        if not settings.enable_asi_transfer_extraction:
+            return
+
+        transfers = self._extract_transfers(deploy_data, block_data.get("blockNumber"))
+        if not transfers:
+            return
+
+        logger.info("📤 Found transfers", count=len(transfers), deploy=deploy_id[:16] + "...")
+
+        # Load existing transfers for this deploy_id to avoid inserting duplicates
+        existing_rows = await session.execute(
+            select(Transfer.from_address, Transfer.to_address, Transfer.amount_dust, Transfer.block_number)
+            .where(Transfer.deploy_id == deploy_id)
+        )
+        existing_set = {
+            (row[0], row[1], int(row[2]), int(row[3]))
+            for row in existing_rows.fetchall()
+        }
+
+        # Insert only new transfers (pure Python dedup, no unique index required)
+        for t in transfers:
+            key = (t.from_address, t.to_address, int(t.amount_dust), int(t.block_number))
+            if key in existing_set:
+                continue
+            try:
+                # ORM insert is fine here (PK is auto-generated 'id')
+                session.add(Transfer(
+                    deploy_id=t.deploy_id,
+                    block_number=t.block_number,
+                    from_address=t.from_address,
+                    to_address=t.to_address,
+                    amount_dust=t.amount_dust,
+                    amount_asi=t.amount_asi,
+                    status=t.status,
+                    timestamp=t.timestamp,
+                ))
+                # optionally: await session.flush()
+                existing_set.add(key)  # keep the set in sync within this run
+            except Exception as e:
+                logger.warning(
+                    "transfer insert failed",
+                    deploy_id=deploy_id,
+                    from_addr=t.from_address[:16],
+                    to_addr=t.to_address[:16],
+                    amount=t.amount_dust,
+                    err=str(e),
+                )
 
     async def _update_validator_states(self):
         """Update validator states using bonds and active-validators commands."""
@@ -614,13 +681,12 @@ class RustBlockIndexer:
             # First ensure validator exists in validators table
             result = await session.execute(
                 text("""
-                    INSERT INTO validators (public_key, name, total_stake, status, first_seen_block, last_seen_block)
-                    VALUES (:public_key, :name, :stake, 'active', :block_number, :block_number)
-                    ON CONFLICT (public_key) DO UPDATE SET
-                        total_stake = GREATEST(validators.total_stake, :stake),
-                        last_seen_block = :block_number,
-                        status = 'active'
-                """),
+                     INSERT INTO validators (public_key, name, total_stake, status, first_seen_block, last_seen_block)
+                     VALUES (:public_key, :name, :stake, 'active', :block_number, :block_number)
+                     ON CONFLICT (public_key) DO UPDATE SET total_stake     = GREATEST(validators.total_stake, :stake),
+                                                            last_seen_block = :block_number,
+                                                            status          = 'active'
+                     """),
                 {
                     "public_key": validator_key,
                     "name": validator_key[:20] + "...",  # Short name for display

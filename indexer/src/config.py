@@ -92,7 +92,7 @@ class Settings(BaseSettings):
     )
 
     # Feature Flags
-    enable_rev_transfer_extraction: bool = Field(
+    enable_asi_transfer_extraction: bool = Field(
         default=True,
         description="Enable ASI transfer extraction from deployments"
     )

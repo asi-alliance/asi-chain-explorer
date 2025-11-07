@@ -176,7 +176,7 @@ BATCH_SIZE=50               # Blocks per batch
 START_FROM_BLOCK=0          # Starting block (0 for genesis)
 
 # Features
-ENABLE_REV_TRANSFER_EXTRACTION=true
+ENABLE_ASI_TRANSFER_EXTRACTION=true
 ENABLE_METRICS=true
 ENABLE_HEALTH_CHECK=true
 

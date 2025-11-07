@@ -256,8 +256,8 @@ query DeploymentsByType {
     }
   }
   
-  rev_transfer: deployments_aggregate(
-    where: {deployment_type: {_eq: "rev_transfer"}}
+  asi_transfer: deployments_aggregate(
+    where: {deployment_type: {_eq: "asi_transfer"}}
   ) {
     aggregate {
       count
