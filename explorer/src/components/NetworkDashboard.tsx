@@ -1,8 +1,13 @@
 import CustomTooltip from "./CustomChartTooltip";
 import React, { useState, useMemo, useCallback } from "react";
+import {
+    formatDate,
+    formatNumber,
+    formatTime,
+} from "../utils/calculateBlockTime";
+import { Database, Zap, Clock, Server } from "lucide-react";
 import { gql, useQuery } from "@apollo/client";
 import { motion } from "framer-motion";
-import { Database, Zap, Clock } from "lucide-react";
 import {
     AreaChart,
     Line,
@@ -15,7 +20,6 @@ import {
     Legend,
     ComposedChart,
 } from "recharts";
-import { formatNumber } from "../utils/calculateBlockTime";
 
 interface MetricCard {
     title: string;
@@ -65,49 +69,36 @@ interface ITimeSet {
 }
 
 enum TimeRanges {
-    ONE_HOUR,
-    SIX_HOURS,
-    ONE_DAY,
-    ONE_WEEK,
+    ONE_HOUR = 1,
+    SIX_HOURS = 6,
+    ONE_DAY = 24,
+    ONE_WEEK = 168,
 }
 
 const timeValues: Record<TimeRanges, ITimeSet> = {
     [TimeRanges.ONE_HOUR]: {
-        value: 1,
+        value: TimeRanges.ONE_HOUR,
         label: "1h",
         divisions: 6,
-        formatter: (date) =>
-            `${String(date.getHours()).padStart(2, "0")}:${String(
-                date.getMinutes()
-            ).padStart(2, "0")}`,
+        formatter: formatTime,
     },
     [TimeRanges.SIX_HOURS]: {
-        value: 6,
+        value: TimeRanges.SIX_HOURS,
         label: "6h",
         divisions: 6,
-        formatter: (date) =>
-            `${String(date.getHours()).padStart(2, "0")}:${String(
-                date.getMinutes()
-            ).padStart(2, "0")}`,
+        formatter: formatTime,
     },
     [TimeRanges.ONE_DAY]: {
-        value: 24,
+        value: TimeRanges.ONE_DAY,
         label: "1d",
         divisions: 8,
-        formatter: (date) =>
-            `${String(date.getHours()).padStart(2, "0")}:${String(
-                date.getMinutes()
-            ).padStart(2, "0")}`,
+        formatter: formatTime,
     },
     [TimeRanges.ONE_WEEK]: {
-        value: 168,
+        value: TimeRanges.ONE_WEEK,
         label: "7d",
         divisions: 7,
-        formatter: (date) =>
-            date.toLocaleDateString("en-US", {
-                month: "short",
-                day: "numeric",
-            }),
+        formatter: formatDate,
     },
 };
 
@@ -180,7 +171,7 @@ const NetworkDashboard: React.FC = () => {
                 value: activeValidators,
                 change: 0,
                 changeType: "increase",
-                icon: <Zap size={20} />,
+                icon: <Server size={20} />,
                 color: "#3b82f6",
                 description: "Network throughput",
                 trend: [],
@@ -337,7 +328,6 @@ const NetworkDashboard: React.FC = () => {
                     gap: "2rem",
                 }}
             >
-                {/* Block Time & TPS Chart */}
                 <div className="text-4 asi-card" style={{ flex: "auto" }}>
                     <h3 style={{ marginBottom: "1rem" }}>
                         Performance Metrics
@@ -357,24 +347,45 @@ const NetworkDashboard: React.FC = () => {
                                 stroke="#9ca3af"
                                 fontSize={12}
                                 tickLine={false}
+                                label={{
+                                    value:
+                                        timeRange.value === TimeRanges.ONE_WEEK
+                                            ? "Date"
+                                            : "Time",
+                                    position: "insideBottomLeft",
+                                    offset: "-15",
+                                }}
                             />
                             <YAxis
-                                yAxisId="left"
+                                label={{
+                                    value: "Block Time (s)",
+                                    angle: -90,
+                                    position: "insideLeft",
+                                    dx: 10,
+                                    dy: 40,
+                                }}
+                                yAxisId="blockTime"
                                 stroke="#9ca3af"
                                 fontSize={12}
                                 tickLine={false}
                             />
                             <YAxis
-                                yAxisId="right"
+                                label={{
+                                    value: "TPS",
+                                    angle: 90,
+                                    position: "insideRight",
+                                    dx: 5,
+                                }}
+                                yAxisId="tps"
                                 orientation="right"
                                 stroke="#9ca3af"
                                 fontSize={12}
                                 tickLine={false}
                             />
                             <Tooltip content={<CustomTooltip />} />
-                            <Legend />
+                            <Legend align="right" />
                             <Area
-                                yAxisId="left"
+                                yAxisId="blockTime"
                                 type="monotone"
                                 dataKey="blockTime"
                                 fill="#10b98120"
@@ -384,7 +395,7 @@ const NetworkDashboard: React.FC = () => {
                                 name="Block Time"
                             />
                             <Line
-                                yAxisId="right"
+                                yAxisId="tps"
                                 type="monotone"
                                 dataKey="tps"
                                 stroke="#3b82f6"
@@ -415,30 +426,62 @@ const NetworkDashboard: React.FC = () => {
                                 stroke="#9ca3af"
                                 fontSize={12}
                                 tickLine={false}
+                                label={{
+                                    value:
+                                        timeRange.value === TimeRanges.ONE_WEEK
+                                            ? "Date"
+                                            : "Time",
+                                    position: "insideBottomLeft",
+                                    offset: "-15",
+                                }}
                             />
                             <YAxis
+                                yAxisId={"deployments"}
+                                label={{
+                                    value: "Deployments",
+                                    angle: -90,
+                                    position: "insideLeft",
+                                    dx: -5,
+                                    dy: 30,
+                                }}
+                                stroke="#9ca3af"
+                                fontSize={12}
+                                tickLine={false}
+                            />
+                            <YAxis
+                                yAxisId={"transfers"}
+                                orientation="right"
+                                label={{
+                                    value: "Transfers",
+                                    angle: 90,
+                                    position: "insideRight",
+                                    dx: -10,
+                                    dy: 20,
+                                }}
                                 stroke="#9ca3af"
                                 fontSize={12}
                                 tickLine={false}
                             />
                             <Tooltip content={<CustomTooltip />} />
-                            <Legend />
-                            <Area
+                            <Legend align="right" />
+                            <Line
+                                yAxisId="transfers"
                                 type="monotone"
-                                className="text-4"
                                 dataKey="transfers"
-                                stackId="1"
                                 stroke="#3b82f6"
-                                fill="#3b82f6"
+                                strokeWidth={2}
+                                dot={false}
+                                fontSize={12}
                                 name="Transfers"
                             />
                             <Area
+                                yAxisId={"deployments"}
                                 type="monotone"
                                 className="text-4"
                                 dataKey="deployments"
                                 stackId="1"
                                 stroke="#10b981"
-                                fill="#10b981"
+                                fill="#10b98120"
                                 name="Deployments"
                             />
                         </AreaChart>

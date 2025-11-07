@@ -107,8 +107,6 @@ export const fromCogs = (value: number, decimals: number = 8): number => {
 };
 
 export const formatNumber = (value: string | number | undefined) => {
-    console.log(value);
-
     if (!value) {
         return 0;
     }
@@ -119,3 +117,14 @@ export const formatNumber = (value: string | number | undefined) => {
         ? numericValue
         : numericValue.toFixed(4);
 };
+
+export const formatTime = (date: Date) =>
+    `${String(date.getHours()).padStart(2, "0")}:${String(
+        date.getMinutes()
+    ).padStart(2, "0")}`;
+
+export const formatDate = (date: Date) =>
+    date.toLocaleDateString("en-US", {
+        month: "short",
+        day: "numeric",
+    });
