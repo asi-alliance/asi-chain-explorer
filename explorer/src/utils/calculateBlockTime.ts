@@ -104,4 +104,18 @@ export const toMillis = (input: string | number | undefined | null): number => {
 
 export const fromCogs = (value: number, decimals: number = 8): number => {
     return value / 10 ** decimals;
-}
+};
+
+export const formatNumber = (value: string | number | undefined) => {
+    console.log(value);
+
+    if (!value) {
+        return 0;
+    }
+
+    const numericValue = Number(value);
+
+    return Number.isInteger(numericValue)
+        ? numericValue
+        : numericValue.toFixed(4);
+};

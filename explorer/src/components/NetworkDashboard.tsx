@@ -1,5 +1,8 @@
-import React, { useState, useMemo } from "react";
+import CustomTooltip from "./CustomChartTooltip";
+import React, { useState, useMemo, useCallback } from "react";
+import { gql, useQuery } from "@apollo/client";
 import { motion } from "framer-motion";
+import { Database, Zap, Clock } from "lucide-react";
 import {
     AreaChart,
     Line,
@@ -12,20 +15,7 @@ import {
     Legend,
     ComposedChart,
 } from "recharts";
-import {
-    Database,
-    Zap,
-    Clock,
-} from "lucide-react";
-import { format } from "date-fns";
-import { gql, useQuery } from "@apollo/client";
-import {
-    BLOCK_FRAGMENT,
-    DEPLOYMENT_FRAGMENT,
-    GET_ALL_TRANSFERS,
-    GET_LATEST_BLOCKS,
-    GET_NETWORK_STATS,
-} from "../graphql/queries";
+import { formatNumber } from "../utils/calculateBlockTime";
 
 interface MetricCard {
     title: string;
@@ -38,212 +28,125 @@ interface MetricCard {
     trend?: number[];
 }
 
-const getLatestBlocksCount = gql`
-    query GetLatestBlocksCount($timeRange: bigint!) {
-        blocks_aggregate(where: { timestamp: { _gte: $timeRange } }) {
-            aggregate {
-                count
-            }
-        }
-    }
-`;
-
-export const getLatestBlocks = gql`
-    ${BLOCK_FRAGMENT}
-    ${DEPLOYMENT_FRAGMENT}
-    query GetLatestBlocks($limit: Int = 100000, $offset: Int = 0) {
-        blocks(
-            limit: $limit
-            offset: $offset
-            order_by: { block_number: desc }
+const GET_STATS = gql`
+    query GetStats($hours: Int!, $divisions: Int!) {
+        get_network_metrics(
+            args: { p_range_hours: $hours, p_divisions: $divisions }
         ) {
-            ...BlockFragment
-            deployments {
-                ...DeploymentFragment
-            }
+            bucket_start
+            avg_block_time_seconds
+            avg_tps
+            deployments_count
+            transfers_count
+        }
+
+        network_stats(limit: 1, order_by: { id: desc }) {
+            id
+            total_validators
+            active_validators
+            validators_in_quarantine
+            consensus_participation
+            consensus_status
+            block_number
+            timestamp
+        }
+
+        blocks(limit: 1, order_by: { block_number: desc }) {
+            block_number
         }
     }
 `;
 
-const getTransfersCount = gql`
-    query GetTransfersCount($timeRange: bigint!) {
-        transfers_aggregate(where: { timestamp: { _gte: $timeRange } }) {
-            aggregate {
-                count
-            }
-        }
-    }
-`;
-
-export const getLastBlock = gql`
-    ${BLOCK_FRAGMENT}
-    ${DEPLOYMENT_FRAGMENT}
-    query GetLatestBlocks($limit: Int = 1, $offset: Int = 0) {
-        blocks(
-            limit: $limit
-            offset: $offset
-            order_by: { block_number: desc }
-        ) {
-            ...BlockFragment
-            deployments {
-                ...DeploymentFragment
-            }
-        }
-    }
-`;
-
-const SECOND_IN_MS_MULTIPLIER: number = 1000;
-const DAY_IN_MS_MULTIPLIER: number = 24 * 60 * 60 * SECOND_IN_MS_MULTIPLIER;
-const HOUR_IN_MS_MULTIPLIER: number = 60 * 60 * SECOND_IN_MS_MULTIPLIER;
-
-const enum TimeRangeMetrics {
-    HOUR = "h",
-    DAY = "d",
+interface ITimeSet {
+    value: number;
+    divisions: number;
+    label: string;
+    formatter: (date: Date) => string;
 }
 
-const timeRangeMultiplierRecord: Record<TimeRangeMetrics, number> = {
-    [TimeRangeMetrics.HOUR]: HOUR_IN_MS_MULTIPLIER,
-    [TimeRangeMetrics.DAY]: DAY_IN_MS_MULTIPLIER,
+enum TimeRanges {
+    ONE_HOUR,
+    SIX_HOURS,
+    ONE_DAY,
+    ONE_WEEK,
+}
+
+const timeValues: Record<TimeRanges, ITimeSet> = {
+    [TimeRanges.ONE_HOUR]: {
+        value: 1,
+        label: "1h",
+        divisions: 6,
+        formatter: (date) =>
+            `${String(date.getHours()).padStart(2, "0")}:${String(
+                date.getMinutes()
+            ).padStart(2, "0")}`,
+    },
+    [TimeRanges.SIX_HOURS]: {
+        value: 6,
+        label: "6h",
+        divisions: 6,
+        formatter: (date) =>
+            `${String(date.getHours()).padStart(2, "0")}:${String(
+                date.getMinutes()
+            ).padStart(2, "0")}`,
+    },
+    [TimeRanges.ONE_DAY]: {
+        value: 24,
+        label: "1d",
+        divisions: 8,
+        formatter: (date) =>
+            `${String(date.getHours()).padStart(2, "0")}:${String(
+                date.getMinutes()
+            ).padStart(2, "0")}`,
+    },
+    [TimeRanges.ONE_WEEK]: {
+        value: 168,
+        label: "7d",
+        divisions: 7,
+        formatter: (date) =>
+            date.toLocaleDateString("en-US", {
+                month: "short",
+                day: "numeric",
+            }),
+    },
 };
 
-const getTimestampByTimeRangeValue = (rangeValue: string): number => {
-    const timeRangeValue: number = Number(
-        rangeValue.slice(0, rangeValue.length - 1)
-    );
-    const timeRangeMetric = rangeValue[
-        rangeValue.length - 1
-    ] as TimeRangeMetrics;
-
-    const timeRangeMultiplier: number =
-        timeRangeMultiplierRecord[timeRangeMetric];
-
-    return Date.now() - timeRangeMultiplier * timeRangeValue;
-};
+const timeSetData: ITimeSet[] = Object.values(timeValues);
 
 const NetworkDashboard: React.FC = () => {
-    const [timeRange, setTimeRange] = useState<"1h" | "6h" | "24h" | "7d">(
-        "24h"
-    );
-    const [selectedMetric, setSelectedMetric] = useState<string | null>(null);
-
-    const currentTimeRangeTimestamp: number = useMemo(
-        () => getTimestampByTimeRangeValue(timeRange),
-        [timeRange]
+    const [timeRange, setTimeRange] = useState<ITimeSet>(
+        timeValues[TimeRanges.ONE_DAY]
     );
 
-    // Real-time data hooks using GraphQL polling
-    const { data: statsData } = useQuery(GET_NETWORK_STATS, {
-        variables: {
-            timeRange: currentTimeRangeTimestamp,
+    const { data: stats, loading: isStatsLoading } = useQuery(GET_STATS, {
+        variables: { hours: timeRange.value, divisions: timeRange.divisions },
+        pollInterval: 3000,
+    });
+
+    const getValue = useCallback(
+        (value: string) => {
+            if (isStatsLoading) {
+                return "-";
+            }
+
+            return value;
         },
-        pollInterval: 3000,
-    });
-
-    const { data: blocksCountData } = useQuery(
-        getLatestBlocksCount,
-        {
-            variables: { timeRange: currentTimeRangeTimestamp },
-            pollInterval: 3000,
-        }
+        [isStatsLoading]
     );
-
-    const { data: transfersCountData } = useQuery(
-        getTransfersCount,
-        {
-            variables: { timeRange: currentTimeRangeTimestamp },
-            pollInterval: 3000,
-        }
-    );
-
-    const { data: lastBlockData } = useQuery(getLastBlock, {
-        pollInterval: 3000,
-    });
-
-    const blocksCount: number = useMemo(
-        () => blocksCountData?.blocks_aggregate?.aggregate?.count ?? 0,
-        [blocksCountData]
-    );
-    const transfersCount: number = useMemo(
-        () => transfersCountData?.transfers_aggregate?.aggregate?.count ?? 0,
-        [transfersCountData]
-    );
-
-    const networkStats = statsData?.network_stats?.[0];
-
-    // Calculate historical data from actual blockchain data
-    const historicalData = useMemo(() => {
-        // Use actual blocks data to calculate metrics
-        if (!blocksCount) {
-            return [];
-        }
-
-        // Group blocks by time intervals based on timeRange
-        const now = new Date();
-        const hours =
-            timeRange === "1h"
-                ? 1
-                : timeRange === "6h"
-                ? 6
-                : timeRange === "24h"
-                ? 24
-                : 168;
-        const intervalMs =
-            (hours * 60 * 60 * 1000) / (timeRange === "7d" ? 24 : hours); // hourly for 7d, otherwise by hour
-
-        const avgBlockTime =
-            (Date.now() - currentTimeRangeTimestamp) /
-            blocksCount /
-            SECOND_IN_MS_MULTIPLIER;
-
-        // Calculate actual TPS from transfers
-        const tps =
-            (Date.now() - currentTimeRangeTimestamp) /
-            transfersCount /
-            SECOND_IN_MS_MULTIPLIER;
-
-        // Get actual validator count
-        const activeValidatorCount = networkStats?.active_validators ?? 3;
-        const totalValidatorCount = networkStats?.total_validators ?? 3;
-
-        // Create data points for the chart
-        const dataPoints = timeRange === "7d" ? 24 : hours; // Hourly for 7d, otherwise one per hour
-        return Array.from({ length: dataPoints }, (_, i) => {
-            const time = new Date(
-                now.getTime() - (dataPoints - i) * intervalMs
-            );
-            return {
-                time: format(time, timeRange === "7d" ? "MMM dd" : "HH:mm"),
-                timestamp: time.getTime(),
-                blockTime: avgBlockTime,
-                tps: Math.max(0, tps),
-                activeValidators: activeValidatorCount,
-                transfers: Math.floor(transfersCount / dataPoints),
-                deployments: 0, // Could fetch actual deployments if needed
-                totalStake: totalValidatorCount * 1000, // Each validator has 1000 ASI
-            };
-        });
-    }, [
-        timeRange,
-        transfersCount,
-        networkStats,
-        blocksCount,
-        currentTimeRangeTimestamp,
-    ]);
 
     const keyMetrics = useMemo((): MetricCard[] => {
-        
-        const avgBlockTime = historicalData[0]?.blockTime || 0;
-        const activeValidators = networkStats?.active_validators || 0;
-
-        // Calculate TPS from actual data (transfers per block * blocks per second)
-        const tps =
-            avgBlockTime > 0 ? transfersCount / blocksCount / avgBlockTime : 0;
-
+        const lastBlock = stats?.blocks[0] ?? {};
+        const lastRecord =
+            stats?.get_network_metrics[
+                stats?.get_network_metrics?.length - 1
+            ] ?? {};
+        const activeValidators =
+            stats?.network_stats[0]?.active_validators || 0;
 
         return [
             {
                 title: "Latest Block",
-                value: lastBlockData?.blocks[0]?.block_number || "0",
+                value: getValue(lastBlock?.block_number || "0"),
                 change: 0,
                 changeType: "increase",
                 icon: <Database size={20} />,
@@ -252,7 +155,9 @@ const NetworkDashboard: React.FC = () => {
             },
             {
                 title: "Block Time",
-                value: `${avgBlockTime.toFixed(1)}s`,
+                value: getValue(
+                    `${formatNumber(lastRecord?.avg_block_time_seconds)}s`
+                ),
                 change: 0, // No historical comparison available
                 changeType: "increase",
                 icon: <Clock size={20} />,
@@ -262,7 +167,7 @@ const NetworkDashboard: React.FC = () => {
             },
             {
                 title: "Transactions/sec",
-                value: tps.toFixed(2),
+                value: getValue(`${formatNumber(lastRecord?.avg_tps)}`),
                 change: 0,
                 changeType: "increase",
                 icon: <Zap size={20} />,
@@ -281,85 +186,24 @@ const NetworkDashboard: React.FC = () => {
                 trend: [],
             },
         ];
-    }, [
-        historicalData,
-        networkStats,
-        transfersCount,
-        blocksCount,
-        lastBlockData,
-    ]);
+    }, [stats, getValue]);
 
-    // const getHealthColor = (status: string) => {
-    //     switch (status) {
-    //         case "excellent":
-    //             return "#10b981";
-    //         case "good":
-    //             return "#3b82f6";
-    //         case "warning":
-    //             return "#f59e0b";
-    //         case "critical":
-    //             return "#ef4444";
-    //         default:
-    //             return "#6b7280";
-    //     }
-    // };
-
-    // const getHealthIcon = (status: string) => {
-    //     switch (status) {
-    //         case "excellent":
-    //         case "good":
-    //             return <CheckCircle size={20} />;
-    //         case "warning":
-    //             return <AlertTriangle size={20} />;
-    //         case "critical":
-    //             return <AlertTriangle size={20} />;
-    //         default:
-    //             return <Activity size={20} />;
-    //     }
-    // };
-
-    const CustomTooltip = ({ active, payload, label }: any) => {
-        if (active && payload && payload.length) {
-            return (
-                <div
-                    className="asi-card"
-                    style={{
-                        padding: "1rem",
-                        minWidth: "200px",
-                        border: "1px solid rgba(255, 255, 255, 0.2)",
-                        backgroundColor: "rgba(0, 0, 0, 0.9)",
-                    }}
-                >
-                    <p style={{ margin: "0 0 0.5rem 0", fontWeight: "600" }}>
-                        {label}
-                    </p>
-                    {payload.map((entry: any, index: number) => (
-                        <p
-                            key={index}
-                            style={{
-                                margin: "0 0 0.25rem 0",
-                                fontSize: "0.875rem",
-                                color: entry.color,
-                            }}
-                        >
-                            {entry.name}:{" "}
-                            {typeof entry.value === "number"
-                                ? entry.value.toFixed(2)
-                                : entry.value}
-                            {entry.name.includes("Time") && "s"}
-                            {entry.name.includes("TPS") && " tx/s"}
-                            {entry.name.includes("Latency") && "ms"}
-                        </p>
-                    ))}
-                </div>
-            );
+    const chartsData = useMemo(() => {
+        if (!stats) {
+            return [];
         }
-        return null;
-    };
+
+        return stats?.get_network_metrics.map((item: any) => ({
+            time: timeRange.formatter(new Date(item.bucket_start)),
+            tps: item.avg_tps,
+            blockTime: item.avg_block_time_seconds,
+            transfers: item.transfers_count,
+            deployments: item.deployments_count,
+        }));
+    }, [stats, timeRange]);
 
     return (
         <div>
-            {/* Header */}
             <div
                 style={{
                     display: "flex",
@@ -386,9 +230,9 @@ const NetworkDashboard: React.FC = () => {
                         padding: "0.25rem",
                     }}
                 >
-                    {(["1h", "6h", "24h", "7d"] as const).map((range) => (
+                    {timeSetData.map((range) => (
                         <button
-                            key={range}
+                            key={range.value}
                             onClick={() => setTimeRange(range)}
                             className="text-2"
                             style={{
@@ -396,22 +240,23 @@ const NetworkDashboard: React.FC = () => {
                                 border: "none",
                                 borderRadius: "6px",
                                 backgroundColor:
-                                    timeRange === range
+                                    timeRange.value === range.value
                                         ? "#10b981"
                                         : "transparent",
-                                color: timeRange === range ? "#000" : "#9ca3af",
+                                color:
+                                    timeRange.value === range.value
+                                        ? "#000"
+                                        : "#9ca3af",
                                 cursor: "pointer",
                                 fontWeight: "500",
                                 transition: "all 0.2s ease",
                             }}
                         >
-                            {range}
+                            {range.label}
                         </button>
                     ))}
                 </div>
             </div>
-
-            {/* Key Metrics Grid */}
             <div
                 style={{
                     display: "grid",
@@ -430,14 +275,6 @@ const NetworkDashboard: React.FC = () => {
                             cursor: "pointer",
                             transition: "all 0.2s ease",
                         }}
-                        whileHover={{ scale: 1.02 }}
-                        onClick={() =>
-                            setSelectedMetric(
-                                selectedMetric === metric.title
-                                    ? null
-                                    : metric.title
-                            )
-                        }
                     >
                         <div
                             style={{
@@ -488,8 +325,6 @@ const NetworkDashboard: React.FC = () => {
                                     </h5>
                                 )}
                             </div>
-
-                
                         </div>
                     </motion.div>
                 ))}
@@ -512,7 +347,7 @@ const NetworkDashboard: React.FC = () => {
                         height={300}
                         minWidth={300}
                     >
-                        <ComposedChart data={historicalData}>
+                        <ComposedChart data={chartsData}>
                             <CartesianGrid
                                 strokeDasharray="3 3"
                                 stroke="rgba(255, 255, 255, 0.1)"
@@ -564,15 +399,13 @@ const NetworkDashboard: React.FC = () => {
 
                 {/* Validator Activity */}
                 <div className="text-4 asi-card" style={{ flex: "auto" }}>
-                    <h3 style={{ marginBottom: "1rem" }}>
-                        Network Activity
-                    </h3>
+                    <h3 style={{ marginBottom: "1rem" }}>Network Activity</h3>
                     <ResponsiveContainer
                         width="100%"
                         height={300}
                         minWidth={300}
                     >
-                        <AreaChart data={historicalData}>
+                        <AreaChart data={chartsData}>
                             <CartesianGrid
                                 strokeDasharray="3 3"
                                 stroke="rgba(255, 255, 255, 0.1)"
