@@ -11,7 +11,9 @@ WORKDIR /app
 COPY package*.json ./
 
 # Install dependencies (including dev dependencies needed for build)
-RUN npm install --legacy-peer-deps
+RUN npm install --legacy-peer-deps && \
+    npm install ajv@^8.12.0 ajv-keywords@^5.1.0 --save-dev --legacy-peer-deps
+
 
 # Copy source code
 COPY . .
