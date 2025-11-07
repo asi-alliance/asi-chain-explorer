@@ -97,14 +97,6 @@ const ValidatorHistoryPage: React.FC = () => {
     validatorMap[v.public_key] = v;
   });
 
-  // Debug stake values
-  if (validators.length > 0) {
-    console.log('Validator History Debug:');
-    console.log('First validator stake:', validators[0].stake);
-    console.log('Type of stake:', typeof validators[0].stake);
-    console.log('All stakes:', validators.map((v: any) => v.stake));
-  }
-
   // Calculate total stake for percentage
   const totalStake = validators.reduce((sum: number, v: any) => {
     // Handle both string and number types
