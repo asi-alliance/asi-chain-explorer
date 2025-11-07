@@ -15,6 +15,7 @@ import {
     Legend,
     ComposedChart,
 } from "recharts";
+import { formatNumber } from "../utils/calculateBlockTime";
 
 interface MetricCard {
     title: string;
@@ -155,9 +156,7 @@ const NetworkDashboard: React.FC = () => {
             {
                 title: "Block Time",
                 value: getValue(
-                    `${Number(lastRecord?.avg_block_time_seconds || 0).toFixed(
-                        4
-                    )}s`
+                    `${formatNumber(lastRecord?.avg_block_time_seconds)}s`
                 ),
                 change: 0, // No historical comparison available
                 changeType: "increase",
@@ -168,7 +167,7 @@ const NetworkDashboard: React.FC = () => {
             },
             {
                 title: "Transactions/sec",
-                value: getValue(Number(lastRecord?.avg_tps || 0).toFixed(4)),
+                value: getValue(`${formatNumber(lastRecord?.avg_tps)}`),
                 change: 0,
                 changeType: "increase",
                 icon: <Zap size={20} />,
