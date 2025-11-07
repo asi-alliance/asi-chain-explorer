@@ -56,21 +56,21 @@ The indexer service is the core backend component responsible for blockchain dat
 
 **Transfer Extraction Patterns:**
 
-The indexer extracts REV transfers from Rholang deployment terms using multiple regex patterns:
+The indexer extracts ASI transfers from Rholang deployment terms using multiple regex patterns:
 
 ```python
 TRANSFER_PATTERNS = [
-    # Standard RevVault transfer with literal address
-    r'@vault!\s*\(\s*"transfer"\s*,\s*"([0-9a-zA-Z0-9]{54,56})"\s*,\s*(\d+)\s*,',
+    # Standard ASIVault transfer with literal address
+    r'@vault!\s*\(\s*"transfer"\s*,\s*"([0-9a-zA-Z0-9]{52,56})"\s*,\s*(\d+)\s*,',
     
     # Variable-based transfer
     r'@vault!\s*\(\s*"transfer"\s*,\s*(\w+)\s*,\s*(\d+)\s*,',
     
-    # Match pattern with REV addresses
-    r'match\s*\(\s*"([0-9a-zA-Z0-9]{54,56})"\s*,\s*"([0-9a-zA-Z0-9]{54,56})"\s*,\s*(\d+)\s*\)',
+    # Match pattern with ASI addresses
+    r'match\s*\(\s*"([0-9a-zA-Z0-9]{52,56})"\s*,\s*"([0-9a-zA-Z0-9]{52,56})"\s*,\s*(\d+)\s*\)',
     
-    # RevVault findOrCreate pattern
-    r'RevVault!\s*\(\s*"findOrCreate"\s*,\s*"([0-9a-zA-Z0-9]{54,56})"\s*,\s*(\d+)\s*\)',
+    # ASIVault findOrCreate pattern
+    r'ASIVault!\s*\(\s*"findOrCreate"\s*,\s*"([0-9a-zA-Z0-9]{54,56})"\s*,\s*(\d+)\s*\)',
 ]
 
 # Direct transfer pattern for specific deployment formats
@@ -92,13 +92,13 @@ ADDRESS_BINDING_PATTERNS = [
 **Deployment Classification:**
 
 Deployments are classified by analyzing their Rholang term content:
-- `rev_transfer`: Contains RevVault and transfer operations
+- `asi_transfer`: Contains ASIVault and transfer operations
 - `validator_operation`: Contains validator or bond operations
 - `finalizer_contract`: Contains finalizer operations
 - `registry_lookup`: Contains registry lookup operations
 - `auction_contract`: Contains auction operations
 - `smart_contract`: Default for other contracts
-- `genesis_mint`: Genesis REV allocations
+- `genesis_mint`: Genesis ASI allocations
 - `genesis_bond`: Genesis validator bonds
 
 ### Database Design
@@ -135,7 +135,7 @@ Key fields:
 - `block_hash` (VARCHAR(64), FK): Block hash reference
 - `deployer` (VARCHAR(200)): Address that created the deployment
 - `term` (TEXT): Rholang code
-- `deployment_type` (VARCHAR(50)): Classification (rev_transfer, smart_contract, etc.)
+- `deployment_type` (VARCHAR(50)): Classification (asi_transfer, smart_contract, etc.)
 - `phlo_cost` (BIGINT): Execution cost
 - `phlo_price` (BIGINT): Price per phlo
 - `phlo_limit` (BIGINT): Maximum phlo
@@ -147,7 +147,7 @@ Key fields:
 
 **transfers**
 
-Extracted REV token transfers from deployments.
+Extracted ASI token transfers from deployments.
 
 Key fields:
 - `id` (BIGSERIAL, PK): Auto-incrementing identifier
@@ -155,8 +155,8 @@ Key fields:
 - `block_number` (BIGINT, FK): Block containing transfer
 - `from_address` (VARCHAR(150)): Sender address
 - `to_address` (VARCHAR(150)): Recipient address
-- `amount_rev` (NUMERIC(20,8)): Amount in REV units
-- `amount_dust` (BIGINT): Amount in dust units (1 REV = 100,000,000 dust)
+- `amount_asi` (NUMERIC(20,8)): Amount in ASI units
+- `amount_dust` (BIGINT): Amount in dust units (1 ASI = 100,000,000 dust)
 - `status` (VARCHAR(20)): Transfer status
 
 **validators**
@@ -190,11 +190,11 @@ Key fields:
 - `id` (BIGSERIAL, PK): Auto-incrementing identifier
 - `address` (VARCHAR(150)): Account address
 - `block_number` (BIGINT, FK): Block at which balance was calculated
-- `unbonded_balance_rev` (NUMERIC(20,8)): Liquid REV balance
+- `unbonded_balance_asi` (NUMERIC(20,8)): Liquid ASI balance
 - `unbonded_balance_dust` (BIGINT): Liquid dust balance
-- `bonded_balance_rev` (NUMERIC(20,8)): Staked REV balance
+- `bonded_balance_asi` (NUMERIC(20,8)): Staked ASI balance
 - `bonded_balance_dust` (BIGINT): Staked dust balance
-- `total_balance_rev` (NUMERIC(20,8), GENERATED): Sum of bonded and unbonded REV
+- `total_balance_asi` (NUMERIC(20,8), GENERATED): Sum of bonded and unbonded ASI
 - `total_balance_dust` (BIGINT, GENERATED): Sum of bonded and unbonded dust
 
 **network_stats**

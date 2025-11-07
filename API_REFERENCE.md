@@ -90,7 +90,7 @@ type deployments {
 
 #### Transfer
 
-Represents a REV token transfer extracted from a deployment.
+Represents a ASI token transfer extracted from a deployment.
 
 ```graphql
 type transfers {
@@ -100,7 +100,7 @@ type transfers {
   from_address: String!
   to_address: String!
   amount_dust: bigint!
-  amount_rev: numeric!
+  amount_asi: numeric!
   status: String
   created_at: timestamp!
   
@@ -157,11 +157,11 @@ type balance_states {
   address: String!
   block_number: bigint!
   unbonded_balance_dust: bigint!
-  unbonded_balance_rev: numeric!
+  unbonded_balance_asi: numeric!
   bonded_balance_dust: bigint!
-  bonded_balance_rev: numeric!
+  bonded_balance_asi: numeric!
   total_balance_dust: bigint!
-  total_balance_rev: numeric!
+  total_balance_asi: numeric!
   updated_at: timestamp!
   
   # Relationships
@@ -273,7 +273,7 @@ query GetBlockDetails($blockNumber: bigint!) {
         id
         from_address
         to_address
-        amount_rev
+        amount_asi
         amount_dust
         status
       }
@@ -295,7 +295,7 @@ query GetAllTransfers($limit: Int = 50, $offset: Int = 0) {
     deploy_id
     from_address
     to_address
-    amount_rev
+    amount_asi
     amount_dust
     status
     block_number
@@ -328,7 +328,7 @@ query GetAddressTransfers($address: String!, $limit: Int = 20) {
     deploy_id
     from_address
     to_address
-    amount_rev
+    amount_asi
     amount_dust
     status
     block_number
@@ -470,10 +470,10 @@ query GetAggregatedStats {
     aggregate {
       count
       sum {
-        amount_rev
+        amount_asi
       }
       avg {
-        amount_rev
+        amount_asi
       }
     }
   }
@@ -529,7 +529,7 @@ query PollForNewTransfers($limit: Int = 10) {
     deploy_id
     from_address
     to_address
-    amount_rev
+    amount_asi
     amount_dust
     status
     block_number
@@ -549,7 +549,7 @@ query PollForNetworkActivity {
   }
   transfers(limit: 1, order_by: { created_at: desc }) {
     id
-    amount_rev
+    amount_asi
     created_at
   }
 }
@@ -590,10 +590,10 @@ query PollForNetworkStats {
     aggregate {
       count
       sum {
-        amount_rev
+        amount_asi
       }
       avg {
-        amount_rev
+        amount_asi
       }
     }
   }

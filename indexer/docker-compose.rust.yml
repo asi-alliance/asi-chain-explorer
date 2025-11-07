@@ -31,13 +31,10 @@ services:
         condition: service_healthy
     environment:
       # Rust CLI Configuration (using built-in CLI)
-      RUST_CLI_PATH: /usr/local/bin/node_cli
+#      RUST_CLI_PATH: /usr/local/bin/node_cli
       NODE_HOST: ${NODE_HOST}
       GRPC_PORT: ${GRPC_PORT}
       HTTP_PORT: ${HTTP_PORT}
-      OBSERVER_HOST: ${OBSERVER_HOST}
-      OBSERVER_HTTP_PORT: ${OBSERVER_HTTP_PORT}
-      OBSERVER_GRPC_PORT: ${OBSERVER_GRPC_PORT}
 
       # Database
       DATABASE_URL: ${DATABASE_URL}
@@ -56,7 +53,7 @@ services:
       LOG_FORMAT: ${LOG_FORMAT:-json}
       
       # Features
-      ENABLE_REV_TRANSFER_EXTRACTION: ${ENABLE_REV_TRANSFER_EXTRACTION:-true}
+      ENABLE_ASI_TRANSFER_EXTRACTION: ${ENABLE_ASI_TRANSFER_EXTRACTION:-true}
       ENABLE_METRICS: ${ENABLE_METRICS:-true}
       ENABLE_HEALTH_CHECK: ${ENABLE_HEALTH_CHECK:-true}
     ports:

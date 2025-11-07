@@ -70,7 +70,7 @@ Smart contract deployments and transactions.
 |-------|------|-------------|
 | deploy_id | String | Unique deployment signature |
 | deployer | String | Account that created deployment |
-| deployment_type | String | Classification (smart_contract, validator_operation, rev_transfer) |
+| deployment_type | String | Classification (smart_contract, validator_operation, asi_transfer) |
 | term | Text | Rholang source code |
 | timestamp | String | Deployment creation time |
 | block_number | String | Block containing deployment |

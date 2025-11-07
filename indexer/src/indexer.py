@@ -3,13 +3,12 @@
 import asyncio
 import re
 from datetime import datetime
-from typing import Dict, List, Optional, Tuple
 from decimal import Decimal
+from typing import Dict, List
 
 import structlog
 from sqlalchemy import select, text
 from sqlalchemy.dialects.postgresql import insert
-
 from src.config import settings
 from src.database import db
 from src.models import Block, Deployment, Transfer, Validator, ValidatorBond, IndexerState
@@ -80,7 +79,7 @@ class BlockIndexer:
 
     async def stop(self):
         """Stop the indexer."""
-        logger.info("Stopping blockchain indexer")
+        logger.info("[indexer.py] Stopping blockchain indexer")
         self.running = False
         await db.disconnect()
 
@@ -126,7 +125,7 @@ class BlockIndexer:
                     await self._process_block(block_summary)
                     processed_count += 1
                 except Exception as e:
-                    logger.error(f"Failed to process block {i}", error=str(e), block=block_summary)
+                    logger.error(f"[indexer.py] Failed to process block {i}", error=str(e), block=block_summary)
 
             # Update last indexed block
             if processed_count > 0 and blocks:
@@ -173,7 +172,7 @@ class BlockIndexer:
             deployments = response.get("deploys", [])
         except Exception as e:
             logger.error(
-                "Failed to get block details",
+                "[indexer.py] Failed to get block details",
                 block_number=block_number,
                 block_hash=block_hash,
                 error=str(e)
@@ -227,10 +226,10 @@ class BlockIndexer:
                             # Add to block_validators table
                             await validator_session.execute(
                                 text("""
-                                    INSERT INTO block_validators (block_hash, validator_public_key)
-                                    VALUES (:block_hash, :validator_key)
-                                    ON CONFLICT DO NOTHING
-                                """),
+                                     INSERT INTO block_validators (block_hash, validator_public_key)
+                                     VALUES (:block_hash, :validator_key)
+                                     ON CONFLICT DO NOTHING
+                                     """),
                                 {"block_hash": block_data["blockHash"], "validator_key": validator_key}
                             )
                     await validator_session.commit()
@@ -308,7 +307,7 @@ class BlockIndexer:
         session.add(deployment)
 
         # Extract ASI transfers if enabled
-        if settings.enable_rev_transfer_extraction:
+        if settings.enable_asi_transfer_extraction:
             transfers = self._extract_transfers(deploy_data, block_data["blockNumber"])
             for transfer in transfers:
                 session.add(transfer)
