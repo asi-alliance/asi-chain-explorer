@@ -1,7 +1,6 @@
 import { formatNumber } from "../utils/calculateBlockTime";
 
 const CustomTooltip = ({ active, payload, label }: any) => {
-    console.log("TOOLTIP", payload);
 
     if (!active || !payload || !payload?.length) {
         return null;

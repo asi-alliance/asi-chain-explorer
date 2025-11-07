@@ -61,20 +61,9 @@ const ValidatorsPage: React.FC = () => {
   
   const validators = Array.from(validatorMap.values());
   
-  // Debug logging
   if (!loading) {
     if (error) {
       console.error('ValidatorsPage error:', error);
-    } else {
-      console.log('ValidatorsPage data:', {
-        rawValidators: rawValidators.length,
-        deduplicatedValidators: validators.length,
-        validatorBonds: validatorBonds.length,
-        blocks: allBlocks.length,
-        sampleValidator: validators[0],
-        sampleBond: validatorBonds[0]
-      });
-      
     }
   }
   
