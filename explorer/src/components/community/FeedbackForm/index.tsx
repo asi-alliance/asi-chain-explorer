@@ -1,7 +1,11 @@
 import DropdownList, { OptionType } from "../DropdownList";
 import FeedbackFormTriggerIcon from "./../assets/asi-feedback-logo.png";
-import { endpoints, MINIMUM_FEEDBACK_TEXT_LENGTH } from "./meta";
 import { useState, ReactElement, ChangeEvent } from "react";
+import {
+    endpoints,
+    FEEDBACK_FORM_SOURCE,
+    MINIMUM_FEEDBACK_TEXT_LENGTH,
+} from "./meta";
 import "./style.css";
 
 enum FeedbackCategory {
@@ -84,7 +88,7 @@ const FeedbackForm = (): ReactElement => {
     const sendFeedback = async () => {
         if (isRequestHandling) {
             return;
-        };
+        }
 
         try {
             setIsRequestHandling(true);
@@ -97,7 +101,7 @@ const FeedbackForm = (): ReactElement => {
                     "Content-Type": "application/json;charset=UTF-8",
                 },
                 body: JSON.stringify({
-                    source: "ASI_CHAIN_DOCS",
+                    source: FEEDBACK_FORM_SOURCE,
                     name: formFields.name,
                     address: "",
                     email: formFields.email,
