@@ -14,6 +14,7 @@ import ValidatorHistoryPage from "./pages/ValidatorHistoryPage";
 import SearchResultsPage from "./pages/SearchResultsPage";
 import TransactionDetailPage from "./pages/TransactionDetailPage";
 import TransactionsPage from "./pages/TransactionsPage";
+import FeedbackForm from "./components/community/FeedbackForm";
 
 import "./styles/global.css";
 function App() {
@@ -64,6 +65,7 @@ function App() {
                     </Routes>
                 </Layout>
             </Router>
+            <FeedbackForm />
         </ApolloProvider>
     );
 }
