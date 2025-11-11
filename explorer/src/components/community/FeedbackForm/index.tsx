@@ -4,6 +4,7 @@ import { useState, ReactElement, ChangeEvent } from "react";
 import {
     endpoints,
     FEEDBACK_FORM_SOURCE,
+    SUCCESS_SCREEN_TIMEOUT,
     MINIMUM_FEEDBACK_TEXT_LENGTH,
 } from "./meta";
 import "./style.css";
@@ -80,7 +81,9 @@ const FeedbackForm = (): ReactElement => {
     const showAlert = async () => {
         setIsRequestSent(true);
 
-        await new Promise((resolve) => setTimeout(resolve, 3000));
+        await new Promise((resolve) =>
+            setTimeout(resolve, SUCCESS_SCREEN_TIMEOUT)
+        );
 
         setIsRequestSent(false);
     };
