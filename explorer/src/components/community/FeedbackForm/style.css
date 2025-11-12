@@ -135,6 +135,8 @@ form {
     border: 1px solid var(--gray-2-color);
     background: var(--gray-soft-color);
     transition: border var(--transition-fast);
+    color: var(--text-1-color);
+    outline: none;
 }
 
 .form-field input:focus,
