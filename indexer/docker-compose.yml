@@ -1,4 +1,4 @@
-version: '3.8'
+# Docker Compose configuration for ASI-Chain Indexer with Rust CLI
 
 services:
   postgres:
@@ -37,10 +37,7 @@ services:
       NODE_HOST: ${NODE_HOST}
       GRPC_PORT: ${GRPC_PORT}
       HTTP_PORT: ${HTTP_PORT}
-      OBSERVER_HOST: ${OBSERVER_HOST}
-      OBSERVER_HTTP_PORT: ${OBSERVER_HTTP_PORT}
-      OBSERVER_GRPC_PORT: ${OBSERVER_GRPC_PORT}
-      
+
       # Database
       DATABASE_URL: ${DATABASE_URL}
       DATABASE_POOL_SIZE: ${DATABASE_POOL_SIZE:-20}

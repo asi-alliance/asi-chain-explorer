@@ -1,4 +1,4 @@
-# Docker Compose configuration for ASI-Chain Indexer with Rust CLI
+# Docker Compose configuration for ASI-Chain Indexer with Rust CLI & full dependency stack
 
 services:
   postgres:
@@ -24,7 +24,7 @@ services:
   rust-indexer:
     build:
       context: .
-      dockerfile: Dockerfile.rust
+      dockerfile: Dockerfile.debug
     container_name: asi-rust-indexer
     depends_on:
       postgres:
