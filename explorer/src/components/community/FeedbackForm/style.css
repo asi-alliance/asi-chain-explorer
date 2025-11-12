@@ -212,7 +212,7 @@ form {
 
 @media (max-width: 450px) { 
     .feedback-form {
-        width: 100%;
+        width: 100vw;
         border-radius: var(--radius-default) var(--radius-default) 0 0;
         box-shadow: 0 0 10px var(--accent-border-color);
     }
@@ -220,6 +220,5 @@ form {
     .feedback-form-holder {
         right: 0;
         bottom: 0;
-        width: 100%;
     }
 }
