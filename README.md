@@ -51,42 +51,10 @@ The system indexes blockchain data including blocks, deployments, transfers, val
 ### System Components
 
 ```
+
 ┌─────────────────────────────────────────────────────────────┐
-│                     ASI Chain Node                          │
-│                  (RChain-based Network)                     │
-└─────────────────────┬───────────────────────────────────────┘
-                      │
-                      │ gRPC/HTTP
-                      │
-┌─────────────────────▼───────────────────────────────────────┐
-│                    Rust CLI Client                          │
-│         (Blockchain Data Extraction Interface)              │
-└─────────────────────┬───────────────────────────────────────┘
-                      │
-                      │ Command Execution
-                      │
-┌─────────────────────▼───────────────────────────────────────┐
-│                  Python Indexer Service                     │
-│  - Block synchronization                                    │
-│  - Deployment processing                                    │
-│  - Transfer extraction                                      │
-│  - Validator tracking                                       │
-│  - Network statistics                                       │
-└─────────────────────┬───────────────────────────────────────┘
-                      │
-                      │ asyncpg/SQLAlchemy
-                      │
-┌─────────────────────▼───────────────────────────────────────┐
-│                   PostgreSQL Database                       │
-│  Tables: blocks, deployments, transfers, validators,        │
-│          validator_bonds, balance_states, network_stats     │
-└─────────────────────┬───────────────────────────────────────┘
-                      │
-                      │ Database Connection
-                      │
-┌─────────────────────▼───────────────────────────────────────┐
-│                   Hasura GraphQL Engine                     │
-│  - Auto-generated GraphQL API                               │
+│                   Hasura GraphQL + Indexer                  │
+│  - GraphQL API                                              │
 │  - Real-time queries with polling                           │
 │  - Query optimization                                       │
 └─────────────────────┬───────────────────────────────────────┘
@@ -114,8 +82,6 @@ The system indexes blockchain data including blocks, deployments, transfers, val
 
 ## Technology Stack
 
-### Explorer (Frontend)
-
 - **React 19.1.1**: UI framework
 - **TypeScript 4.9.5**: Type-safe JavaScript
 - **Apollo Client 3.13.9**: GraphQL client with caching and polling
@@ -138,31 +104,9 @@ The system indexes blockchain data including blocks, deployments, transfers, val
 
 ```
 asi-chain-explorer/
-├── indexer/                    # Backend indexer service
+├── explorer/                # Frontend web application
 │   ├── src/
-│   │   ├── main.py            # Entry point and service orchestration
-│   │   ├── indexer.py         # Legacy indexer implementation
-│   │   ├── rust_indexer.py    # Enhanced Rust CLI-based indexer
-│   │   ├── rust_cli_client.py # Rust CLI wrapper client
-│   │   ├── database.py        # Database connection management
-│   │   ├── models.py          # SQLAlchemy ORM models
-│   │   ├── config.py          # Configuration management
-│   │   ├── monitoring.py      # Prometheus metrics
-│   │   ├── reorg_handler.py   # Chain reorganization handling
-│   │   ├── resilience.py      # Error recovery mechanisms
-│   │   ├── rchain_client.py   # Legacy RChain client
-│   │   ├── event_system.py    # Event processing
-│   │   └── cache.py           # Caching utilities
-│   ├── migrations/
-│   │   └── 000_comprehensive_initial_schema.sql
-│   ├── scripts/               # Hasura configuration scripts
-│   ├── docker-compose.yml     # Local development stack
-│   ├── Dockerfile            # Production container image
-│   └── requirements.txt       # Python dependencies
-│
-├── explorer/                  # Frontend web application
-│   ├── src/
-│   │   ├── components/       # Reusable UI components
+│   │   ├── components/      # Reusable UI components
 │   │   ├── pages/           # Route-based page components
 │   │   ├── graphql/         # GraphQL queries and subscriptions
 │   │   ├── services/        # Business logic services
@@ -187,39 +131,10 @@ asi-chain-explorer/
 - Docker 20.10 or higher
 - Docker Compose 2.0 or higher
 - Node.js 20 (for local frontend development)
-- Python 3.11 (for local indexer development)
 
 ### Quick Start with Docker Compose
 
-**IMPORTANT: ASI Chain Explorer has two separate services that must be started independently:**
-
-#### 1. Start Indexer (Backend) - REQUIRED FIRST
-
-The indexer syncs blockchain data and provides the GraphQL API:
-
-```bash
-cd indexer
-
-# Step 1: Create and configure .env file in /indexer directory
-cp .env.example .env
-# Edit .env with your node configuration
-
-# Step 2: Start indexer services
-docker compose -f docker-compose.rust.yml up -d
-
-# Step 3: Configure Hasura relationships (for explorer frontend)
-./scripts/configure-hasura.sh
-./scripts/setup-hasura-relationships.sh
-```
-
-This starts:
-- PostgreSQL database (port 5432)
-- Indexer service (monitoring on port 9090)
-- Hasura GraphQL Engine (port 8080)
-
-**Note:** Step 3 (Hasura scripts) is only needed if you plan to run the explorer frontend.
-
-#### 2. Start Explorer Frontend (Separately) - OPTIONAL
+#### 1. Start Explorer Frontend 
 
 The frontend provides the web UI for browsing blockchain data. Before starting the frontend, ensure you've completed Step 3 from the indexer setup (Hasura configuration scripts).
 
@@ -239,46 +154,6 @@ Frontend will be available at http://localhost:3001
 **Note:** The indexer works independently - you can use the GraphQL API (http://localhost:8080/v1/graphql) without running the frontend.
 
 ### Local Development Setup
-
-#### Indexer
-
-1. Navigate to indexer directory:
-```bash
-cd indexer
-```
-
-2. Create virtual environment:
-```bash
-python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
-```
-
-3. Install dependencies:
-```bash
-pip install -r requirements.txt
-```
-
-4. Create `.env` file from template:
-```bash
-cp .env.template .env
-```
-
-5. Configure environment variables (see Configuration section)
-
-6. Start PostgreSQL:
-```bash
-docker compose up -d postgres
-```
-
-7. Run migrations:
-```bash
-psql -U indexer -d asichain -h localhost -f migrations/000_comprehensive_initial_schema.sql
-```
-
-8. Start indexer:
-```bash
-python -m src.main
-```
 
 #### Explorer
 
@@ -323,32 +198,6 @@ For detailed technical documentation, see:
 - **[ARCHITECTURE.md](ARCHITECTURE.md)** - System architecture, component interactions, database schema, and performance considerations
 - **[API_REFERENCE.md](API_REFERENCE.md)** - Complete GraphQL API reference with query examples and best practices
 - **[DEVELOPER_GUIDE.md](DEVELOPER_GUIDE.md)** - Development setup, debugging, and optimization guidelines
-
-## Monitoring
-
-### Indexer Metrics
-
-The indexer exposes Prometheus metrics at `http://localhost:9090/metrics`:
-
-- `asi_indexer_blocks_processed_total`: Total blocks processed
-- `asi_indexer_sync_errors_total`: Total sync errors encountered
-- `asi_indexer_last_indexed_block`: Last successfully indexed block number
-- `asi_indexer_blocks_behind`: Number of blocks behind chain tip
-- `asi_indexer_processing_time_seconds`: Block processing time histogram
-
-### Health Checks
-
-Indexer health endpoint: `http://localhost:9090/health`
-
-Returns:
-```json
-{
-  "status": "healthy",
-  "last_indexed_block": 12345,
-  "blocks_behind": 0,
-  "database_connected": true
-}
-```
 
 ## License
 
