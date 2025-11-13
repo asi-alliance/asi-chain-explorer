@@ -17,7 +17,7 @@ Part of the [**Artificial Superintelligence Alliance**](https://superintelligenc
 
 ---
 
-**ASI Chain Explorer** provides comprehensive blockchain data synchronization and web-based interface for exploring blocks, transactions, validators, and network statistics on the ASI Chain network.
+**ASI Chain Explorer** is a modern, real-time blockchain explorer that provides comprehensive insights into blocks, transactions, validators, and network statistics on the ASI Chain network through an intuitive web interface.
 
 ---
 
@@ -37,14 +37,24 @@ Part of the [**Artificial Superintelligence Alliance**](https://superintelligenc
 
 ## Overview
 
-ASI Chain Explorer consists of **two independent components**:
 
-- **Indexer** (Backend): Python-based blockchain data synchronization service that extracts and stores blockchain data in PostgreSQL
-- **Explorer** (Frontend): React-based web interface that provides visualization and querying capabilities through GraphQL
+ASI Chain Explorer is a React-based web interface that provides real-time visualization and exploration of ASI Chain blockchain data through GraphQL,
+while the Python indexer backend runs separately to synchronize and store blockchain data in PostgreSQL.
+
+**Indexer** [https://github.com/asi-alliance/asi-chain-explorer](https://github.com/asi-alliance/asi-chain-explorer)
+
 
 **These services run separately and can be deployed independently.**
 
 The system indexes blockchain data including blocks, deployments, transfers, validators, and network statistics, making it accessible through a GraphQL API powered by Hasura.
+
+## Core Functionality
+- **Block Explorer**: Real-time block monitoring with detailed information
+- **Transaction Viewer**: Comprehensive transaction details including deployments and transfers
+- **Validator Dashboard**: Active validator monitoring with stake distribution (deduplication fixed)
+- **Network Statistics**: Simplified Network Dashboard view
+- **Search**: Universal search for blocks, transactions, and addresses
+- **Genesis Funding**: Complete visibility of initial token distribution
 
 ## Architecture
 
@@ -104,8 +114,7 @@ The system indexes blockchain data including blocks, deployments, transfers, val
 
 ```
 asi-chain-explorer/
-├── explorer/                # Frontend web application
-│   ├── src/
+│   src/
 │   │   ├── components/      # Reusable UI components
 │   │   ├── pages/           # Route-based page components
 │   │   ├── graphql/         # GraphQL queries and subscriptions
@@ -134,7 +143,7 @@ asi-chain-explorer/
 
 ### Quick Start with Docker Compose
 
-#### 1. Start Explorer Frontend 
+#### Start Explorer Frontend 
 
 The frontend provides the web UI for browsing blockchain data. Before starting the frontend, ensure you've completed Step 3 from the indexer setup (Hasura configuration scripts).
 
@@ -153,6 +162,21 @@ Frontend will be available at http://localhost:3001
 
 **Note:** The indexer works independently - you can use the GraphQL API (http://localhost:8080/v1/graphql) without running the frontend.
 
+#### Or use ./deploy.sh script
+
+```bash
+# Deploy with script
+./deploy-docker.sh start
+
+# Other commands
+./deploy-docker.sh stop     # Stop the explorer
+./deploy-docker.sh restart  # Restart the explorer
+./deploy-docker.sh logs     # View logs
+./deploy-docker.sh status   # Check status
+./deploy-docker.sh rebuild  # Rebuild after code changes
+```
+
+
 ### Local Development Setup
 
 #### Explorer
@@ -167,7 +191,7 @@ cd explorer
 npm install
 ```
 
-3. Create `.env.local` file:
+3. Create `.env` file:
 ```bash
 REACT_APP_GRAPHQL_URL=http://localhost:8080/v1/graphql
 REACT_APP_HASURA_ADMIN_SECRET=myadminsecretkey
@@ -199,6 +223,111 @@ For detailed technical documentation, see:
 - **[API_REFERENCE.md](API_REFERENCE.md)** - Complete GraphQL API reference with query examples and best practices
 - **[DEVELOPER_GUIDE.md](DEVELOPER_GUIDE.md)** - Development setup, debugging, and optimization guidelines
 
+## Support
+
+For issues or questions:
+- GitHub Issues: [asi-chain/explorer](https://github.com/asi-alliance/asi-chain/issues)
+- Documentation: [ASI Chain Docs](../docs/)
+
+
+
+## Environment Configuration
+
+### Core Environment Variables
+```env
+# Production (.env.production.secure)
+REACT_APP_GRAPHQL_URL=http://localhost:8080/v1/graphql
+REACT_APP_GRAPHQL_WS_URL=ws://localhost:8080/v1/graphql
+REACT_APP_INDEXER_API_URL=http://localhost:9090
+REACT_APP_HASURA_ADMIN_SECRET=myadminsecretkey
+REACT_APP_NETWORK_NAME=ASI Chain
+REACT_APP_ENVIRONMENT=production
+
+# Local Development (.env)
+REACT_APP_GRAPHQL_URL=http://localhost:8080/v1/graphql
+REACT_APP_HASURA_ADMIN_SECRET=myadminsecretkey
+```
+
+## API Endpoints
+
+### Local Development
+- **Explorer UI**: `http://localhost:3001`
+- **GraphQL**: `http://localhost:8080/v1/graphql` (if running locally)
+
+## Available Pages
+
+- `/` - Home dashboard with network overview
+- `/blocks` - Block explorer with pagination
+- `/block/:number` - Individual block details
+- `/transactions` - Transaction list with improved count display
+- `/transaction/:id` - Transaction details
+- `/validators` - Active validator list (deduplicated)
+- `/validator/:pubkey` - Validator details and history
+- `/deployments` - Smart contract deployments
+- `/transfers` - Token transfer history
+- `/statistics` - Network Dashboard only
+- `/search` - Advanced search interface
+- `/indexer-status` - Indexer health monitoring
+
+## Docker Container Management
+
+```bash
+# Check container status
+docker ps | grep asi-explorer
+
+# View container health
+docker inspect asi-explorer --format='{{.State.Health.Status}}'
+
+# Check environment variables
+docker exec asi-explorer printenv | grep REACT_APP
+
+# Remove container and image
+docker stop asi-explorer
+docker rm asi-explorer
+docker rmi asi-explorer:latest
+```
+
+## File Structure
+
+### Essential Files (Production Required)
+- `src/` - React application source
+- `public/` - Static assets
+- `package.json`, `package-lock.json` - Dependencies
+- `tsconfig.json` - TypeScript config
+- `Dockerfile` - Container definition
+- `docker-compose.standalone.yml` - Docker Compose config
+- `docker-entrypoint.sh` - Runtime configuration
+- `nginx.conf` - Web server config
+- `.env.production.secure` - Production environment
+- `deploy-docker.sh` - Deployment automation
+
+
+## Performance Metrics
+
+- **Initial Load**: < 2 seconds
+- **Block Updates**: Real-time via WebSocket
+- **Search Response**: < 500ms
+- **Bundle Size**: ~533KB gzipped
+- **Docker Image**: ~50MB (Alpine Linux)
+- **Memory Usage**: ~100MB
+- **Network Data**: 322+ blocks indexed
+
+## Troubleshooting
+
+### Common Issues
+
+1. **Container won't start**
+   - Ensure Docker is running: `docker info`
+   - Check port 3001 is available: `lsof -i :3001`
+
+2. **No data showing**
+   - Verify GraphQL endpoint: `curl http://13.251.66.61:8080/v1/graphql`
+   - Check container logs: `docker logs asi-explorer`
+
+3. **Build failures**
+   - Clear Docker cache: `docker system prune -a`
+   - Rebuild: `./deploy-docker.sh rebuild`
+
 ## License
 
 Copyright 2025 Artificial Superintelligence Alliance
@@ -206,3 +335,14 @@ Copyright 2025 Artificial Superintelligence Alliance
 Licensed under the Apache License, Version 2.0. See [LICENSE](LICENSE) file for details.
 
 ASI Alliance founding members: Fetch.ai, SingularityNET, and CUDOS
+
+## Contributing
+
+Please see the main [Contributing Guide](../CONTRIBUTING.md) for details on contributing to the explorer.
+
+## Browser Support
+
+- Chrome 90+
+- Firefox 88+
+- Safari 14+
+- Edge 90+

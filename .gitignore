@@ -84,3 +84,22 @@ pnpm-lock.yaml
 # Code review tools
 .claude
 CLAUDE.MD
+
+# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+
+# dependencies
+/node_modules
+/.pnp
+.pnp.js
+
+# testing
+/coverage
+
+# production
+/build
+
+# Test and debug files
+test_*.py
+test_*.html
+*_test.*
+*.test.*
