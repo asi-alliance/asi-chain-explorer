@@ -214,6 +214,37 @@ const TransactionTrackerImproved: React.FC<TransactionTrackerImprovedProps> = ({
       setSearchQuery(value);
       debouncedSearch(value);
     }
+    /** Normalize any time-like value to epoch milliseconds. */
+    const toMillis = (input: string | number | undefined | null): number => {
+        if (input == null) return NaN;
+
+        if (typeof input === 'number' && Number.isFinite(input)) {
+            // Detect seconds vs milliseconds by magnitude
+            return input > 1e12 ? input : input * 1000;
+        }
+
+        if (typeof input === 'string') {
+            const s = input.trim();
+
+            // Pure digits → numeric epoch (seconds or milliseconds)
+            if (/^\d+$/.test(s)) {
+                const n = Number(s);
+                return n > 1e12 ? n : n * 1000;
+            }
+
+            // ISO-like string: trim microseconds to milliseconds
+            let normalized = s.replace(/(\.\d{3})\d+/, '$1'); // "....350416" → "....350"
+            // If there's time but no timezone, assume UTC
+            if (/[T ]\d{2}:\d{2}:\d{2}/.test(normalized) && !/[zZ]$/.test(normalized) && !/[+-]\d{2}:\d{2}$/.test(normalized)) {
+                normalized += 'Z';
+            }
+
+            const ms = Date.parse(normalized); // returns ms
+            return Number.isNaN(ms) ? NaN : ms;
+        }
+
+        return NaN;
+    };
 
     const searchResults = useMemo(() => {
 

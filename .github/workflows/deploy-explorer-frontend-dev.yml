@@ -1,7 +1,8 @@
 name: Deploy Frontend Explorer InternalDev
-
 on:
-  workflow_dispatch:
+  push:
+    branches:
+      - dev
 
 permissions:
   id-token: write
