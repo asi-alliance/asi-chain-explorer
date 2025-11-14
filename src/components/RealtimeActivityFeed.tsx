@@ -80,7 +80,7 @@ const RealtimeActivityFeed: React.FC<RealtimeActivityFeedProps> = ({
         type: 'transfer',
         title: `Transfer: ${transfer.amount_asi || '0'} ${CURRENT_TOKEN}`,
         description: `From ${transfer.from_address?.slice(0, 8) || 'Unknown'}... to ${transfer.to_address?.slice(0, 8) || 'Unknown'}...`,
-        timestamp: transfer.created_at ? new Date(transfer.created_at).getTime() : Date.now(),
+        timestamp: transfer.created_at ? parseInt(transfer.timestamp) : Date.now(),
         data: transfer,
         icon: <TrendingUp size={16} />,
         color: '#3b82f6'
