@@ -61,6 +61,7 @@ export const TRANSFER_FRAGMENT = gql`
     status
     block_number
     created_at
+    timestamp
   }
 `;
 
