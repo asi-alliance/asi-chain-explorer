@@ -353,7 +353,7 @@ const NetworkDashboard: React.FC = () => {
                                             ? "Date"
                                             : "Time",
                                     position: "insideBottomLeft",
-                                    offset: "-15",
+                                    offset: -15,
                                 }}
                             />
                             <YAxis
@@ -432,7 +432,7 @@ const NetworkDashboard: React.FC = () => {
                                             ? "Date"
                                             : "Time",
                                     position: "insideBottomLeft",
-                                    offset: "-15",
+                                    offset: -15,
                                 }}
                             />
                             <YAxis
