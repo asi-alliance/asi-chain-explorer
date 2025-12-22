@@ -17,7 +17,7 @@ import {
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { CURRENT_TOKEN } from '../utils/constants';
-import { toMillis } from "../utils/calculateBlockTime";
+import RecentDataExporter, { ExportEntities } from "./RecentDataExporter";
 
 // GraphQL Queries
 const GET_TRANSACTION_COUNTS = gql`
@@ -350,7 +350,7 @@ const TransactionTrackerImproved: React.FC<TransactionTrackerImprovedProps> = ({
     // const endIndex = Math.min(currentPage * itemsPerPage, totalItemsForTab);
 
     // Get heading text based on context
-    const getHeadingText = () => {
+    const getHeading = () => {
         // if (activeTab === 'all') {
         //   return {
         //     title: "All Transactions",
@@ -362,23 +362,32 @@ const TransactionTrackerImproved: React.FC<TransactionTrackerImprovedProps> = ({
                 title: "Smart Contract Deployments",
                 subtitle: "",
                 // subtitle: `Showing ${startIndex}-${endIndex} of ${totalDeployments} total deployments`,
+                exportEntity: ExportEntities.DEPLOYMENTS
             };
         } else {
             return {
                 title: "Token Transfers",
                 subtitle: "",
                 // subtitle: `Showing ${startIndex}-${endIndex} of ${totalTransfers} total transfers`,
+                exportEntity: ExportEntities.TRANSFERS
             };
         }
     };
 
-    const heading = getHeadingText();
+    const heading = getHeading();
 
     return (
         <div className={embedded ? "" : "asi-card"}>
             {/* Header */}
             <div style={{ marginBottom: "2rem" }}>
-                <h1 style={{ margin: "0 0 0.5rem 0" }}>{heading.title}</h1>
+                <div className="section-header transactions-tracker">
+                    <div className="header-content-wrapper">
+                        <h1 style={{ margin: "0 0 0.5rem 0" }}>{heading.title}</h1>
+                    </div>
+                    <div className="export-data-container">
+                        <RecentDataExporter entityToExport={heading.exportEntity} />
+                    </div>
+                </div>
                 <p
                     style={{
                         margin: 0,
