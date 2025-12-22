@@ -11,8 +11,7 @@ import { Block, NetworkStats } from "../types";
 import { formatDistanceToNow } from "date-fns";
 import { calculateAverageBlockTime } from "../utils/calculateBlockTime";
 import RealtimeActivityFeed from "../components/RealtimeActivityFeed";
-import ConnectionStatus from "../components/ConnectionStatus";
-import RecentTransactionsExporter from "../components/RecentTransactionsExporter";
+import RecentDataExporter, { ExportEntities } from "../components/RecentDataExporter";
 // import { useRealtimeBlocks, useRealtimeNetworkStats } from '../services/websocketService';
 
 // Query to get recent blocks for calculating average block time
@@ -255,7 +254,7 @@ const HomePage: React.FC = () => {
                             </h1>
                         </div>
                         <div className="export-data-container">
-                          <RecentTransactionsExporter />
+                          <RecentDataExporter entityToExport={ExportEntities.BLOCKS} />
                         </div>
                     </div>
                     <div className="section-controls">

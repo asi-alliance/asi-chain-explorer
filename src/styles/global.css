@@ -723,6 +723,10 @@ code, .code {
     gap: 1rem;
 }
 
+.section-header.transactions-tracker {
+    justify-content: unset;
+}
+
 .section-header h2 {
     margin: 0;
 }
