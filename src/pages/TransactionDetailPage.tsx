@@ -5,14 +5,11 @@ import { motion } from 'framer-motion';
 import { AnimatePresence } from '../components/AnimatePresenceWrapper';
 import { 
   ArrowLeft, 
-  Copy, 
   ExternalLink, 
   Clock, 
   CheckCircle, 
   XCircle, 
   AlertCircle,
-  Hash,
-  User,
   Zap,
   FileText,
   TrendingUp,
@@ -22,8 +19,6 @@ import {
   Share2,
   Download,
   Eye,
-  Shield,
-  Layers
 } from 'lucide-react';
 import { format, formatDistanceToNow } from 'date-fns';
 import { toast } from 'react-toastify';
@@ -1018,20 +1013,6 @@ Exported at: ${new Date().toLocaleString()}
         </div>
 
         <div style={{ display: 'flex', gap: '0.5rem', flexShrink: 0 }}>
-          {/* <button
-            onClick={shareTransaction}
-            style={{
-              padding: '0.5rem',
-              border: '1px solid rgba(255, 255, 255, 0.2)',
-              borderRadius: '6px',
-              backgroundColor: 'transparent',
-              color: '#9ca3af',
-              cursor: 'pointer'
-            }}
-            title="Share transaction"
-          >
-            <Share2 size={16} />
-          </button> */}
           <CopyButton action={shareTransaction} icon={<Share2 size={16} />} className='share-button' />
 
           <button
