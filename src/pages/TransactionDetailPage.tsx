@@ -5,14 +5,11 @@ import { motion } from 'framer-motion';
 import { AnimatePresence } from '../components/AnimatePresenceWrapper';
 import { 
   ArrowLeft, 
-  Copy, 
   ExternalLink, 
   Clock, 
   CheckCircle, 
   XCircle, 
   AlertCircle,
-  Hash,
-  User,
   Zap,
   FileText,
   TrendingUp,
@@ -22,8 +19,6 @@ import {
   Share2,
   Download,
   Eye,
-  Shield,
-  Layers
 } from 'lucide-react';
 import { format, formatDistanceToNow } from 'date-fns';
 import { toast } from 'react-toastify';
@@ -32,6 +27,7 @@ import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import { gql } from '@apollo/client';
 import { CURRENT_TOKEN } from '../utils/constants';
 import { toMillis } from '../utils/calculateBlockTime';
+import CopyButton from '../components/CopyButton';
 
 // Helper functions to safely parse timestamps
 const parseTimestamp = (timestamp: any): number => {
@@ -157,11 +153,6 @@ const TransactionDetailPage: React.FC = () => {
       navigate('/');
     }
   }, [transactionId, navigate]);
-
-  const copyToClipboard = (text: string, label: string = 'Text') => {
-    navigator.clipboard.writeText(text);
-    toast.success(`${label} copied to clipboard`);
-  };
 
   const shareTransaction = () => {
     const url = window.location.href;
@@ -354,18 +345,7 @@ Exported at: ${new Date().toLocaleString()}
                 wordBreak: 'break-all'
               }}>
                 {transaction.deploy_id}
-                <button
-                  onClick={() => copyToClipboard(transaction.deploy_id, 'Transaction ID')}
-                  style={{
-                    background: 'none',
-                    border: 'none',
-                    color: '#9ca3af',
-                    cursor: 'pointer',
-                    padding: '0.25rem'
-                  }}
-                >
-                  <Copy size={14} />
-                </button>
+                <CopyButton dataToCopy={transaction.deploy_id} iconSize={14} />
               </div>
             </div>
 
@@ -381,18 +361,7 @@ Exported at: ${new Date().toLocaleString()}
                 wordBreak: 'break-all'
               }}>
                 {transaction.deployer}
-                <button
-                  onClick={() => copyToClipboard(transaction.deployer, 'Deployer address')}
-                  style={{
-                    background: 'none',
-                    border: 'none',
-                    color: '#9ca3af',
-                    cursor: 'pointer',
-                    padding: '0.25rem'
-                  }}
-                >
-                  <Copy size={14} />
-                </button>
+                <CopyButton dataToCopy={transaction.deployer} iconSize={14} />
               </div>
             </div>
 
@@ -550,18 +519,7 @@ Exported at: ${new Date().toLocaleString()}
                 wordBreak: 'break-all'
               }}>
                 {transaction.block_hash}
-                <button
-                  onClick={() => copyToClipboard(transaction.block_hash, 'Block hash')}
-                  style={{
-                    background: 'none',
-                    border: 'none',
-                    color: '#9ca3af',
-                    cursor: 'pointer',
-                    padding: '0.25rem'
-                  }}
-                >
-                  <Copy size={14} />
-                </button>
+                <CopyButton dataToCopy={transaction.block_hash} iconSize={14} />
               </div>
             </div>
 
@@ -683,7 +641,10 @@ Exported at: ${new Date().toLocaleString()}
         alignItems: 'center',
         marginBottom: '1rem'
       }}>
-        <h3 style={{ margin: 0 }}>Contract Code</h3>
+        <h3 style={{ margin: 0 }}>
+          Contract Code
+          <CopyButton dataToCopy={transaction.term} iconSize={14} />
+        </h3>
         <div style={{ display: 'flex', gap: '0.5rem' }}>
           <button
             onClick={() => setShowRawData(!showRawData)}
@@ -697,23 +658,6 @@ Exported at: ${new Date().toLocaleString()}
             }}
           >
             {showRawData ? 'Hide Raw' : 'Show Raw'}
-          </button>
-          <button
-            onClick={() => copyToClipboard(transaction.term, 'Contract code')}
-            style={{
-              padding: '0.5rem 1rem',
-              border: '1px solid rgba(255, 255, 255, 0.2)',
-              borderRadius: '6px',
-              backgroundColor: 'transparent',
-              color: '#9ca3af',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.5rem'
-            }}
-          >
-            <Copy size={14} />
-            Copy
           </button>
         </div>
       </div>
@@ -975,18 +919,7 @@ Exported at: ${new Date().toLocaleString()}
               borderRadius: '6px'
             }}>
               {block.block_hash}
-              <button
-                onClick={() => copyToClipboard(block.block_hash, 'Block hash')}
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  color: '#9ca3af',
-                  cursor: 'pointer',
-                  padding: '0.25rem'
-                }}
-              >
-                <Copy size={14} />
-              </button>
+              <CopyButton dataToCopy={block.block_hash} iconSize={14} />
             </div>
           </div>
 
@@ -996,6 +929,9 @@ Exported at: ${new Date().toLocaleString()}
                 Parent Hash
               </div>
               <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.5rem',
                 fontSize: '0.875rem',
                 wordBreak: 'break-all',
                 padding: '0.75rem',
@@ -1003,6 +939,7 @@ Exported at: ${new Date().toLocaleString()}
                 borderRadius: '6px'
               }}>
                 {block.parent_hash}
+                <CopyButton dataToCopy={block.parent_hash} iconSize={14} />
               </div>
             </div>
           )}
@@ -1013,6 +950,9 @@ Exported at: ${new Date().toLocaleString()}
                 State Hash
               </div>
               <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.5rem',
                 fontSize: '0.875rem',
                 wordBreak: 'break-all',
                 padding: '0.75rem',
@@ -1020,6 +960,7 @@ Exported at: ${new Date().toLocaleString()}
                 borderRadius: '6px'
               }}>
                 {block.state_hash}
+                <CopyButton dataToCopy={block.state_hash} iconSize={14} />
               </div>
             </div>
           )}
@@ -1072,21 +1013,8 @@ Exported at: ${new Date().toLocaleString()}
         </div>
 
         <div style={{ display: 'flex', gap: '0.5rem', flexShrink: 0 }}>
-          <button
-            onClick={shareTransaction}
-            style={{
-              padding: '0.5rem',
-              border: '1px solid rgba(255, 255, 255, 0.2)',
-              borderRadius: '6px',
-              backgroundColor: 'transparent',
-              color: '#9ca3af',
-              cursor: 'pointer'
-            }}
-            title="Share transaction"
-          >
-            <Share2 size={16} />
-          </button>
-          
+          <CopyButton action={shareTransaction} icon={<Share2 size={16} />} className='share-button' />
+
           <button
             onClick={() => downloadTransactionData('json')}
             style={{
