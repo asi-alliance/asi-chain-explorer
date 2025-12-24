@@ -1001,6 +1001,34 @@ input::-webkit-inner-spin-button {
     font-size: 11px;
 }
 
+.copy-container {
+    align-self: flex-start;
+    position: relative;
+}
+
+.copy-button {
+    top: 5px;
+    right: 0;
+    position: absolute;
+    display: block;
+    background: none;
+    outline: none;
+    border: none;
+
+    transform: translateX(115%) !important;
+}
+
+.share-button {
+    position: initial;
+    padding: 0.5rem;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 6px;
+    background-color: transparent;
+    color: #9ca3af;
+    cursor: pointer;
+    transform: translateX(0) !important;
+}
+
 /* Mobile Responsiveness for Modal */
 @media (max-width: 768px) {
     .modal-content {
