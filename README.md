@@ -31,7 +31,8 @@ Part of the [**Artificial Superintelligence Alliance**](https://superintelligenc
 6. [Configuration](#configuration)
 7. [Documentation](#documentation)
 8. [Monitoring](#monitoring)
-9. [License](#license)
+9. [Contributing](#contributing)
+10. [License](#license)
 
 ---
 
