@@ -338,6 +338,9 @@ ASI Alliance founding members: Fetch.ai, SingularityNET, and CUDOS
 
 ## Contributing
 
+Known issues and bugs are tracked in the [Issues](https://github.com/asi-alliance/asi-chain-explorer/issues) section.  
+If you encounter a problem that is not listed, please feel free to open a new issue and provide as much detail as possible.
+
 Please see the main [Contributing Guide](../CONTRIBUTING.md) for details on contributing to the explorer.
 
 ## Browser Support
