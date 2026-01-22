@@ -31,7 +31,8 @@ Part of the [**Artificial Superintelligence Alliance**](https://superintelligenc
 6. [Configuration](#configuration)
 7. [Documentation](#documentation)
 8. [Monitoring](#monitoring)
-9. [License](#license)
+9. [Contributing](#contributing)
+10. [License](#license)
 
 ---
 
@@ -337,6 +338,9 @@ Licensed under the Apache License, Version 2.0. See [LICENSE](LICENSE) file for 
 ASI Alliance founding members: Fetch.ai, SingularityNET, and CUDOS
 
 ## Contributing
+
+Known issues and bugs are tracked in the [Issues](https://github.com/asi-alliance/asi-chain-explorer/issues) section.  
+If you encounter a problem that is not listed, please feel free to open a new issue and provide as much detail as possible.
 
 Please see the main [Contributing Guide](../CONTRIBUTING.md) for details on contributing to the explorer.
 
