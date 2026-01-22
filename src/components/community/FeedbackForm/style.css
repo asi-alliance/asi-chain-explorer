@@ -9,10 +9,11 @@
     --brand-1-color: #a8b1ff;
     --brand-2-color: #5c73e7;
     --accent-border-color: rgba(79, 70, 229, 0.4);
-    --danger-1-color:#f66f81;
+    --danger-1-color: #f66f81;
     --green-1-color: #3dd68c;
-    --green-soft-color: #0e2b24;
-    --lightgray-color: #cbd5e1; 
+    --green-soft-color: #8d9b97;
+    --red-soft-color: #f43f5e24;
+    --lightgray-color: #cbd5e1;
 
     --transition-fast: 0.3s;
     --radius-default: 0.5rem;
@@ -23,7 +24,7 @@
     display: flex;
     align-items: center;
     justify-content: flex-end;
-    width: 3.125rem; 
+    width: 3.125rem;
     position: fixed;
     bottom: 1.875rem;
     right: 1.875rem;
@@ -43,12 +44,12 @@
 }
 
 .feedback-form {
-    max-height: 37.5rem; 
+    max-height: 37.5rem;
     border-radius: var(--radius-default);
     background: var(--background-color);
     border: 1px solid var(--gray-3-color);
-    width: 25rem; 
-    padding: 1.5625rem; 
+    width: 25rem;
+    padding: 1.5625rem;
     right: 0;
     bottom: 0;
     position: absolute;
@@ -56,6 +57,7 @@
     box-shadow: var(--shadow-soft);
 }
 
+.error-alert.hidden,
 .ready-alert.hidden,
 .feedback-form.hidden,
 .feedback-form-launcher.hidden {
@@ -72,14 +74,14 @@
 }
 
 .feedback-form-launcher img {
-    width: 3.4375rem; 
+    width: 3.4375rem;
 }
 
 .form-header {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    margin-bottom: 1rem; 
+    margin-bottom: 1rem;
 }
 
 fieldset,
@@ -88,7 +90,7 @@ form {
 }
 
 .form-header h2 {
-    font-size: 1.75rem; 
+    font-size: 1.75rem;
     font-style: normal;
     font-weight: 600;
 }
@@ -111,14 +113,14 @@ form {
 }
 
 .form-field {
-    margin-bottom: 1rem; 
+    margin-bottom: 1rem;
     position: relative;
 }
 
 .form-field label {
-    font-size: 0.8125rem; 
+    font-size: 0.8125rem;
     line-height: 1rem;
-    margin-bottom: 0.4375rem; 
+    margin-bottom: 0.4375rem;
     font-weight: 500;
     width: 100%;
 }
@@ -129,9 +131,9 @@ form {
     display: block;
     width: 100%;
     border-radius: var(--radius-default);
-    font-size: 0.9375rem; 
+    font-size: 0.9375rem;
     line-height: 1.25rem;
-    padding: 0.5rem 0.75rem; 
+    padding: 0.5rem 0.75rem;
     border: 1px solid var(--gray-2-color);
     background: var(--gray-soft-color);
     transition: border var(--transition-fast);
@@ -158,10 +160,10 @@ form {
 }
 
 .submit-btn-container .submit-button {
-    font-size: 1rem; 
+    font-size: 1rem;
     font-weight: 500;
     text-align: center;
-    padding: 0.5rem 0; 
+    padding: 0.5rem 0;
     border-radius: var(--radius-default);
     width: 100%;
     cursor: pointer;
@@ -187,12 +189,12 @@ form {
 }
 
 .form-field textarea {
-    min-height: 4.375rem; 
-    max-height: 9.375rem; 
+    min-height: 4.375rem;
+    max-height: 9.375rem;
 }
 
 .feedback-form-launcher {
-    width: 6.25rem; 
+    width: 6.25rem;
     transition: transform var(--transition-fast);
 }
 
@@ -200,19 +202,28 @@ form {
     transform: scale(1.05);
 }
 
+.error-alert,
 .ready-alert {
-    width: 12.5rem; 
+    width: 12.5rem;
     position: absolute;
-    right: 4rem; 
+    right: 4rem;
     bottom: 1.875rem;
     padding: 0.625rem;
     border-radius: var(--radius-default);
-    color: var(--green-1-color);
-    background-color: var(--green-soft-color);
     transition: var(--transition-fast) all;
 }
 
-@media (max-width: 450px) { 
+.error-alert {
+    color: var(--danger-1-color);
+    background-color: var(--red-soft-color);
+}
+
+.ready-alert {
+    color: var(--green-1-color);
+    background-color: var(--green-soft-color);
+}
+
+@media (max-width: 450px) {
     .feedback-form {
         width: 100vw;
         border-radius: var(--radius-default) var(--radius-default) 0 0;
