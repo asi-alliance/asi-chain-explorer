@@ -38,7 +38,12 @@
         "start": "react-scripts start",
         "build": "PUBLIC_URL=/ react-scripts build",
         "test": "react-scripts test",
-        "eject": "react-scripts eject"
+        "eject": "react-scripts eject",
+        "wdio": "wdio run ./tests-automation/wdio.web.conf.js",
+        "test:lt:web": "npx wdio ./tests-automation/wdio.web.conf.js",
+        "test:lt:web:transactionSearch": "npx wdio ./tests-automation/wdio.web.conf.js --spec ./tests-automation/TestSuites/transactionSearch.test.js",
+        "test:lt:web:pagination": "npx wdio ./tests-automation/wdio.web.conf.js --spec ./tests-automation/TestSuites/paginationSearch.test.js",
+        "test:lt:web:transactionDetails": "npx wdio ./tests-automation/wdio.web.conf.js --spec ./tests-automation/TestSuites/transactionDetails.test.js"
     },
     "eslintConfig": {
         "extends": [
@@ -73,6 +78,13 @@
         "@types/react-syntax-highlighter": "^15.5.13",
         "@types/react-virtualized": "^9.21.30",
         "@types/react-window": "^1.8.8",
-        "@types/recharts": "^1.8.29"
+        "@types/recharts": "^1.8.29",
+        "@wdio/cli": "^9.20.0",
+        "@wdio/local-runner": "^9.20.0",
+        "@wdio/mocha-framework": "^9.20.0",
+        "@wdio/spec-reporter": "^9.20.0",
+        "dotenv": "^16.4.0",
+        "wdio-lambdatest-service": "^4.0.0",
+        "webdriverio": "^9.18.4"
     }
 }
