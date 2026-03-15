@@ -14,74 +14,89 @@ exports.config = {
 
     maxInstances: 1,
 
-    capabilities: [
-        {
-            browserName: 'Chrome',
-            browserVersion: 'latest',
-            'LT:Options': {
-                platformName: 'Windows 11',
-                build: 'ASI Explorer Full Browser Suite',
-                name: 'Chrome on Windows 11',
-                selenium_version: '4.21.0',
-                network: true,
+    // Filter with TEST_PLATFORM=mac|win and TEST_BROWSER=Chrome|Firefox|Safari|Edge
+    capabilities: (() => {
+        const all = [
+            {
+                browserName: 'Chrome',
+                browserVersion: 'latest',
+                'LT:Options': {
+                    platformName: 'Windows 11',
+                    build: 'ASI Explorer Full Browser Suite',
+                    name: 'Chrome on Windows 11',
+                    selenium_version: '4.21.0',
+                    network: true,
+                },
             },
-        },
-        {
-            browserName: 'Firefox',
-            browserVersion: 'latest',
-            'LT:Options': {
-                platformName: 'Windows 11',
-                build: 'ASI Explorer Full Browser Suite',
-                name: 'Firefox on Windows 11',
-                selenium_version: '4.21.0',
-                network: true,
+            {
+                browserName: 'Firefox',
+                browserVersion: 'latest',
+                'LT:Options': {
+                    platformName: 'Windows 11',
+                    build: 'ASI Explorer Full Browser Suite',
+                    name: 'Firefox on Windows 11',
+                    selenium_version: '4.21.0',
+                    network: true,
+                },
             },
-        },
-        {
-            browserName: 'MicrosoftEdge',
-            browserVersion: 'latest',
-            'LT:Options': {
-                platformName: 'Windows 11',
-                build: 'ASI Explorer Full Browser Suite',
-                name: 'Edge on Windows 11',
-                selenium_version: '4.21.0',
-                network: true,
+            {
+                browserName: 'MicrosoftEdge',
+                browserVersion: 'latest',
+                'LT:Options': {
+                    platformName: 'Windows 11',
+                    build: 'ASI Explorer Full Browser Suite',
+                    name: 'Edge on Windows 11',
+                    selenium_version: '4.21.0',
+                    network: true,
+                },
             },
-        },
-        {
-            browserName: 'Safari',
-            browserVersion: 'latest',
-            'LT:Options': {
-                platformName: 'macOS Sonoma',
-                build: 'ASI Explorer Full Browser Suite',
-                name: 'Safari on macOS',
-                selenium_version: '4.21.0',
-                network: true,
+            {
+                browserName: 'Safari',
+                browserVersion: 'latest',
+                'LT:Options': {
+                    platformName: 'macOS Sonoma',
+                    build: 'ASI Explorer Full Browser Suite',
+                    name: 'Safari on macOS',
+                    selenium_version: '4.21.0',
+                    network: true,
+                },
             },
-        },
-        {
-            browserName: 'Chrome',
-            browserVersion: 'latest',
-            'LT:Options': {
-                platformName: 'macOS Sonoma',
-                build: 'ASI Explorer Full Browser Suite',
-                name: 'Chrome on macOS',
-                selenium_version: '4.21.0',
-                network: true,
+            {
+                browserName: 'Chrome',
+                browserVersion: 'latest',
+                'LT:Options': {
+                    platformName: 'macOS Sonoma',
+                    build: 'ASI Explorer Full Browser Suite',
+                    name: 'Chrome on macOS',
+                    selenium_version: '4.21.0',
+                    network: true,
+                },
             },
-        },
-        {
-            browserName: 'Firefox',
-            browserVersion: 'latest',
-            'LT:Options': {
-                platformName: 'macOS Sonoma',
-                build: 'ASI Explorer Full Browser Suite',
-                name: 'Firefox on macOS',
-                selenium_version: '4.21.0',
-                network: true,
+            {
+                browserName: 'Firefox',
+                browserVersion: 'latest',
+                'LT:Options': {
+                    platformName: 'macOS Sonoma',
+                    build: 'ASI Explorer Full Browser Suite',
+                    name: 'Firefox on macOS',
+                    selenium_version: '4.21.0',
+                    network: true,
+                },
             },
-        },
-    ],
+        ];
+
+        const platform = (process.env.TEST_PLATFORM || '').toLowerCase();
+        const browser = (process.env.TEST_BROWSER || '').toLowerCase();
+
+        return all.filter(cap => {
+            const p = cap['LT:Options'].platformName.toLowerCase();
+            const b = cap.browserName.toLowerCase();
+            if (platform === 'mac' && !p.includes('macos')) return false;
+            if (platform === 'win' && !p.includes('windows')) return false;
+            if (browser && b !== browser && cap['LT:Options'].name.toLowerCase().indexOf(browser) === -1) return false;
+            return true;
+        });
+    })(),
 
     logLevel: 'info',
     bail: 0,
