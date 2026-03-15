@@ -100,6 +100,7 @@ exports.config = {
     },
 
     // Basic Auth for DEV environment
+    // Safari strips credentials from URLs, so we fall back to filling the auth form
     before: async function () {
         const authUser = process.env.BASIC_AUTH_USER;
         const authPass = process.env.BASIC_AUTH_PASS;
@@ -110,7 +111,23 @@ exports.config = {
             const authUrl = `${urlObj.protocol}//${authUser}:${authPass}@${urlObj.host}${urlObj.pathname}`;
             console.log(`Authenticating with Basic Auth for DEV environment: ${urlObj.host}`);
             await browser.url(authUrl);
-            await browser.pause(2000);
+            await browser.pause(3000);
+
+            // Fallback: if browser shows an auth form (Safari strips URL credentials)
+            try {
+                const passwordInput = await $('input[type="password"]');
+                if (await passwordInput.isExisting()) {
+                    console.log('Auth form detected — filling credentials via form');
+                    const usernameInput = await $('input[type="text"], input[name="username"], input[name="user"]');
+                    await usernameInput.setValue(authUser);
+                    await passwordInput.setValue(authPass);
+                    const submitBtn = await $('button[type="submit"], input[type="submit"]');
+                    await submitBtn.click();
+                    await browser.pause(3000);
+                }
+            } catch (e) {
+                // No auth form — URL credentials worked
+            }
         }
     },
 
