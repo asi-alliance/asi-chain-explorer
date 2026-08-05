@@ -15,7 +15,10 @@ const EXPORT_RECENT_BLOCKS = gql`
             extra_bytes
             fault_tolerance
             finalization_status
-            parent_hash
+            parent_links {
+                parent_hash
+                parent_index
+            }
             pre_state_hash
             proposer
             seq_num
@@ -156,7 +159,22 @@ const RecentDataExporter = ({entityToExport}: RecentDataExporterProps): ReactEle
 
         if (dataForExport) {
             const EXPORT_DATA_KEY: string = ExportEntitiesRecords[entityToExport].EXPORT_DATA_KEY;
-            const csvData = convertDataArrayToCSV(dataForExport[EXPORT_DATA_KEY], EXCLUDE_FIELDS);
+            let records = dataForExport[EXPORT_DATA_KEY];
+
+            // Flatten DAG `parent_links` into a single `parent_hash` CSV column
+            if (entityToExport === ExportEntities.BLOCKS) {
+                records = (records || []).map((b: any) => {
+                    const { parent_links, ...rest } = b;
+                    return {
+                        ...rest,
+                        parent_hash: (parent_links || [])
+                            .map((p: any) => p.parent_hash)
+                            .join(";"),
+                    };
+                });
+            }
+
+            const csvData = convertDataArrayToCSV(records, EXCLUDE_FIELDS);
             if (csvData) {
                 downloadExportData(csvData, EXPORT_DATA_KEY);
             }

@@ -5,6 +5,7 @@ import { GET_BLOCK_DETAILS } from '../graphql/queries';
 import { Block } from '../types';
 import { formatDistanceToNow } from 'date-fns';
 import { CURRENT_TOKEN } from '../utils/constants';
+import { getParentHashes } from '../utils/blockParent';
 
 const BlockDetailPage: React.FC = () => {
   const { blockNumber } = useParams<{ blockNumber: string }>();
@@ -150,8 +151,17 @@ const BlockDetailPage: React.FC = () => {
           <dt>Block Hash</dt>
           <dd className="mono">{block.block_hash}</dd>
           
-          <dt>Parent Hash</dt>
-          <dd className="mono">{block.parent_hash}</dd>
+          <dt>Parent Hash{getParentHashes(block).length > 1 ? 'es' : ''}</dt>
+          <dd className="mono">
+            {getParentHashes(block).length > 0
+              ? getParentHashes(block).map((ph, i) => (
+                  <React.Fragment key={ph}>
+                    {i > 0 && <span style={{ display: 'block', height: '0.25rem' }} />}
+                    {ph}
+                  </React.Fragment>
+                ))
+              : 'N/A (genesis)'}
+          </dd>
           
           <dt>State Hash</dt>
           <dd className="mono">{block.state_hash || 'N/A'}</dd>
