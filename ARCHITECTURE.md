@@ -14,45 +14,49 @@ The ASI Chain Explorer implements a three-tier architecture:
 
 #### Indexer Service
 
-The indexer service is the core backend component responsible for blockchain data extraction and storage.
+The indexer service is the core backend component responsible for blockchain data extraction and storage. It is developed in a separate repository (`asi-chain-indexer`, branch `dag_support`) and talks to the ASI Chain node **via gRPC** (the previous Rust-CLI based client has been removed — `feat: remove rust-cli`).
+
+> **DAG-aware design.** The indexer follows the DAG support model: `blocks`
+> primary key is `block_hash` (NOT `block_number`), a single `block_number`
+> may host multiple blocks (forks), and block parents live in the
+> `block_parents` junction table — `blocks` has no `parent_hash` column.
 
 **Key Classes and Modules:**
 
-1. **RustBlockIndexer** (`rust_indexer.py`)
-   - Primary indexer implementation using Rust CLI client
+1. **RustBlockIndexer** (`src/rust_indexer.py`)
+   - Primary indexer implementation; the name is kept for compatibility but it now uses the gRPC client (not a Rust CLI)
    - Handles block synchronization, deployment processing, and validator tracking
    - Implements continuous sync loop with configurable interval
    - Processes blocks in batches for optimal performance
-   - Methods: `start()`, `stop()`, `_sync_blocks()`, `_process_block()`, `_process_deployment_enhanced()`, `_extract_transfers()`, `_process_validators()`, `_update_validator_states()`, `_check_epoch_transitions()`, `_update_network_stats()`, `_verify_main_chain()`
+   - Walks DAG parents: Each block may have multiple parents (stored in `block_parents`)
 
-2. **RustCLIClient** (`rust_cli_client.py`)
-   - Wrapper around Rust CLI executable for blockchain operations
-   - Provides async methods for all blockchain queries
-   - Handles command execution, output parsing, and error handling
-   - Implements health checks and connection verification
-   - Methods: `get_last_finalized_block()`, `get_blocks_by_height()`, `get_block_details()`, `get_deploy_info()`, `get_bonds()`, `get_active_validators()`, `get_epoch_info()`, `show_block_deploys()`, `get_network_consensus()`, `show_main_chain()`, `health_check()`
+2. **GrpcNodeClient** (`src/grpc_node_client.py`)
+   - Async wrapper around the ASI Chain node's `DeployServiceV1` gRPC API
+   - Streams blocks by height range from `getBlocksByHeights`, fetches `lastFinalizedBlock`, etc.
+   - `activeValidators` is fetched over the node's HTTP API (`/api/validators`) because no gRPC RPC exposes it
+   - Decodes protobuf manually (`_to_dict`) so genesis deploys with `phloLimit = 2^63-1` don't overflow BIGINT inserts
 
-3. **Database** (`database.py`)
+3. **Database** (`src/database.py`)
    - Manages PostgreSQL connections using asyncpg and SQLAlchemy
    - Provides async context managers for database sessions
    - Handles connection pooling and transaction management
    - Includes methods for state tracking: `get_last_indexed_block()`, `set_last_indexed_block()`
 
-4. **Models** (`models.py`)
-   - SQLAlchemy ORM models: Block, Deployment, Transfer, Validator, ValidatorBond, BalanceState, EpochTransition, NetworkStats, IndexerState, BlockValidator
+4. **Models** (`src/models.py`)
+   - SQLAlchemy ORM models: Block, BlockParent, Deployment, Transfer, Validator, ValidatorBond, BlockValidator, BalanceState, EpochTransition, NetworkStats, IndexerState
    - Includes relationships between entities
    - Defines indices for query optimization
    - Contains computed properties for derived values
 
-5. **MonitoringServer** (`monitoring.py`)
+5. **MonitoringServer** (`src/monitoring.py`)
    - Exposes Prometheus metrics for operational visibility
    - Provides health check endpoint
    - Tracks indexing progress and performance
 
-6. **IndexerService** (`main.py`)
+6. **IndexerService** (`src/main.py`)
    - Main service orchestrator that coordinates all components
    - Handles startup, shutdown, and signal management
-   - Initializes database, Rust CLI client, and monitoring server
+   - Initializes database, gRPC node client, and monitoring server
 
 **Transfer Extraction Patterns:**
 
@@ -105,59 +109,93 @@ Deployments are classified by analyzing their Rholang term content:
 
 #### Database Schema
 
-The system uses PostgreSQL to store all blockchain data with the following core tables:
+The system uses PostgreSQL to store all blockchain data with the following core tables. Schema follows the `dag_support` migration
+(`asi-chain-indexer/migrations/000_comprehensive_initial_schema.sql`).
 
 **blocks**
 
-Stores blockchain block data with complete metadata.
+Stores blockchain block data with complete metadata. **Primary key:
+`block_hash`** — `block_number` is NOT unique (a DAG fork can reuse a height).
 
 Key fields:
-- `block_number` (BIGINT, PK): Sequential block number
-- `block_hash` (VARCHAR(64), UNIQUE): Block hash identifier
-- `parent_hash` (VARCHAR(64)): Parent block hash
-- `timestamp` (BIGINT): Unix timestamp in milliseconds
+- `block_hash` (VARCHAR(64), **PRIMARY KEY**): Block hash
+- `block_number` (BIGINT, NOT NULL): Block height (not unique — DAG may have multiple blocks at the same height)
+- `timestamp` (BIGINT): Block timestamp in epoch milliseconds
 - `proposer` (VARCHAR(160)): Validator public key who proposed the block
-- `state_root_hash` (VARCHAR(64)): Post-state hash
-- `pre_state_hash` (VARCHAR(64)): Pre-state hash
-- `deployment_count` (INTEGER): Number of deployments in block
+- `state_hash` / `state_root_hash` / `pre_state_hash` (VARCHAR(64)): State hashes
+- `seq_num` (INTEGER), `sig` (VARCHAR(200)), `sig_algorithm` (VARCHAR(20)), `shard_id` (VARCHAR(20)),
+  `extra_bytes` (TEXT), `version` (INTEGER)
+- `deployment_count` (INTEGER): Number of deployments in block (kept in sync by trigger)
+- `finalization_status` (VARCHAR(20), NOT NULL): `'finalized'` or `'unfinalized'` — real status from node, no default
 - `bonds_map` (JSONB): Validator bonds at this block
 - `justifications` (JSONB): Block justifications
-- `fault_tolerance` (NUMERIC): Fault tolerance metric
-- `finalization_status` (VARCHAR(20)): Block finalization status
+- `fault_tolerance` (NUMERIC(5,4)): Fault tolerance metric
+- `created_at` (TIMESTAMP, default NOW()): When indexed
+
+> **DAG parents**: this table has no `parent_hash` column. Parents live in the `block_parents` junction table (one block → many parents). Use the `parent_links` array relationship in GraphQL.
+
+**block_parents**
+
+DAG junction table — a block may have multiple parents (one row per parent edge).
+
+Key fields:
+- `block_hash` (VARCHAR(64), composite PK, FK → `blocks.block_hash` ON DELETE CASCADE): Child block
+- `parent_hash` (VARCHAR(64), composite PK, no FK — parent may not be indexed yet): Parent block
+- `parent_index` (INTEGER, default 0): Order of this parent among the block's parents
+- `created_at` (TIMESTAMP, default NOW())
 
 **deployments**
 
-Stores smart contract deployments and transactions.
+Stores smart contract deployments and transactions. **Primary key: `deploy_id`.**
 
 Key fields:
 - `deploy_id` (VARCHAR(200), PK): Deployment signature
-- `block_number` (BIGINT, FK): Block containing this deployment
-- `block_hash` (VARCHAR(64), FK): Block hash reference
-- `deployer` (VARCHAR(200)): Address that created the deployment
+- `block_hash` (VARCHAR(64), FK → `blocks.block_hash` ON DELETE CASCADE): Block containing this deployment
+- `block_number` (BIGINT): Block height (denormalised, no FK)
+- `deployer` (VARCHAR(200)): Full deployer public key
+- `deployer_address` (VARCHAR(150)): ASI address derived from deployer public key
 - `term` (TEXT): Rholang code
-- `deployment_type` (VARCHAR(50)): Classification (asi_transfer, smart_contract, etc.)
-- `phlo_cost` (BIGINT): Execution cost
-- `phlo_price` (BIGINT): Price per phlo
-- `phlo_limit` (BIGINT): Maximum phlo
+- `timestamp` (BIGINT): Deployment timestamp in epoch milliseconds
+- `sig` (VARCHAR(200)), `sig_algorithm` (VARCHAR(20), default `'secp256k1'`)
+- `phlo_cost` (BIGINT), `phlo_price` (BIGINT), `phlo_limit` (BIGINT)
+- `valid_after_block_number` (BIGINT)
 - `errored` (BOOLEAN): Deployment error status
-- `error_message` (TEXT): Error description if errored
-- `status` (VARCHAR(20)): Deployment status (pending/included/error)
-- `seq_num` (INTEGER): Sequence number
-- `shard_id` (VARCHAR(20)): Shard identifier
+- `error_message` (TEXT): Error description if errored (sourced from node's `systemDeployError`
+  — NULL when no error)
+- `deployment_type` (VARCHAR(50)): Classification (asi_transfer, smart_contract, etc.)
+- `status` (VARCHAR(20), default `'included'`): **ALWAYS `"included"`** in production —
+  the gRPC client hardcodes it because the node's block-stream `DeployInfo` proto
+  has no `status` field. Use `errored` + `error_message` to detect failed deploys.
+- `seq_num` (INTEGER), `shard_id` (VARCHAR(20))
+- `created_at` (TIMESTAMP, default NOW())
 
 **transfers**
 
-Extracted ASI token transfers from deployments.
+Extracted ASI token transfers from deployments. **Primary key: `id`.**
 
 Key fields:
 - `id` (BIGSERIAL, PK): Auto-incrementing identifier
-- `deploy_id` (VARCHAR(200), FK): Source deployment
-- `block_number` (BIGINT, FK): Block containing transfer
-- `from_address` (VARCHAR(150)): Sender address
+- `deploy_id` (VARCHAR(200), FK → `deployments.deploy_id` ON DELETE CASCADE): Source deployment
+- `block_hash` (VARCHAR(64), FK → `blocks.block_hash` ON DELETE CASCADE): Block containing the transfer
+- `block_number` (BIGINT): Block height (denormalised, no FK)
+- `from_address` (VARCHAR(150)): Sender ASI address
+- `from_public_key` (VARCHAR(150), NULL when sender is a pure ASI address): Sender public key
 - `to_address` (VARCHAR(150)): Recipient address
-- `amount_asi` (NUMERIC(20,8)): Amount in ASI units
 - `amount_dust` (BIGINT): Amount in dust units (1 ASI = 100,000,000 dust)
-- `status` (VARCHAR(20)): Transfer status
+- `amount_asi` (NUMERIC(20,8)): Amount in ASI units (8 decimals — NOT bigint)
+- `status` (VARCHAR(20), default `'success'`): Production values — `'success'` / `'failed'` /
+  `'genesis_mint'` / `'genesis_bond'`
+- `timestamp` (BIGINT): Transfer timestamp (epoch ms — when the transfer happened)
+- `created_at` (TIMESTAMP): When indexed
+
+**block_validators**
+
+Many-to-many relationship between blocks and validators (justifications).
+Composite PK only — **no `id`, no `block_number`, no `role` columns**.
+
+Key fields:
+- `block_hash` (VARCHAR(64), composite PK, FK → `blocks.block_hash` ON DELETE CASCADE)
+- `validator_public_key` (VARCHAR(200), composite PK): Validator public key who signed/justified
 
 **validators**
 
@@ -165,97 +203,153 @@ Network validators and their staking information.
 
 Key fields:
 - `public_key` (VARCHAR(200), PK): Validator public key
-- `name` (VARCHAR(160)): Validator name (can store full public key)
-- `total_stake` (BIGINT): Current staked amount
-- `status` (VARCHAR(20)): Validator status (active/bonded/quarantine/inactive)
-- `first_seen_block` (BIGINT): First block where validator appeared
-- `last_seen_block` (BIGINT): Last block where validator was active
+- `name` (VARCHAR(160)): Validator name (may store full public key up to 160 chars)
+- `total_stake` (BIGINT, default 0): Current staked amount in dust
+- `first_seen_block` (BIGINT) / `last_seen_block` (BIGINT)
+- `status` (VARCHAR(20), default `'bonded'`): `active` / `bonded` / `quarantine` / `inactive`
+- `created_at` / `updated_at` (TIMESTAMP, default NOW())
 
 **validator_bonds**
 
 Historical record of validator stakes at each block.
 
 Key fields:
-- `id` (BIGSERIAL, PK): Auto-incrementing identifier
-- `block_number` (BIGINT, FK): Block at which bond was recorded
-- `block_hash` (VARCHAR(64), FK): Block hash reference
-- `validator_public_key` (VARCHAR(200), FK): Validator identifier
-- `stake` (BIGINT): Bonded amount at this block
+- `id` (BIGSERIAL, PK)
+- `block_hash` (VARCHAR(64), FK → `blocks.block_hash` ON DELETE CASCADE)
+- `block_number` (BIGINT, denormalised, no FK)
+- `validator_public_key` (VARCHAR(200))
+- `stake` (BIGINT, NOT NULL): Bonded amount in dust
+- UNIQUE (`block_hash`, `validator_public_key`)
 
 **balance_states**
 
 Address balance tracking with bonded/unbonded separation.
 
 Key fields:
-- `id` (BIGSERIAL, PK): Auto-incrementing identifier
-- `address` (VARCHAR(150)): Account address
-- `block_number` (BIGINT, FK): Block at which balance was calculated
-- `unbonded_balance_asi` (NUMERIC(20,8)): Liquid ASI balance
-- `unbonded_balance_dust` (BIGINT): Liquid dust balance
-- `bonded_balance_asi` (NUMERIC(20,8)): Staked ASI balance
-- `bonded_balance_dust` (BIGINT): Staked dust balance
-- `total_balance_asi` (NUMERIC(20,8), GENERATED): Sum of bonded and unbonded ASI
-- `total_balance_dust` (BIGINT, GENERATED): Sum of bonded and unbonded dust
+- `id` (BIGSERIAL, PK)
+- `address` (VARCHAR(150))
+- `block_hash` (VARCHAR(64), FK → `blocks.block_hash` ON DELETE CASCADE)
+- `block_number` (BIGINT, denormalised, no FK)
+- `unbonded_balance_asi` (NUMERIC(20,8)) / `unbonded_balance_dust` (BIGINT): Liquid balance
+- `bonded_balance_asi` (NUMERIC(20,8)) / `bonded_balance_dust` (BIGINT): Staked balance
+- `total_balance_asi` / `total_balance_dust` (GENERATED ALWAYS AS `unbonded + bonded` STORED)
+- `updated_at` (TIMESTAMP)
+- UNIQUE (`address`, `block_hash`)
 
 **network_stats**
 
 Network-wide statistics captured at specific blocks.
 
 Key fields:
-- `id` (BIGSERIAL, PK): Auto-incrementing identifier
-- `block_number` (BIGINT): Block at which stats were captured
-- `total_validators` (INTEGER): Total bonded validators
-- `active_validators` (INTEGER): Validators participating in consensus
-- `validators_in_quarantine` (INTEGER): Validators in quarantine
-- `consensus_participation` (NUMERIC(5,2)): Participation rate percentage
-- `consensus_status` (VARCHAR(20)): Network health status
+- `id` (BIGSERIAL, PK)
+- `block_number` (BIGINT)
+- `total_validators` / `active_validators` (INTEGER)
+- `validators_in_quarantine` (INTEGER, default 0)
+- `consensus_participation` (NUMERIC(5,2), NOT NULL)
+- `consensus_status` (VARCHAR(20), NOT NULL)
+- `timestamp` (**SQL TIMESTAMP**, default `CURRENT_TIMESTAMP` — NOT bigint epoch)
 
 **epoch_transitions**
 
-Track epoch transitions and validator set changes.
+Track epoch transitions and validator set changes. ⚠️ Schema exists but the
+current indexer does NOT populate this table.
 
 Key fields:
-- `id` (BIGSERIAL, PK): Auto-incrementing identifier
-- `epoch_number` (BIGINT, UNIQUE): Epoch number
-- `start_block` (BIGINT): First block of epoch
-- `end_block` (BIGINT): Last block of epoch
-- `active_validators` (INTEGER): Number of active validators
-- `quarantine_length` (INTEGER): Quarantine period length
+- `id` (BIGSERIAL, PK)
+- `epoch_number` (BIGINT, UNIQUE)
+- `start_block` (BIGINT) / `end_block` (BIGINT)
+- `active_validators` (INTEGER) / `quarantine_length` (INTEGER)
+- `timestamp` (TIMESTAMP, default `CURRENT_TIMESTAMP`)
 
 **indexer_state**
 
-Indexer operational state and configuration.
+Indexer operational state (key-value): `last_indexed_block`, `indexer_version`, `schema_version`.
 
 Key fields:
-- `key` (VARCHAR(50), PK): State key
-- `value` (TEXT): State value
-- `updated_at` (TIMESTAMP): Last update time
+- `key` (VARCHAR(50), PK)
+- `value` (TEXT)
+- `updated_at` (TIMESTAMP)
 
-Common keys: `last_indexed_block`, `indexer_version`, `schema_version`
+**network_metrics_buckets**
+
+Pre-aggregated metrics buckets consumed by `get_network_metrics` (fast path).
+
+Key fields:
+- `bucket_start` (timestamptz, PK)
+- `bucket_end` (timestamptz, NOT NULL)
+- `avg_block_time_sec` (numeric)
+- `deployments_count` (BIGINT, default 0)
+- `transfers_count` (BIGINT, default 0)
+- Index: `(bucket_start, bucket_end)`
 
 #### Normalization and Relationships
 
-The database schema follows third normal form with the following relationship structure:
+The database schema follows third normal form with the following relationship
+structure (DAG-aware — `block_hash` is the canonical PK for `blocks`,
+`block_number` is denormalised on children for query convenience):
 
 ```
-blocks (1) ←→ (N) deployments
-blocks (1) ←→ (N) validator_bonds
-blocks (1) ←→ (N) balance_states
-deployments (1) ←→ (N) transfers
-validators (1) ←→ (N) validator_bonds
+blocks (1) ←→ (N) deployments         via block_hash
+blocks (1) ←→ (N) transfers          via block_hash
+blocks (1) ←→ (N) validator_bonds    via block_hash
+blocks (1) ←→ (N) balance_states     via block_hash
+blocks (1) ←→ (N) block_validators   via block_hash
+blocks (1) ←→ (N) network_stats       via block_number (denormalised)
+deployments (1) ←→ (N) transfers      via deploy_id
+validators (1) ←→ (N) validator_bonds  manual, public_key -> validator_public_key
+validators (1) ←→ (N) block_validators manual, public_key -> validator_public_key
+validators (1) ←→ (N) transfers_sent   manual, public_key -> from_public_key
+blocks (1) ←→ (N) block_parents       via block_hash (child side, parent_links)
+blocks (1) ←→ (N) block_parents       manual, block_hash -> parent_hash (child side, child_links)
 ```
+
+#### Views
+
+The schema exposes several read-only views tracked in Hasura:
+
+- **`network_stats_view`** — analytics over the last 100 non-genesis blocks:
+  `total_blocks`, `avg_block_time_seconds`, `earliest_block_time`, `latest_block_time`.
+- **`transaction_history_view`** — `deployments LEFT JOIN transfers`, one row
+  per transfer (or one row per deployment that produced no transfer). Hasura-tracked
+  with `allow_aggregations: true` (used as a paginated wallet-history source).
+- **`block_ancestors_view` / `block_descendants_view`** — schema-holder views
+  (return 0 rows themselves) that type the return of the `get_block_ancestors`
+  / `get_block_descendants` SQL functions.
+- **`network_metrics_view`** — schema-holder composite type for the return of
+  `get_network_metrics`. Returns 0 rows by itself — call `get_network_metrics()`.
+
+#### SQL Functions
+
+Tracked in Hasura as custom GraphQL fields (with public EXECUTE permission):
+
+- **`get_block_ancestors(p_block_hash varchar)`** → `SETOF block_ancestors_view`.
+  Recursive CTE walking `block_parents` upward. `UNION`-deduplicated, no cycle guard.
+- **`get_block_descendants(p_block_hash varchar)`** → `SETOF block_descendants_view`.
+  Symmetric to ancestors, walks `block_parents` downward.
+- **`get_network_metrics(p_range_hours int = 24, p_divisions int = 7)`**
+  → `SETOF network_metrics_view`. Hybrid: if `network_metrics_buckets` has data,
+  reads pre-aggregated buckets (fast); otherwise computes from raw
+  `blocks`/`deployments`/`transfers` (slow fallback).
+- **`refresh_network_metrics_buckets(p_lookback_hours int = 720, p_bucket_seconds int = 600)`**
+  → `void`. Cron-friendly incremental refresh. Should be called on a schedule
+  (e.g. every 10 min) — otherwise `get_network_metrics` falls back to the slow path.
 
 #### Key Design Decisions
 
-1. **Block as Primary Entity**: All other entities reference blocks through `block_number` or `block_hash`
-
-2. **Flexible Validator Keys**: Validator public keys stored as VARCHAR(200) to accommodate full-length keys (130 characters) with room for abbreviated formats
-
-3. **JSONB for Complex Data**: Bonds map and justifications stored as JSONB for flexibility and efficient querying
-
-4. **Computed Columns**: Total balances in balance_states calculated using PostgreSQL GENERATED ALWAYS AS for automatic calculation
-
-5. **Comprehensive Indexing**: Indices on:
+1. **Block as Primary Entity, DAG-aware**: `blocks` is keyed by `block_hash`
+   (not `block_number`). A single `block_number` may have multiple blocks
+   (DAG forks). All other entities reference blocks through `block_hash`
+   (`block_number` is denormalised for query convenience only).
+2. **Multi-parent DAG**: parents live in the `block_parents` junction table
+   (one block → many parents). The `parent_hash` column has no FK constraint
+   because a parent may not be indexed yet when its children arrive.
+3. **Flexible Validator Keys**: Validator public keys stored as VARCHAR(200) to
+   accommodate full-length keys (130 characters) with room for abbreviated formats
+4. **JSONB for Complex Data**: Bonds map and justifications stored as JSONB for flexibility and efficient querying
+5. **Computed Columns**: Total balances in balance_states calculated using PostgreSQL GENERATED ALWAYS AS for automatic calculation
+6. **Pre-aggregated metrics**: `network_metrics_buckets` + `get_network_metrics`
+   avoid re-scanning raw tables on every dashboard request
+7. **Comprehensive Indexing**: Indices on:
    - All foreign keys
    - Timestamp fields for chronological queries
    - Hash fields with varchar_pattern_ops for prefix searches
@@ -270,13 +364,32 @@ All block processing occurs within database transactions to ensure atomicity. If
 
 #### Hasura Configuration
 
-Hasura is configured to:
+Hasura is configured by the indexer's `scripts/full-init-hasura.sh` (run from
+`deploy.sh` after the containers come up). It:
 
-1. Auto-track all tables in the public schema
-2. Create relationships based on foreign keys
-3. Enable query subscriptions with polling mechanism
-4. Provide role-based access control
-5. Expose public read access for queries and subscriptions
+1. Auto-tracks all tables, the analytics views, and the SQL functions (with
+   public EXECUTE permissions on the functions).
+2. Creates both FK-based and manual relationships (manual relationships are
+   used where the parent row may not exist yet — e.g. `block_parents.parent_hash`,
+   or where there is no FK constraint — e.g. `validators` ↔ `validator_bonds`).
+3. Enables query subscriptions with the polling mechanism.
+4. Provides role-based access control. **The `public` role (the unauthorized
+   role, set by `HASURA_GRAPHQL_UNAUTHORIZED_ROLE=public`) gets SELECT on
+   every tracked table/view with `limit: 5000`.** Aggregate queries
+   (`<table>_aggregate { aggregate { count } }`, `sum`, `avg`, etc.) are
+   **only enabled for `deployments`, `transfers` and `transaction_history_view`**
+   (`allow_aggregations: true`). All other tables/views keep
+   `allow_aggregations: false` — calling `<table>_aggregate` on them returns
+   `validation-failed` for the public role, which is what the explorer's
+   transactions page was hitting before the indexer was reconfigured. The
+   deploy self-test in `deploy.sh` verifies this split.
+
+> **Frontend implication.** Anonymous (no admin-secret) callers can issue
+> count-style aggregates only against `deployments`, `transfers`, and
+> `transaction_history_view`. Any new count-style query in the explorer that
+> targets another table (e.g. `blocks_aggregate`, `validators_aggregate`)
+> must either be admin-authenticated, or the indexer's
+> `AGGREGATE_ENABLED_TABLES` list in `full-init-hasura.sh` must be extended.
 
 Configuration in docker-compose.yml:
 - `HASURA_GRAPHQL_LIVE_QUERIES_MULTIPLEXED_REFETCH_INTERVAL`: 500ms
@@ -345,7 +458,10 @@ Cache configuration from apollo-client.ts:
 ```typescript
 typePolicies: {
   blocks: {
-    keyFields: ['block_number'],
+    keyFields: ['block_number'],   // ⚠ NOTE: actual PK is block_hash (DAG-aware);
+                                      //   block_number is NOT unique and can collide across forks.
+                                      //   Consider switching this to ['block_hash'] to avoid cache
+                                      //   collisions when the same height has multiple blocks.
   },
   deployments: {
     keyFields: ['deploy_id'],
