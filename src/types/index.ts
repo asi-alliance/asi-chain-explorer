@@ -1,8 +1,14 @@
 // GraphQL Types
+export interface BlockParent {
+  parent_hash: string;
+  parent_index: number;
+}
+
 export interface Block {
   block_number: number;
   block_hash: string;
-  parent_hash: string;
+  parent_hash?: string;
+  parent_links?: BlockParent[];
   timestamp: number;
   proposer: string;
   deployment_count: number;

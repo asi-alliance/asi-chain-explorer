@@ -5,7 +5,10 @@ export const BLOCK_FRAGMENT = gql`
   fragment BlockFragment on blocks {
     block_number
     block_hash
-    parent_hash
+    parent_links {
+      parent_hash
+      parent_index
+    }
     timestamp
     proposer
     deployment_count

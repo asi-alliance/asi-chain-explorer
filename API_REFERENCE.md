@@ -17,21 +17,37 @@ For production deployments, include the Hasura admin secret in request headers:
 x-hasura-admin-secret: your-admin-secret-here
 ```
 
-For public read access, authentication may not be required depending on Hasura configuration.
+For public read access, Hasura must be configured with an unauthorized role
+`public` (`HASURA_GRAPHQL_UNAUTHORIZED_ROLE=public`). The indexer setup script
+(`scripts/full-init-hasura.sh` in the indexer repo) grants the `public` role
+SELECT on every tracked table/view with `limit: 5000`, plus EXECUTE on the
+tracked SQL functions. **Aggregate queries (`<table>_aggregate { ... }`) are
+only enabled for `deployments`, `transfers`, and `transaction_history_view`**
+(`allow_aggregations: true`). All other tables/views keep
+`allow_aggregations: false` — calling `<table>_aggregate` on them returns a
+`validation-failed` error for the public role. If the explorer frontend hits
+such an aggregate, it stays anonymous and the request fails silently
+(Apollo `errorPolicy: "ignore"`) — keep that in mind when adding new
+count-style queries.
 
 ## GraphQL Schema
 
+> **DAG-aware schema.** This indexer follows the `dag_support` schema:
+> `blocks` primary key is `block_hash` (NOT `block_number`). A single
+> `block_number` may have multiple blocks (fork). Block parents live in the
+> `block_parents` junction table — `blocks` has no `parent_hash` column.
+
 ### Types
 
-#### Block
+#### blocks
 
-Represents a blockchain block with all associated metadata.
+Represents a blockchain block with all associated metadata. **Primary key:
+`block_hash`** — `block_number` is NOT unique (a DAG fork can reuse a height).
 
 ```graphql
 type blocks {
-  block_number: bigint!
   block_hash: String!
-  parent_hash: String!
+  block_number: bigint!
   timestamp: bigint!
   proposer: String!
   state_hash: String
@@ -44,30 +60,59 @@ type blocks {
   extra_bytes: String
   version: Int
   deployment_count: Int
-  finalization_status: String
+  finalization_status: String!
   bonds_map: jsonb
   justifications: jsonb
   fault_tolerance: numeric
   created_at: timestamp!
-  
+
   # Relationships
-  deployments: [deployments!]!
-  validator_bonds: [validator_bonds!]!
+  deployments: [deployments!]!            # via block_hash
+  transfers: [transfers!]!                # via block_hash
+  validator_bonds: [validator_bonds!]!     # via block_hash
+  block_validators: [block_validators!]!   # via block_hash
+  balance_states: [balance_states!]!       # via block_hash
+  network_stats: [network_stats!]!         # via block_number
+  parent_links: [block_parents!]!          # rows where this block is the child
+  child_links: [block_parents!]!           # rows where this block is the parent
 }
 ```
 
-#### Deployment
+> There is no `parent_hash` column. Use the `parent_links` array relationship
+> to navigate up the DAG, or `get_block_ancestors` / `get_block_descendants`
+> for transitive traversal.
 
-Represents a smart contract deployment or transaction.
+#### block_parents
+
+DAG junction table — a block may have multiple parents.
+
+```graphql
+type block_parents {
+  block_hash: String!    # child block (FK -> blocks.block_hash, ON DELETE CASCADE)
+  parent_hash: String!   # parent block (no FK — parent may not be indexed yet)
+  parent_index: Int!
+  created_at: timestamp!
+
+  # Relationships
+  child_block: blocks!     # via block_hash
+  parent_block: blocks!    # manual, via parent_hash -> block_hash
+}
+```
+Composite PK: `(block_hash, parent_hash)`.
+
+#### deployments
+
+Smart contract deployment / transaction. **Primary key: `deploy_id`.**
 
 ```graphql
 type deployments {
   deploy_id: String!
   block_hash: String!
   block_number: bigint!
-  deployer: String!
-  term: String!
-  timestamp: bigint!
+  deployer: String!               # full public key
+  deployer_address: String!       # ASI address derived from deployer public key
+  term: String!                   # Rholang source
+  timestamp: bigint!              # epoch ms
   sig: String!
   sig_algorithm: String
   phlo_price: bigint
@@ -75,63 +120,70 @@ type deployments {
   phlo_cost: bigint
   valid_after_block_number: bigint
   errored: Boolean
-  error_message: String
+  error_message: String           # NULL when no error; from node's systemDeployError
   deployment_type: String
   seq_num: Int
   shard_id: String
-  status: String
+  status: String                  # ALWAYS "included" in production (no lifecycle RPC)
   created_at: timestamp!
-  
+
   # Relationships
-  block: blocks!
-  transfers: [transfers!]!
+  block: blocks!                  # via block_hash
+  transfers: [transfers!]!        # via deploy_id
 }
 ```
 
-#### Transfer
+> `status` is hardcoded to `"included"` by the gRPC client (the node's
+> `DeployInfo` proto has no status field). Use `errored` + `error_message` to
+> detect failed deploys.
 
-Represents a ASI token transfer extracted from a deployment.
+#### transfers
+
+ASI token transfer extracted from a deployment. **Primary key: `id`.**
 
 ```graphql
 type transfers {
   id: bigint!
   deploy_id: String!
+  block_hash: String!
   block_number: bigint!
   from_address: String!
+  from_public_key: String         # NULL when sender is a pure ASI address
   to_address: String!
   amount_dust: bigint!
   amount_asi: numeric!
-  status: String
-  created_at: timestamp!
-  
+  status: String                  # "success" | "failed" | "genesis_mint" | "genesis_bond"
+  timestamp: bigint!             # epoch ms (when the transfer happened)
+  created_at: timestamp!         # when indexed
+
   # Relationships
-  deployment: deployments!
+  deployment: deployments!        # via deploy_id
+  block: blocks!                 # via block_hash
+  sender_validator: validators   # manual, via from_public_key -> public_key
 }
 ```
 
-#### Validator
-
-Represents a network validator.
+#### validators
 
 ```graphql
 type validators {
   public_key: String!
-  name: String
+  name: String                    # may hold full public key (up to 160 chars)
   total_stake: bigint
   first_seen_block: bigint
   last_seen_block: bigint
-  status: String
+  status: String                  # "active" | "bonded" | "quarantine" | "inactive"
   created_at: timestamp!
   updated_at: timestamp!
-  
+
   # Relationships
-  bonds: [validator_bonds!]!
+  validator_bonds: [validator_bonds!]!     # manual, public_key -> validator_public_key
+  block_validators: [block_validators!]!  # manual, public_key -> validator_public_key
+  transfers_sent: [transfers!]!           # manual, public_key -> from_public_key
 }
 ```
 
-#### ValidatorBond
-
-Historical record of validator stake at specific block.
+#### validator_bonds
 
 ```graphql
 type validator_bonds {
@@ -139,39 +191,56 @@ type validator_bonds {
   block_hash: String!
   block_number: bigint!
   validator_public_key: String!
-  stake: bigint!
-  
+  stake: bigint!                  # in dust
+
   # Relationships
-  block: blocks!
-  validator: validators!
+  block_by_hash: blocks!          # via block_hash
+  validator: validators!          # manual
+  # UNIQUE (block_hash, validator_public_key)
 }
 ```
 
-#### BalanceState
+#### block_validators
 
-Address balance at specific block.
+Many-to-many between blocks and validators (justifications). **Composite PK
+only — no `id`, no `block_number`, no `role` columns.**
+
+```graphql
+type block_validators {
+  block_hash: String!            # FK -> blocks.block_hash (CASCADE)
+  validator_public_key: String!
+
+  # Relationships
+  block: blocks!                 # via block_hash
+  validator: validators!         # manual, validator_public_key -> public_key
+}
+```
+
+#### balance_states
+
+Address balance snapshot with bonded/unbonded split.
 
 ```graphql
 type balance_states {
   id: bigint!
   address: String!
+  block_hash: String!
   block_number: bigint!
   unbonded_balance_dust: bigint!
   unbonded_balance_asi: numeric!
   bonded_balance_dust: bigint!
   bonded_balance_asi: numeric!
-  total_balance_dust: bigint!
-  total_balance_asi: numeric!
+  total_balance_dust: bigint!    # GENERATED ALWAYS AS (unbonded + bonded) STORED
+  total_balance_asi: numeric!    # GENERATED ALWAYS AS (unbonded + bonded) STORED
   updated_at: timestamp!
-  
+  # UNIQUE (address, block_hash)
+
   # Relationships
-  block: blocks!
+  block: blocks!                 # via block_hash
 }
 ```
 
-#### NetworkStats
-
-Network-wide statistics at specific block.
+#### network_stats
 
 ```graphql
 type network_stats {
@@ -182,7 +251,127 @@ type network_stats {
   validators_in_quarantine: Int
   consensus_participation: numeric!
   consensus_status: String!
+  timestamp: timestamp!         # SQL TIMESTAMP (not bigint epoch)
+}
+```
+
+#### epoch_transitions
+
+⚠️ Schema exists but the current indexer does NOT populate this table.
+
+```graphql
+type epoch_transitions {
+  id: bigint!
+  epoch_number: bigint!
+  start_block: bigint!
+  end_block: bigint!
+  active_validators: Int!
+  quarantine_length: Int!
   timestamp: timestamp!
+}
+```
+
+#### indexer_state
+
+Key-value store of indexer sync metadata (`last_indexed_block`, etc.).
+
+```graphql
+type indexer_state {
+  key: String!
+  value: String!
+  updated_at: timestamp!
+}
+```
+
+### Views
+
+Tracking-only views exposed via GraphQL (read-only).
+
+#### network_stats_view
+
+Analytics over the last 100 non-genesis blocks: `total_blocks`,
+`avg_block_time_seconds`, `earliest_block_time`, `latest_block_time`.
+
+```graphql
+type network_stats_view {
+  total_blocks: bigint
+  avg_block_time_seconds: numeric
+  earliest_block_time: bigint
+  latest_block_time: bigint
+}
+```
+
+#### block_ancestors_view / block_descendants_view
+
+Schema-holder views (return 0 rows themselves) that type the output of the
+`get_block_ancestors` / `get_block_descendants` SQL functions.
+
+```graphql
+type block_ancestors_view {
+  ancestor_hash: String
+  ancestor_number: bigint
+  depth: Int
+}
+
+type block_descendants_view {
+  descendant_hash: String
+  descendant_number: bigint
+  depth: Int
+}
+```
+
+#### network_metrics_view
+
+Schema-holder view (composite type) for `get_network_metrics`'s return.
+Returns 0 rows by itself — call `get_network_metrics()` instead.
+Columns: `bucket_start` (timestamptz), `bucket_end` (timestamptz),
+`avg_block_time_seconds` (numeric), `avg_tps` (numeric),
+`deployments_count` (bigint), `transfers_count` (bigint).
+
+#### transaction_history_view
+
+Combined wallet transaction history — `deployments LEFT JOIN transfers`,
+one row per transfer, or one row per deployment that produced no transfer.
+Hasura-tracked with public SELECT (`limit: 5000`,
+**`allow_aggregations: true`**) — this is the only view (alongside the
+`deployments` and `transfers` tables) where public aggregate queries work.
+
+```graphql
+type transaction_history_view {
+  transfer_id: bigint            # NULL when type = "not_transfer"
+  deploy_id: String!
+  block_hash: String!
+  block_number: bigint!
+  timestamp: bigint!             # deployment timestamp (epoch ms)
+  type: String!                  # "transfer" | "not_transfer"
+  deployer_address: String!
+  from_address: String           # NULL when type = "not_transfer"
+  to_address: String
+  from_public_key: String
+  amount_asi: numeric
+  status: String                 # transfer status; NULL when type = "not_transfer"
+}
+```
+
+### SQL Functions (callable GraphQL fields)
+
+These are tracked in Hasura as custom GraphQL fields with public EXECUTE
+permissions. Use them as top-level query fields.
+
+| Field | Signature | Description |
+|---|---|---|
+| `get_block_ancestors` | `(p_block_hash: String!)` → `[block_ancestors_view]` | Recursively returns all ancestor blocks by walking `block_parents` (`UNION`-deduplicated, no cycle guard). |
+| `get_block_descendants` | `(p_block_hash: String!)` → `[block_descendants_view]` | Recursively returns all descendant blocks (symmetric to ancestors). |
+| `get_network_metrics` | `(p_range_hours: Int = 24, p_divisions: Int = 7)` → `[network_metrics_view]` | Hybrid: reads pre-aggregated `network_metrics_buckets` (fast) or falls back to raw `blocks`/`deployments`/`transfers` aggregation (slow). |
+| `refresh_network_metrics_buckets` | `(p_lookback_hours: Int = 720, p_bucket_seconds: Int = 600)` → `void` | Cron-friendly incremental refresh of `network_metrics_buckets`. Not normally called from GraphQL — run via psql/cron. |
+
+```graphql
+query Ancestors($hash: String!) {
+  get_block_ancestors(p_block_hash: $hash) {
+    ancestor_hash
+    ancestor_number
+    depth
+  }
 }
 ```
 
@@ -199,7 +388,6 @@ query GetLatestBlocks($limit: Int = 10, $offset: Int = 0) {
   ) {
     block_number
     block_hash
-    parent_hash
     timestamp
     proposer
     deployment_count
@@ -209,9 +397,18 @@ query GetLatestBlocks($limit: Int = 10, $offset: Int = 0) {
     bonds_map
     fault_tolerance
     finalization_status
+    # DAG parents — there is no parent_hash column on blocks
+    parent_links {
+      parent_index
+      parent_block {
+        block_hash
+        block_number
+      }
+    }
     deployments {
       deploy_id
       deployer
+      deployer_address
       term
       timestamp
       deployment_type
@@ -244,23 +441,44 @@ query SearchBlocksByHash($search: String!, $limit: Int = 10, $offset: Int = 0) {
 
 ### Get Block Details
 
+> `block_number` is NOT unique in a DAG — a fork can have multiple blocks at
+> the same height. Querying by `block_number` returns a list; for a specific
+> block, query by `block_hash` instead.
+
 ```graphql
-query GetBlockDetails($blockNumber: bigint!) {
-  blocks(where: { block_number: { _eq: $blockNumber } }) {
+query GetBlockDetails($blockHash: String!) {
+  blocks(where: { block_hash: { _eq: $blockHash } }) {
     block_number
     block_hash
-    parent_hash
     timestamp
     proposer
+    state_hash
     state_root_hash
     pre_state_hash
     deployment_count
     bonds_map
     justifications
     fault_tolerance
+    finalization_status
+    # DAG parents (multiple)
+    parent_links {
+      parent_index
+      parent_block {
+        block_hash
+        block_number
+      }
+    }
+    # DAG children (blocks that list this block as a parent)
+    child_links {
+      child_block {
+        block_hash
+        block_number
+      }
+    }
     deployments {
       deploy_id
       deployer
+      deployer_address
       term
       deployment_type
       phlo_cost
@@ -282,6 +500,40 @@ query GetBlockDetails($blockNumber: bigint!) {
 }
 ```
 
+### Get Block by Height (DAG-aware)
+
+```graphql
+query GetBlocksByHeight($height: bigint!) {
+  blocks(where: { block_number: { _eq: $height } }) {
+    block_hash
+    block_number
+    timestamp
+    proposer
+    finalization_status
+  }
+}
+```
+
+### Get Block Ancestors / Descendants (DAG traversal)
+
+```graphql
+query GetBlockAncestors($blockHash: String!) {
+  get_block_ancestors(p_block_hash: $blockHash) {
+    ancestor_hash
+    ancestor_number
+    depth
+  }
+}
+
+query GetBlockDescendants($blockHash: String!) {
+  get_block_descendants(p_block_hash: $blockHash) {
+    descendant_hash
+    descendant_number
+    depth
+  }
+}
+```
+
 ### Get All Transfers
 
 ```graphql
@@ -293,12 +545,15 @@ query GetAllTransfers($limit: Int = 50, $offset: Int = 0) {
   ) {
     id
     deploy_id
+    block_hash
+    block_number
     from_address
+    from_public_key
     to_address
     amount_asi
     amount_dust
     status
-    block_number
+    timestamp
     created_at
     deployment {
       deploy_id
@@ -326,12 +581,15 @@ query GetAddressTransfers($address: String!, $limit: Int = 20) {
   ) {
     id
     deploy_id
+    block_hash
+    block_number
     from_address
+    from_public_key
     to_address
     amount_asi
     amount_dust
     status
-    block_number
+    timestamp
     created_at
   }
 }
@@ -411,13 +669,16 @@ query GetLatestDeployments($limit: Int = 5) {
   ) {
     deploy_id
     deployer
+    deployer_address
     term
     timestamp
     deployment_type
     phlo_cost
     errored
+    error_message
     status
     block_number
+    block_hash
   }
 }
 ```
@@ -500,13 +761,20 @@ query PollForNewBlocks($limit: Int = 5) {
   ) {
     block_number
     block_hash
-    parent_hash
     timestamp
     proposer
     deployment_count
+    parent_links {
+      parent_index
+      parent_block {
+        block_hash
+        block_number
+      }
+    }
     deployments {
       deploy_id
       deployer
+      deployer_address
       term
       timestamp
       deployment_type
@@ -527,12 +795,15 @@ query PollForNewTransfers($limit: Int = 10) {
   ) {
     id
     deploy_id
+    block_hash
+    block_number
     from_address
+    from_public_key
     to_address
     amount_asi
     amount_dust
     status
-    block_number
+    timestamp
     created_at
   }
 }
@@ -557,6 +828,11 @@ query PollForNetworkActivity {
 
 ### Poll for Network Stats
 
+> Public aggregate queries are only enabled on `deployments`, `transfers`
+> and `transaction_history_view`. `blocks_aggregate`, `validators_aggregate`,
+> `validator_bonds_aggregate` will fail with `validation-failed` for the
+> anonymous `public` role — restrict those to admin-authenticated clients.
+
 ```graphql
 query PollForNetworkStats {
   network_stats_view {
@@ -564,14 +840,6 @@ query PollForNetworkStats {
     avg_block_time_seconds
     earliest_block_time
     latest_block_time
-  }
-  blocks_aggregate {
-    aggregate {
-      count
-      max {
-        block_number
-      }
-    }
   }
   deployments_aggregate {
     aggregate {
@@ -602,15 +870,24 @@ query PollForNetworkStats {
       count
     }
   }
-  validators_aggregate {
-    aggregate {
-      count
-    }
-  }
-  validator_bonds_aggregate {
-    aggregate {
-      count
-    }
+}
+```
+
+### Poll for Network Metrics (time-bucketed)
+
+Uses the `get_network_metrics` SQL function (hybrid: pre-aggregated buckets
+or raw aggregation fallback). Requires the `public` EXECUTE permission,
+which the indexer's Hasura init script grants.
+
+```graphql
+query PollForNetworkMetrics($rangeHours: Int = 24, $divisions: Int = 7) {
+  get_network_metrics(p_range_hours: $rangeHours, p_divisions: $divisions) {
+    bucket_start
+    bucket_end
+    avg_block_time_seconds
+    avg_tps
+    deployments_count
+    transfers_count
   }
 }
 ```
@@ -621,12 +898,13 @@ query PollForNetworkStats {
 query PollForNewDeployments($limit: Int = 20) {
   deployments(
     limit: $limit
-    order_by: { created_at: desc }
+    order_by: { timestamp: desc }
   ) {
     deploy_id
     block_hash
     block_number
     deployer
+    deployer_address
     term
     timestamp
     deployment_type
