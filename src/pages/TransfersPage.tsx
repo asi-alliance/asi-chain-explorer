@@ -7,6 +7,7 @@ import { formatDistanceToNow } from 'date-fns';
 import { useGenesisFunding } from '../hooks/useGenesisFunding';
 import { formatGenesisFunding } from '../utils/parseGenesisFunding';
 import { CURRENT_TOKEN } from '../utils/constants';
+import { getBlockPath } from '../utils/blockPath';
 
 const TransfersPage: React.FC = () => {
     const [currentPage, setCurrentPage] = useState(1);
@@ -260,7 +261,10 @@ const TransfersPage: React.FC = () => {
                                         </h4>
                                         {(transfer.block || transfer.block_number) && (
                                             <Link
-                                                to={`/block/${transfer.block?.block_number || transfer.block_number}`}
+                                                to={getBlockPath(
+                                                    transfer.block?.block_hash || transfer.deployment?.block_hash,
+                                                    transfer.block?.block_number || transfer.block_number,
+                                                )}
                                                 className="btn btn-secondary"
                                                 style={{ padding: '4px 12px', fontSize: '13px' }}
                                             >

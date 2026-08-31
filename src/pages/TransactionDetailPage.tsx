@@ -29,6 +29,7 @@ import { CURRENT_TOKEN } from '../utils/constants';
 import { toMillis } from '../utils/calculateBlockTime';
 import CopyButton from '../components/CopyButton';
 import { getParentHashes } from '../utils/blockParent';
+import { getBlockPath } from '../utils/blockPath';
 
 // Helper functions to safely parse timestamps
 const parseTimestamp = (timestamp: any): number => {
@@ -495,7 +496,7 @@ Exported at: ${new Date().toLocaleString()}
                 Block Number
               </div>
               <Link
-                to={`/block/${transaction.block_number}`}
+                to={getBlockPath(transaction.block_hash, transaction.block_number)}
                 style={{
                   color: '#10b981',
                   textDecoration: 'none',
@@ -845,7 +846,7 @@ Exported at: ${new Date().toLocaleString()}
       }}>
         <h3 style={{ margin: 0 }}>Block Information</h3>
         <Link
-          to={`/block/${transaction.block_number}`}
+          to={getBlockPath(transaction.block_hash, transaction.block_number)}
           style={{
             padding: '0.5rem 1rem',
             border: '1px solid #10b981',

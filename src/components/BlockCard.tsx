@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { Clock, Hash, FileCode, User } from 'lucide-react';
 import { BlockCardProps } from '../types';
 import { formatDistanceToNow } from 'date-fns';
+import { getBlockPath } from '../utils/blockPath';
 
 const BlockCard: React.FC<BlockCardProps> = ({ block, showDetails = true }) => {
   const formatHash = (hash: string) => `${hash.slice(0, 8)}...${hash.slice(-8)}`;
@@ -12,7 +13,7 @@ const BlockCard: React.FC<BlockCardProps> = ({ block, showDetails = true }) => {
     <div className="card p-4 hover:shadow-md transition-shadow">
       <div className="flex items-center justify-between mb-3">
         <Link 
-          to={`/block/${block.block_number}`}
+          to={getBlockPath(block.block_hash, block.block_number)}
           className="text-lg font-semibold text-asi-blue hover:text-blue-700"
         >
           Block #{block.block_number.toLocaleString()}
@@ -72,7 +73,7 @@ const BlockCard: React.FC<BlockCardProps> = ({ block, showDetails = true }) => {
             </code>
           </div>
           <Link 
-            to={`/block/${block.block_number}`}
+            to={getBlockPath(block.block_hash, block.block_number)}
             className="text-asi-blue hover:text-blue-700 font-medium"
           >
             View →

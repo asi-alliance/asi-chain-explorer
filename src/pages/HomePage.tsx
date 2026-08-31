@@ -12,6 +12,7 @@ import { formatDistanceToNow } from "date-fns";
 import { calculateAverageBlockTime } from "../utils/calculateBlockTime";
 import RealtimeActivityFeed from "../components/RealtimeActivityFeed";
 import RecentDataExporter, { ExportEntities } from "../components/RecentDataExporter";
+import { getBlockPath } from "../utils/blockPath";
 // import { useRealtimeBlocks, useRealtimeNetworkStats } from '../services/websocketService';
 
 // Query to get recent blocks for calculating average block time
@@ -327,11 +328,11 @@ const HomePage: React.FC = () => {
                             </thead>
                             <tbody>
                                 {blocks.map((block: Block) => (
-                                    <tr key={block.block_number}>
+                                    <tr key={block.block_hash}>
                                         <td>
                                             <h5>
                                                 <Link
-                                                    to={`/block/${block.block_number}`}
+                                                    to={getBlockPath(block.block_hash, block.block_number)}
                                                     className="block-number"
                                                 >
                                                     {block.block_number}
@@ -341,7 +342,7 @@ const HomePage: React.FC = () => {
                                         <td className="hash-cell">
                                             <Link
                                                 className="text-3"
-                                                to={`/block/${block.block_number}`}
+                                                to={getBlockPath(block.block_hash, block.block_number)}
                                             >
                                                 {truncateHash(block.block_hash)}
                                             </Link>

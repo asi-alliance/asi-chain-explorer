@@ -283,7 +283,7 @@ const BlockVisualization: React.FC<BlockVisualizationProps> = ({
                 }}>
                     {blocks.slice(0, 50).map((block, index) => (
                         <motion.div
-                            key={block.block_number}
+                            key={block.block_hash}
                             initial={{ opacity: 0, scale: 0.8 }}
                             animate={{ opacity: 1, scale: 1 }}
                             transition={{ delay: index * 0.02 }}
