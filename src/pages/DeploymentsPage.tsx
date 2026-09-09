@@ -3,6 +3,7 @@ import { useQuery } from '@apollo/client';
 import { Link } from 'react-router-dom';
 import { gql } from '@apollo/client';
 import { formatDistanceToNow } from 'date-fns';
+import { getBlockPath } from '../utils/blockPath';
 
 const GET_DEPLOYMENTS = gql`
   query GetDeployments($limit: Int!, $offset: Int!, $search: String) {
@@ -29,6 +30,7 @@ const GET_DEPLOYMENTS = gql`
       error_message
       created_at
       block_number
+      block_hash
       sig
     }
   }
@@ -251,8 +253,8 @@ const DeploymentsPage: React.FC = () => {
                       {deployment.block_number && (
                         <>
                           <br />
-                          <Link 
-                            to={`/block/${deployment.block_number}`} 
+                          <Link
+                            to={getBlockPath(deployment.block_hash, deployment.block_number)}
                             className="btn btn-secondary" 
                             style={{ 
                               padding: '4px 8px', 

@@ -103,3 +103,4 @@ test_*.py
 test_*.html
 *_test.*
 *.test.*
+!src/utils/blockPath.test.ts

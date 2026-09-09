@@ -56,7 +56,7 @@ const BlocksPage: React.FC = () => {
           </div>
         ) : (
           blocks.map((block: Block) => (
-            <BlockCard key={block.block_number} block={block} showDetails={true} />
+            <BlockCard key={block.block_hash} block={block} showDetails={true} />
           ))
         )}
       </div>
