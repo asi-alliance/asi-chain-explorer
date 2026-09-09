@@ -53,7 +53,7 @@ export const apolloClient = new ApolloClient({
   cache: new InMemoryCache({
     typePolicies: {
       blocks: {
-        keyFields: ['block_number'],
+        keyFields: ['block_hash'],
       },
       deployments: {
         keyFields: ['deploy_id'],

@@ -1,18 +1,30 @@
 import React from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useQuery } from '@apollo/client';
-import { GET_BLOCK_DETAILS } from '../graphql/queries';
+import { GET_BLOCK_DETAILS, GET_BLOCKS_AT_HEIGHT } from '../graphql/queries';
 import { Block } from '../types';
 import { formatDistanceToNow } from 'date-fns';
 import { CURRENT_TOKEN } from '../utils/constants';
+import { getParentHashes } from '../utils/blockParent';
+import { getBlockPath } from '../utils/blockPath';
 
 const BlockDetailPage: React.FC = () => {
-  const { blockNumber } = useParams<{ blockNumber: string }>();
-  
-  const { data, loading, error } = useQuery(GET_BLOCK_DETAILS, {
-    variables: { blockNumber: blockNumber || '0' },
-    skip: blockNumber === undefined || blockNumber === null || blockNumber === '',
+  const { blockHash, blockNumber } = useParams<{
+    blockHash?: string;
+    blockNumber?: string;
+  }>();
+
+  const hashResult = useQuery(GET_BLOCK_DETAILS, {
+    variables: { blockHash: blockHash || '' },
+    skip: !blockHash,
   });
+  const heightResult = useQuery(GET_BLOCKS_AT_HEIGHT, {
+    variables: { blockNumber: blockNumber || '0' },
+    skip: !blockNumber,
+  });
+
+  const activeResult = blockHash ? hashResult : heightResult;
+  const { data, loading, error } = activeResult;
 
   if (loading) {
     return (
@@ -31,12 +43,14 @@ const BlockDetailPage: React.FC = () => {
     );
   }
 
-  const block = data?.blocks?.[0] as Block;
+  const matchingBlocks = (data?.blocks || []) as Block[];
+  const block = matchingBlocks[0];
+  const requestedBlock = blockHash || blockNumber;
 
   if (!block) {
     return (
       <div className="status-message error">
-        <strong>Block Not Found:</strong> Block #{blockNumber} was not found on the network.
+        <strong>Block Not Found:</strong> Block {requestedBlock} was not found on the network.
       </div>
     );
   }
@@ -109,6 +123,29 @@ const BlockDetailPage: React.FC = () => {
         <Link to="/" className="btn btn-secondary">← Back to Blocks</Link>
       </nav>
 
+      {blockNumber && matchingBlocks.length > 1 && (
+        <section className="asi-card" style={{ marginBottom: '1.5rem' }}>
+          <h2 style={{ marginBottom: '0.75rem' }}>
+            {matchingBlocks.length} sibling blocks at height {blockNumber}
+          </h2>
+          <p className="text-muted" style={{ marginBottom: '1rem' }}>
+            A block height is not unique in the DAG. Select a block hash.
+          </p>
+          <div style={{ display: 'grid', gap: '0.75rem' }}>
+            {matchingBlocks.map((sibling) => (
+              <Link
+                key={sibling.block_hash}
+                to={getBlockPath(sibling.block_hash, sibling.block_number)}
+                className="mono"
+                style={{ wordBreak: 'break-all' }}
+              >
+                {sibling.block_hash}
+              </Link>
+            ))}
+          </div>
+        </section>
+      )}
+
       {/* Block Summary Cards */}
       <div className="summary-grid mb-3">
         <div className="asi-card glass">
@@ -150,8 +187,17 @@ const BlockDetailPage: React.FC = () => {
           <dt>Block Hash</dt>
           <dd className="mono">{block.block_hash}</dd>
           
-          <dt>Parent Hash</dt>
-          <dd className="mono">{block.parent_hash}</dd>
+          <dt>Parent Hash{getParentHashes(block).length > 1 ? 'es' : ''}</dt>
+          <dd className="mono">
+            {getParentHashes(block).length > 0
+              ? getParentHashes(block).map((ph, i) => (
+                  <React.Fragment key={ph}>
+                    {i > 0 && <span style={{ display: 'block', height: '0.25rem' }} />}
+                    <Link to={getBlockPath(ph)}>{ph}</Link>
+                  </React.Fragment>
+                ))
+              : 'N/A (genesis)'}
+          </dd>
           
           <dt>State Hash</dt>
           <dd className="mono">{block.state_hash || 'N/A'}</dd>

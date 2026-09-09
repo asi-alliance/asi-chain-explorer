@@ -28,6 +28,8 @@ import { gql } from '@apollo/client';
 import { CURRENT_TOKEN } from '../utils/constants';
 import { toMillis } from '../utils/calculateBlockTime';
 import CopyButton from '../components/CopyButton';
+import { getParentHashes } from '../utils/blockParent';
+import { getBlockPath } from '../utils/blockPath';
 
 // Helper functions to safely parse timestamps
 const parseTimestamp = (timestamp: any): number => {
@@ -119,7 +121,10 @@ const GET_TRANSACTION_DETAILS = gql`
       block {
         block_number
         block_hash
-        parent_hash
+        parent_links {
+          parent_hash
+          parent_index
+        }
         timestamp
         proposer
         deployment_count
@@ -491,7 +496,7 @@ Exported at: ${new Date().toLocaleString()}
                 Block Number
               </div>
               <Link
-                to={`/block/${transaction.block_number}`}
+                to={getBlockPath(transaction.block_hash, transaction.block_number)}
                 style={{
                   color: '#10b981',
                   textDecoration: 'none',
@@ -841,7 +846,7 @@ Exported at: ${new Date().toLocaleString()}
       }}>
         <h3 style={{ margin: 0 }}>Block Information</h3>
         <Link
-          to={`/block/${transaction.block_number}`}
+          to={getBlockPath(transaction.block_hash, transaction.block_number)}
           style={{
             padding: '0.5rem 1rem',
             border: '1px solid #10b981',
@@ -923,24 +928,30 @@ Exported at: ${new Date().toLocaleString()}
             </div>
           </div>
 
-          {block.parent_hash && (
+          {getParentHashes(block).length > 0 && (
             <div style={{ gridColumn: '1 / -1' }}>
               <div style={{ fontSize: '0.875rem', color: '#9ca3af', marginBottom: '0.5rem' }}>
-                Parent Hash
+                Parent Hash{getParentHashes(block).length > 1 ? 'es' : ''}
               </div>
-              <div style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.5rem',
-                fontSize: '0.875rem',
-                wordBreak: 'break-all',
-                padding: '0.75rem',
-                backgroundColor: 'rgba(255, 255, 255, 0.05)',
-                borderRadius: '6px'
-              }}>
-                {block.parent_hash}
-                <CopyButton dataToCopy={block.parent_hash} iconSize={14} />
-              </div>
+              {getParentHashes(block).map((parentHash) => (
+                <div
+                  key={parentHash}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.5rem',
+                    fontSize: '0.875rem',
+                    wordBreak: 'break-all',
+                    padding: '0.75rem',
+                    marginBottom: '0.25rem',
+                    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+                    borderRadius: '6px'
+                  }}
+                >
+                  {parentHash}
+                  <CopyButton dataToCopy={parentHash} iconSize={14} />
+                </div>
+              ))}
             </div>
           )}
 

@@ -5,7 +5,10 @@ export const BLOCK_FRAGMENT = gql`
   fragment BlockFragment on blocks {
     block_number
     block_hash
-    parent_hash
+    parent_links {
+      parent_hash
+      parent_index
+    }
     timestamp
     proposer
     deployment_count
@@ -132,8 +135,28 @@ export const GET_BLOCK_DETAILS = gql`
   ${BLOCK_FRAGMENT}
   ${DEPLOYMENT_FRAGMENT}
   ${TRANSFER_FRAGMENT}
-  query GetBlockDetails($blockNumber: bigint!) {
-    blocks(where: { block_number: { _eq: $blockNumber } }) {
+  query GetBlockDetails($blockHash: String!) {
+    blocks(where: { block_hash: { _eq: $blockHash } }) {
+      ...BlockFragment
+      deployments {
+        ...DeploymentFragment
+        transfers {
+          ...TransferFragment
+        }
+      }
+    }
+  }
+`;
+
+export const GET_BLOCKS_AT_HEIGHT = gql`
+  ${BLOCK_FRAGMENT}
+  ${DEPLOYMENT_FRAGMENT}
+  ${TRANSFER_FRAGMENT}
+  query GetBlocksAtHeight($blockNumber: bigint!) {
+    blocks(
+      where: { block_number: { _eq: $blockNumber } }
+      order_by: { block_hash: asc }
+    ) {
       ...BlockFragment
       deployments {
         ...DeploymentFragment
@@ -170,6 +193,7 @@ export const GET_ALL_TRANSFERS = gql`
       deployment {
         deploy_id
         block_number
+        block_hash
         timestamp
         errored
       }

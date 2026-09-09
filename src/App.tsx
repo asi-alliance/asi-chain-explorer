@@ -29,6 +29,10 @@ function App() {
                             path="/block/:blockNumber"
                             element={<BlockDetailPage />}
                         />
+                        <Route
+                            path="/block/hash/:blockHash"
+                            element={<BlockDetailPage />}
+                        />
                         {/* <Route
                                 path="/transfers"
                                 element={<TransfersPage />}

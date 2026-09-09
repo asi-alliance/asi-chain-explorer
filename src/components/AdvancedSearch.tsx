@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Block, Transfer, Deployment } from "../types";
+import { getBlockPath } from "../utils/blockPath";
 import { gql } from "@apollo/client";
 import { CURRENT_TOKEN } from "../utils/constants";
 
@@ -402,9 +403,11 @@ const AdvancedSearch: React.FC<AdvancedSearchProps> = ({
         setSelectedResult(-1);
 
         switch (result.type) {
-            case "block":
-                navigate(`/block/${(result.data as Block).block_number}`);
+            case "block": {
+                const block = result.data as Block;
+                navigate(getBlockPath(block.block_hash, block.block_number));
                 break;
+            }
             case "transfer":
                 const transfer = result.data as Transfer;
                 navigate(`/transaction/${transfer.deploy_id}`);

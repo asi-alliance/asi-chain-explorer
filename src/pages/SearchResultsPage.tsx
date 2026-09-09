@@ -73,7 +73,7 @@ const SearchResultsPage: React.FC = () => {
           data: {
             block_number: 12345,
             block_hash: '0x1234567890abcdef',
-            parent_hash: '0x9876543210fedcba',
+            parent_links: [{ parent_hash: '0x9876543210fedcba', parent_index: 0 }],
             timestamp: Date.now() - 120000,
             proposer: '0xabcdef1234567890',
             deployment_count: 5,
