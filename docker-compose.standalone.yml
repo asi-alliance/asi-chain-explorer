@@ -5,6 +5,7 @@ services:
       dockerfile: Dockerfile
       target: production
       args:
+        REACT_APP_NATIVE_TOKEN_DECIMALS: ${REACT_APP_NATIVE_TOKEN_DECIMALS:-8}
         REACT_APP_GRAPHQL_URL: ${REACT_APP_GRAPHQL_URL}
         REACT_APP_GRAPHQL_WS_URL: ${REACT_APP_GRAPHQL_WS_URL}
         REACT_APP_INDEXER_API_URL: ${REACT_APP_INDEXER_API_URL}

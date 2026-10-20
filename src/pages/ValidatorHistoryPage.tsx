@@ -1,9 +1,9 @@
+import { normalizedRaw, formatRaw, percentage } from "../utils/amounts";
 import React, { useState } from 'react';
 import { useQuery } from '@apollo/client';
 import { gql } from '@apollo/client';
 import { formatDistanceToNow } from 'date-fns';
 import { CURRENT_TOKEN } from '../utils/constants';
-import { fromCogs } from '../utils/calculateBlockTime';
 
 const GET_VALIDATOR_HISTORY = gql`
   query GetValidatorHistory($blockNumber: bigint) {
@@ -13,6 +13,7 @@ const GET_VALIDATOR_HISTORY = gql`
     ) {
       block_number
       stake
+      token_decimals
       validator_public_key
     }
     validators {
@@ -71,20 +72,7 @@ const ValidatorHistoryPage: React.FC = () => {
     }
   };
 
-  const calculateStake = (stake: number | string): string => {
-    const stakeNum = typeof stake === 'string' ? parseFloat(stake) : stake;
-    if (!stakeNum || stakeNum === 0 || isNaN(stakeNum)) return '0.00';
-    // Stake values from API appear to already be in ASI
-    const revAmount = fromCogs(stakeNum);
-    
-    if (revAmount >= 1000000) {
-      return (revAmount / 1000000).toFixed(2) + 'M';
-    } else if (revAmount >= 1000) {
-      return (revAmount / 1000).toFixed(2) + 'K';
-    } else {
-      return revAmount.toFixed(2);
-    }
-  };
+  const calculateStake = (stake: unknown, decimals?: number): string => formatRaw(stake, decimals);
 
   const validators = data?.validator_bonds || [];
   const allValidators = data?.validators || [];
@@ -98,11 +86,11 @@ const ValidatorHistoryPage: React.FC = () => {
   });
 
   // Calculate total stake for percentage
-  const totalStake = validators.reduce((sum: number, v: any) => {
+  const totalStake = validators.reduce((sum: bigint, v: any) => {
     // Handle both string and number types
-    const stake = typeof v.stake === 'string' ? parseFloat(v.stake) : v.stake;
-    return sum + (stake || 0);
-  }, 0);
+    const stake = normalizedRaw(v.stake, v.token_decimals);
+    return sum + (stake || 0n);
+  }, 0n);
 
   return (
     <section className="asi-card">
@@ -192,9 +180,7 @@ const ValidatorHistoryPage: React.FC = () => {
                 </thead>
                 <tbody>
                   {validators.map((bond: any, index: number) => {
-                    const stakePercentage = totalStake > 0 
-                      ? ((bond.stake / totalStake) * 100).toFixed(2) 
-                      : '0.00';
+                    const stakePercentage = percentage(normalizedRaw(bond.stake, bond.token_decimals), totalStake);
                     const isProposer = bond.validator_public_key === blockInfo?.proposer;
                     
                     return (
@@ -206,7 +192,7 @@ const ValidatorHistoryPage: React.FC = () => {
                           </span>
                         </td>
                         <td style={{ fontWeight: 600 }}>
-                          {calculateStake(bond.stake)} {CURRENT_TOKEN}
+                          {calculateStake(bond.stake, bond.token_decimals)} {CURRENT_TOKEN}
                         </td>
                         <td>
                           <span style={{ color: 'var(--text-tertiary)' }}>
@@ -244,10 +230,7 @@ const ValidatorHistoryPage: React.FC = () => {
                       Total Stake
                     </dt>
                     <dd style={{ margin: 0, fontSize: '18px', fontWeight: 600 }}>
-                      {(fromCogs(totalStake)).toLocaleString(undefined, {
-                        minimumFractionDigits: 2,
-                        maximumFractionDigits: 2
-                      })} {CURRENT_TOKEN}
+                      {formatRaw(totalStake, 77)} {CURRENT_TOKEN}
                     </dd>
                   </div>
                   <div>
@@ -256,10 +239,7 @@ const ValidatorHistoryPage: React.FC = () => {
                     </dt>
                     <dd style={{ margin: 0, fontSize: '18px', fontWeight: 600 }}>
                       {validators.length > 0 
-                        ? (fromCogs(totalStake) / validators.length).toLocaleString(undefined, {
-                            minimumFractionDigits: 2,
-                            maximumFractionDigits: 2
-                          })
+                        ? formatRaw(totalStake / BigInt(validators.length), 77)
                         : '0.00'
                       } {CURRENT_TOKEN}
                     </dd>
@@ -270,10 +250,7 @@ const ValidatorHistoryPage: React.FC = () => {
                     </dt>
                     <dd style={{ margin: 0, fontSize: '18px', fontWeight: 600 }}>
                       {validators.length > 0 
-                        ? (fromCogs(Math.min(...validators.map((v: any) => v.stake || 0)))).toLocaleString(undefined, {
-                            minimumFractionDigits: 2,
-                            maximumFractionDigits: 2
-                          })
+                        ? formatRaw(validators.map((v: any) => normalizedRaw(v.stake, v.token_decimals)).reduce((a: bigint, b: bigint) => a < b ? a : b), 77)
                         : '0.00'
                       } {CURRENT_TOKEN}
                     </dd>
@@ -284,10 +261,7 @@ const ValidatorHistoryPage: React.FC = () => {
                     </dt>
                     <dd style={{ margin: 0, fontSize: '18px', fontWeight: 600 }}>
                       {validators.length > 0 
-                        ? (fromCogs(Math.max(...validators.map((v: any) => v.stake || 0)))).toLocaleString(undefined, {
-                            minimumFractionDigits: 2,
-                            maximumFractionDigits: 2
-                          })
+                        ? formatRaw(validators.map((v: any) => normalizedRaw(v.stake, v.token_decimals)).reduce((a: bigint, b: bigint) => a > b ? a : b), 77)
                         : '0.00'
                       } {CURRENT_TOKEN}
                     </dd>

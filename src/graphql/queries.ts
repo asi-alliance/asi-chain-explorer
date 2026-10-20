@@ -16,6 +16,7 @@ export const BLOCK_FRAGMENT = gql`
     pre_state_hash
     state_root_hash
     bonds_map
+    token_decimals
     fault_tolerance
     finalization_status
     justifications
@@ -61,6 +62,7 @@ export const TRANSFER_FRAGMENT = gql`
     to_address
     amount_asi
     amount_dust
+    token_decimals
     status
     block_number
     created_at
@@ -74,6 +76,7 @@ export const VALIDATOR_FRAGMENT = gql`
     name
     status
     total_stake
+    token_decimals
     first_seen_block
     last_seen_block
     created_at
@@ -253,6 +256,7 @@ export const GET_ACTIVE_VALIDATORS = gql`
     validator_bonds(order_by: { block_number: desc }, limit: 100) {
       validator_public_key
       stake
+      token_decimals
       block_number
     }
     # Get recent blocks to count proposers client-side
@@ -425,6 +429,7 @@ export const GET_GENESIS_FUNDING_DEPLOYMENT = gql`
       deployment_type
       created_at
       block_number
+      block { token_decimals }
     }
   }
 `;
