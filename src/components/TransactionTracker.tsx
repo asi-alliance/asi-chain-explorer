@@ -1,3 +1,4 @@
+import { rawInteger, decimalRaw, formatRaw, MAX_DECIMALS } from "../utils/amounts";
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { AnimatePresence } from './AnimatePresenceWrapper';
@@ -170,6 +171,7 @@ const SEARCH_TRANSACTIONS = gql`
         errored
       }
       block {
+        block_hash
         block_number
         timestamp
         proposer
@@ -367,11 +369,11 @@ const TransactionTracker: React.FC<TransactionTrackerProps> = ({
     const totalTransfers = transfers.length;
     const successfulTransfers = transfers.filter((t: any) => t.status === 'success').length;
     
-    const totalPhlo = deployments.reduce((sum: number, d: any) => sum + (parseFloat(d.phlo_cost) || 0), 0);
-    const avgPhloCost = totalDeployments > 0 ? totalPhlo / totalDeployments : 0;
+    const totalPhlo = deployments.reduce((sum: bigint, d: any) => sum + rawInteger(d.phlo_cost ?? 0), 0n);
+    const avgPhloCost = totalDeployments > 0 ? totalPhlo / BigInt(totalDeployments) : 0n;
     
-    const totalAsiTransferred = transfers.reduce((sum: number, t: any) => sum + (parseFloat(t.amount_asi) || 0), 0);
-    const avgTransferAmount = totalTransfers > 0 ? totalAsiTransferred / totalTransfers : 0;
+    const totalAsiTransferred = transfers.reduce((sum: bigint, t: any) => sum + decimalRaw(t.amount_asi), 0n);
+    const avgTransferAmount = totalTransfers > 0 ? totalAsiTransferred / BigInt(totalTransfers) : 0n;
     
     return {
       totalDeployments,
@@ -382,8 +384,8 @@ const TransactionTracker: React.FC<TransactionTrackerProps> = ({
       transferSuccessRate: totalTransfers > 0 ? (successfulTransfers / totalTransfers) * 100 : 0,
       avgPhloCost,
       totalPhlo,
-      totalAsiTransferred: totalAsiTransferred,
-      avgTransferAmount
+      totalAsiTransferred: formatRaw(totalAsiTransferred, MAX_DECIMALS),
+      avgTransferAmount: formatRaw(avgTransferAmount, MAX_DECIMALS)
     };
   }, [statsData]);
 
@@ -603,10 +605,10 @@ const TransactionTracker: React.FC<TransactionTrackerProps> = ({
               <span style={{ fontSize: '0.875rem', color: '#9ca3af' }}>Avg Phlo Cost</span>
             </div>
             <div style={{ fontSize: '1.5rem', fontWeight: '600', marginBottom: '0.25rem' }}>
-              {Math.round(transactionStats.avgPhloCost).toLocaleString()}
+              {transactionStats.avgPhloCost.toLocaleString()}
             </div>
             <div style={{ fontSize: '0.75rem', color: '#9ca3af' }}>
-              Total: {Math.round(transactionStats.totalPhlo).toLocaleString()}
+              Total: {transactionStats.totalPhlo.toLocaleString()}
             </div>
           </div>
 
@@ -619,7 +621,7 @@ const TransactionTracker: React.FC<TransactionTrackerProps> = ({
               {transactionStats.totalAsiTransferred.toLocaleString()}
             </div>
             <div style={{ fontSize: '0.75rem', color: '#9ca3af' }}>
-              Avg: {transactionStats.avgTransferAmount.toFixed(4)} {CURRENT_TOKEN}
+              Avg: {transactionStats.avgTransferAmount} {CURRENT_TOKEN}
             </div>
           </div>
         </div>

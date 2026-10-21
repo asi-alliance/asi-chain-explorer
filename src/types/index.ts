@@ -16,6 +16,7 @@ export interface Block {
   pre_state_hash?: string;
   state_root_hash?: string;
   bonds_map?: any;
+  token_decimals?: number;
   fault_tolerance?: number;
   finalization_status?: string;
   justifications?: any[];
@@ -36,9 +37,9 @@ export interface Deployment {
   term: string;
   timestamp: number;
   deployment_type?: string;
-  phlo_cost?: number;
-  phlo_price?: number;
-  phlo_limit?: number;
+  phlo_cost?: string | number;
+  phlo_price?: string | number;
+  phlo_limit?: string | number;
   valid_after_block_number?: number;
   status?: string;
   block_number?: number;
@@ -60,7 +61,8 @@ export interface Transfer {
   from_address: string;
   to_address: string;
   amount_asi: number | string;
-  amount_dust?: number;
+  amount_dust?: string;
+  token_decimals?: number;
   status: string;
   block_number?: number | string;
   created_at: string;
@@ -71,8 +73,8 @@ export interface Transfer {
 export interface GenesisFunding {
   id: string;
   wallet_address: string;
-  amount_dust: number;
-  amount_asi: number;
+  amount_dust: string;
+  amount_asi: string;
   status: 'genesis_funding';
   timestamp: number;
   deploy_id: string;
@@ -83,7 +85,8 @@ export interface Validator {
   public_key: string;
   name?: string;
   status?: string;
-  total_stake?: number;
+  token_decimals?: number;
+  total_stake?: string;
   first_seen_block?: number;
   last_seen_block?: number;
   created_at: string;
@@ -94,7 +97,8 @@ export interface Validator {
 export interface ValidatorBond {
   id?: number;
   block_number: number;
-  stake: number;
+  token_decimals?: number;
+  stake: string;
   block_hash?: string;
   validator_public_key?: string;
   validator?: Validator;
@@ -120,11 +124,11 @@ export interface NetworkStats {
 export interface AggregateData {
   count: number;
   avg?: {
-    phlo_cost?: number;
+    phlo_cost?: string | number;
   };
   sum?: {
-    amount_asi?: number;
-    phlo_cost?: number;
+    amount_asi?: string | number;
+    phlo_cost?: string | number;
   };
 }
 

@@ -1,9 +1,9 @@
+import { normalizedRaw, formatRaw, percentage } from "../utils/amounts";
 import React from 'react';
 import { useQuery } from '@apollo/client';
 import { GET_ACTIVE_VALIDATORS } from '../graphql/queries';
 import { Validator } from '../types';
 import { CURRENT_TOKEN } from '../utils/constants';
-import { fromCogs } from '../utils/calculateBlockTime';
 
 const ValidatorsPage: React.FC = () => {
   const { data, loading, error } = useQuery(GET_ACTIVE_VALIDATORS, {
@@ -96,60 +96,24 @@ const ValidatorsPage: React.FC = () => {
     }
   });
   
-  // Calculate proper stake amounts with better formatting
-  const calculateStake = (stake: number | string): string => {
-    const stakeNum = typeof stake === 'string' ? parseFloat(stake) : stake;
-    if (!stakeNum || stakeNum === 0 || isNaN(stakeNum)) return '0.00';
-    // Stake values from API appear to already be in ASI
-    const revAmount = fromCogs(stakeNum); // convert to the readable format using decimals multiplier
-    
-    // Format based on size
-    if (revAmount >= 1000000) {
-      return (revAmount / 1000000).toFixed(2) + 'M';
-    } else if (revAmount >= 1000) {
-      return (revAmount / 1000).toFixed(2) + 'K';
-    } else if (revAmount < 0.01) {
-      return revAmount.toExponential(2);
-    } else {
-      return revAmount.toFixed(2);
-    }
-  };
-
-  // Calculate raw stake for display without formatting
-  const calculateRawStake = (stake: number | string): number => {
-    const stakeNum = typeof stake === 'string' ? parseFloat(stake) : stake;
-    if (!stakeNum || stakeNum === 0 || isNaN(stakeNum)) return 0;
-    // Stake values from API appear to already be in ASI
-    return stakeNum;
-  };
-
   // Calculate total stake using the latest bond stake for each validator
-  const totalStake = validators.reduce((sum: number, validator: Validator) => {
+  const totalStake = validators.reduce((sum: bigint, validator: Validator) => {
     // Try to find bond by both original key and normalized key
     const normalizedKey = normalizeValidatorKey(validator.public_key);
     const latestBond = bondsByValidator[validator.public_key] || bondsByNormalizedKey[normalizedKey];
-    let stake = 0;
+    let stake = 0n;
     
     if (latestBond?.stake !== undefined && latestBond?.stake !== null) {
       // Handle both string and number types
-      stake = typeof latestBond.stake === 'string' ? parseFloat(latestBond.stake) : latestBond.stake;
+      stake = normalizedRaw(latestBond.stake, latestBond.token_decimals);
     } else if (validator.total_stake !== undefined && validator.total_stake !== null) {
       // Handle both string and number types
-      stake = typeof validator.total_stake === 'string' ? parseFloat(validator.total_stake) : validator.total_stake;
+      stake = normalizedRaw(validator.total_stake, validator.token_decimals);
     }
     
     // console.log(`Validator ${validator.public_key.substring(0,10)}... stake:`, stake, 'type:', typeof stake, 'source:', latestBond ? 'bond' : 'total_stake');
     return sum + stake;
-  }, 0);
-
-  // Debug logging (commented out for production)
-  // if (validators.length > 0 && !loading) {
-  //   console.log('=== Validator Stake Debug ===');
-  //   console.log('Number of validators:', validators.length);
-  //   console.log('Total stake raw:', totalStake);
-  //   console.log('Total stake ASI:', totalStake / 1e8);
-  //   console.log('Average stake ASI:', totalStake / 1e8 / validators.length);
-  // }
+  }, 0n);
 
   // Sort validators by their stake (bond or total_stake)
   const sortedValidators = [...validators].sort((a, b) => {
@@ -158,21 +122,21 @@ const ValidatorsPage: React.FC = () => {
     const aLatestBond = bondsByValidator[a.public_key] || bondsByNormalizedKey[aNormalizedKey];
     const bLatestBond = bondsByValidator[b.public_key] || bondsByNormalizedKey[bNormalizedKey];
     
-    let aStake = 0;
+    let aStake = 0n;
     if (aLatestBond?.stake !== undefined && aLatestBond?.stake !== null) {
-      aStake = typeof aLatestBond.stake === 'string' ? parseFloat(aLatestBond.stake) : aLatestBond.stake;
+      aStake = normalizedRaw(aLatestBond.stake, aLatestBond.token_decimals);
     } else if (a.total_stake !== undefined && a.total_stake !== null) {
-      aStake = typeof a.total_stake === 'string' ? parseFloat(a.total_stake) : a.total_stake;
+      aStake = normalizedRaw(a.total_stake, a.token_decimals);
     }
     
-    let bStake = 0;
+    let bStake = 0n;
     if (bLatestBond?.stake !== undefined && bLatestBond?.stake !== null) {
-      bStake = typeof bLatestBond.stake === 'string' ? parseFloat(bLatestBond.stake) : bLatestBond.stake;
+      bStake = normalizedRaw(bLatestBond.stake, bLatestBond.token_decimals);
     } else if (b.total_stake !== undefined && b.total_stake !== null) {
-      bStake = typeof b.total_stake === 'string' ? parseFloat(b.total_stake) : b.total_stake;
+      bStake = normalizedRaw(b.total_stake, b.token_decimals);
     }
     
-    return bStake - aStake;
+    return bStake > aStake ? 1 : bStake < aStake ? -1 : 0;
   });
 
   const truncateKey = (key: string) => {
@@ -221,20 +185,14 @@ const ValidatorsPage: React.FC = () => {
             <div className="asi-card glass">
               <h5 className="text-muted" style={{ marginBottom: '0.5rem' }}>Total {CURRENT_TOKEN} Staked</h5>
               <h1 style={{ margin: 0 }}>
-                {calculateRawStake(fromCogs(totalStake)).toLocaleString(undefined, { 
-                  minimumFractionDigits: 2,
-                  maximumFractionDigits: 2 
-                })} {CURRENT_TOKEN}
+                {formatRaw(totalStake, 77)} {CURRENT_TOKEN}
               </h1>
             </div>
             <div className="asi-card glass">
               <h5 className="text-muted" style={{ marginBottom: '0.5rem' }}>Avg. Stake</h5>
               <h1 style={{ margin: 0 }}>
                 {validators.length > 0 ? 
-                  calculateRawStake(fromCogs(totalStake) / validators.length).toLocaleString(undefined, { 
-                    minimumFractionDigits: 2,
-                    maximumFractionDigits: 2 
-                  }) : 
+                  formatRaw(totalStake / BigInt(validators.length), 77) :
                   '0.00'
                 } {CURRENT_TOKEN}
               </h1>
@@ -271,14 +229,14 @@ const ValidatorsPage: React.FC = () => {
                     const blocksProposed = blockProposedCounts[validator.public_key] || 0;
                     
                     // Use the same logic as total calculation
-                    let stake = 0;
+                    let stake = 0n;
                     if (latestBond?.stake !== undefined && latestBond?.stake !== null) {
-                      stake = typeof latestBond.stake === 'string' ? parseFloat(latestBond.stake) : latestBond.stake;
+                      stake = normalizedRaw(latestBond.stake, latestBond.token_decimals);
                     } else if (validator.total_stake !== undefined && validator.total_stake !== null) {
-                      stake = typeof validator.total_stake === 'string' ? parseFloat(validator.total_stake) : validator.total_stake;
+                      stake = normalizedRaw(validator.total_stake, validator.token_decimals);
                     }
                     
-                    const stakePercentage = totalStake > 0 ? (stake / totalStake * 100).toFixed(2) : '0.00';
+                    const stakePercentage = percentage(stake, totalStake);
                     
                     return (
                       <tr key={validator.public_key} className="fade-in">
@@ -288,7 +246,7 @@ const ValidatorsPage: React.FC = () => {
                           </span>
                         </td>
                         <td className="text-3" style={{ fontWeight: 600 }}>
-                          {calculateStake(stake)}
+                          {formatRaw(stake, 77)}
                         </td>
                         <td className="text-3">
                           <span style={{ color: 'var(--text-tertiary)' }}>

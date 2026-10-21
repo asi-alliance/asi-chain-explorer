@@ -348,3 +348,25 @@ If you encounter a problem that is not listed, please feel free to open a new is
 - Firefox 88+
 - Safari 14+
 - Edge 90+
+
+## Exact token amounts
+
+Raw balances and stake arithmetic use JavaScript `bigint`. Amounts cross JSON and
+GraphQL as decimal strings and stay strings for display; monetary values must not
+be parsed as JavaScript floating-point numbers. Unsafe numeric responses are
+rejected instead of displaying a rounded balance.
+
+Deploy the matching indexer BigInt migration (`001_bigint_amounts.sql`) first,
+reload Hasura metadata, and keep `HASURA_GRAPHQL_STRINGIFY_NUMERIC_TYPES=true`.
+Transfers, bonds and blocks supply their own `token_decimals`, so historical
+8-decimal rows and 18-decimal rows display with their original units. Missing
+historical metadata retains the legacy 8-decimal interpretation.
+
+Wallet balances read `nativeTokenDecimals` from the node's `/api/status` and accept
+both legacy `ExprInt` and BigInt `ExprBigInt` responses. For older nodes without
+metadata, the build-time `REACT_APP_NATIVE_TOKEN_DECIMALS` fallback defaults to 8.
+Docker builds accept the same build argument. Changing a display setting does not
+rescale tokens or upgrade a chain's denomination.
+
+Validation: `CI=true npm test -- --watchAll=false --runInBand`,
+`npx tsc --noEmit`, and `npm run build`.
