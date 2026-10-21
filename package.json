@@ -2,6 +2,9 @@
     "name": "explorer",
     "version": "0.1.0",
     "private": true,
+    "engines": {
+        "node": ">=22.23.4 <23"
+    },
     "homepage": ".",
     "dependencies": {
         "@apollo/client": "^3.13.9",

@@ -2,7 +2,7 @@
 # Multi-stage build for production optimization
 
 # Stage 1: Build the React application
-FROM node:20-alpine AS builder
+FROM node:22.23.4-alpine AS builder
 
 # Set working directory
 WORKDIR /app
@@ -59,7 +59,7 @@ ENTRYPOINT ["/docker-entrypoint.sh"]
 CMD ["nginx", "-g", "daemon off;"]
 
 # Stage 3: Development mode (optional)
-FROM node:18-alpine AS development
+FROM node:22.23.4-alpine AS development
 
 WORKDIR /app
 
