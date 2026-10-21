@@ -36,7 +36,7 @@ export class WalletService {
      */
     private static generateBalanceQuery(address: string): string {
         return `new return, rl(\`rho:registry:lookup\`), ASIVaultCh, vaultCh in {
-  rl!(\`rho:rchain:asiVault\`, *ASIVaultCh) |
+  rl!(\`rho:vault:system\`, *ASIVaultCh) |
   for (@(_, ASIVault) <- ASIVaultCh) {
     @ASIVault!("findOrCreate", "${address}", *vaultCh) |
     for (@maybeVault <- vaultCh) {
@@ -122,9 +122,9 @@ export class WalletService {
             const response = await fetch(`${this.RCHAIN_NODE_URL}${this.EXPLORE_ENDPOINT}`, {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'text/plain',
+                    'Content-Type': 'application/json',
                 },
-                body: rholangCode,
+                body: JSON.stringify({ term: rholangCode }),
                 signal: controller.signal,
             });
 
