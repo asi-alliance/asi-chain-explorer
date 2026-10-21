@@ -7,24 +7,14 @@ import { CURRENT_TOKEN } from '../utils/constants';
 
 const GET_VALIDATOR_HISTORY = gql`
   query GetValidatorHistory($blockNumber: bigint) {
-    validator_bonds(
-      where: { block_number: { _eq: $blockNumber } }
-      order_by: { stake: desc }
-    ) {
-      block_number
-      stake
-      token_decimals
-      validator_public_key
-    }
-    validators {
-      public_key
-      name
-    }
-    blocks(where: { block_number: { _eq: $blockNumber } }) {
+    blocks(where: { block_number: { _eq: $blockNumber } }, order_by: {block_hash: asc}) {
       block_number
       timestamp
       block_hash
       proposer
+      validator_bonds(order_by: [{stake: desc}, {validator_public_key: asc}]) {
+        id block_hash block_number stake token_decimals validator_public_key
+      }
     }
   }
 `;
@@ -32,6 +22,7 @@ const GET_VALIDATOR_HISTORY = gql`
 const GET_BLOCK_RANGE = gql`
   query GetBlockRange {
     blocks(order_by: { block_number: desc }, limit: 1) {
+      block_hash
       block_number
     }
   }
@@ -39,20 +30,22 @@ const GET_BLOCK_RANGE = gql`
 
 const ValidatorHistoryPage: React.FC = () => {
   const [selectedBlock, setSelectedBlock] = useState<number | null>(null);
+  const [selectedHash, setSelectedHash] = useState('');
   
   const { data: rangeData } = useQuery(GET_BLOCK_RANGE);
   const maxBlock = rangeData?.blocks?.[0]?.block_number || 0;
   const minBlock = 0; // We don't need min block for this functionality
   
   const { data, loading, error } = useQuery(GET_VALIDATOR_HISTORY, {
-    variables: { blockNumber: selectedBlock || maxBlock },
-    skip: !selectedBlock && !maxBlock,
+    variables: { blockNumber: selectedBlock ?? maxBlock },
+    skip: !rangeData && selectedBlock === null,
   });
 
   const handleBlockChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = parseInt(e.target.value);
     if (!isNaN(value) && value >= minBlock && value <= maxBlock) {
       setSelectedBlock(value);
+      setSelectedHash('');
     }
   };
 
@@ -74,16 +67,10 @@ const ValidatorHistoryPage: React.FC = () => {
 
   const calculateStake = (stake: unknown, decimals?: number): string => formatRaw(stake, decimals);
 
-  const validators = data?.validator_bonds || [];
-  const allValidators = data?.validators || [];
-  const currentBlock = selectedBlock || maxBlock;
-  const blockInfo = data?.blocks?.[0];
-  
-  // Create a map of public key to validator info
-  const validatorMap: { [key: string]: any } = {};
-  allValidators.forEach((v: any) => {
-    validatorMap[v.public_key] = v;
-  });
+  const currentBlock = selectedBlock ?? maxBlock;
+  const blocks = data?.blocks || [];
+  const blockInfo = blocks.find((block: any) => block.block_hash === selectedHash) || blocks[0];
+  const validators = blockInfo?.validator_bonds || [];
 
   // Calculate total stake for percentage
   const totalStake = validators.reduce((sum: bigint, v: any) => {
@@ -123,6 +110,14 @@ const ValidatorHistoryPage: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {blocks.length > 0 && <label style={{ display: 'block', marginBottom: '1rem' }}>
+        Block hash ({blocks.length} at this height)
+        <select aria-label="Validator history block hash" value={blockInfo?.block_hash || ''}
+          onChange={event => setSelectedHash(event.target.value)} style={{ maxWidth: '100%' }}>
+          {blocks.map((block: any) => <option key={block.block_hash} value={block.block_hash}>{block.block_hash}</option>)}
+        </select>
+      </label>}
 
       {loading ? (
         <div className="text-center">

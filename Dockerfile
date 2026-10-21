@@ -2,7 +2,7 @@
 # Multi-stage build for production optimization
 
 # Stage 1: Build the React application
-FROM node:20-alpine AS builder
+FROM node:22.23.4-alpine AS builder
 
 # Set working directory
 WORKDIR /app
@@ -22,7 +22,7 @@ COPY . .
 #ENV REACT_APP_GRAPHQL_URL=http://localhost:8080/v1/graphql
 #ENV REACT_APP_GRAPHQL_WS_URL=ws://localhost:8080/v1/graphql
 #ENV REACT_APP_INDEXER_API_URL=http://localhost:9090
-ENV REACT_APP_HASURA_ADMIN_SECRET=myadminsecretkey
+ENV REACT_APP_HASURA_ADMIN_SECRET=""
 ENV REACT_APP_ENVIRONMENT=production
 ENV REACT_APP_API_TIMEOUT=30000
 ENV REACT_APP_NETWORK_NAME="ASI Chain"
@@ -33,6 +33,16 @@ ENV REACT_APP_POLLING_INTERVAL=5000
 
 ARG REACT_APP_NATIVE_TOKEN_DECIMALS=8
 ENV REACT_APP_NATIVE_TOKEN_DECIMALS=${REACT_APP_NATIVE_TOKEN_DECIMALS}
+
+# Public endpoint build arguments; credentials must never enter the browser bundle.
+ARG REACT_APP_GRAPHQL_URL
+ARG REACT_APP_GRAPHQL_WS_URL
+ARG REACT_APP_RCHAIN_NODE_URL
+ARG REACT_APP_INDEXER_API_URL
+ENV REACT_APP_GRAPHQL_URL=${REACT_APP_GRAPHQL_URL}
+ENV REACT_APP_GRAPHQL_WS_URL=${REACT_APP_GRAPHQL_WS_URL}
+ENV REACT_APP_RCHAIN_NODE_URL=${REACT_APP_RCHAIN_NODE_URL}
+ENV REACT_APP_INDEXER_API_URL=${REACT_APP_INDEXER_API_URL}
 
 # Build the React application for production
 RUN npm run build
@@ -55,14 +65,14 @@ EXPOSE 80
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-  CMD wget --no-verbose --tries=1 --spider http://localhost/ || exit 1
+  CMD wget --no-verbose --tries=1 --spider http://127.0.0.1/ || exit 1
 
 # Start nginx
 ENTRYPOINT ["/docker-entrypoint.sh"]
 CMD ["nginx", "-g", "daemon off;"]
 
 # Stage 3: Development mode (optional)
-FROM node:18-alpine AS development
+FROM node:22.23.4-alpine AS development
 
 WORKDIR /app
 

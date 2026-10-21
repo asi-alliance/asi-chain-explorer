@@ -261,6 +261,7 @@ export const GET_ACTIVE_VALIDATORS = gql`
     }
     # Get recent blocks to count proposers client-side
     blocks(limit: 1000, order_by: { block_number: desc }) {
+      block_hash
       block_number
       proposer
     }
@@ -333,6 +334,7 @@ export const SUBSCRIBE_TO_NEW_TRANSFERS = gql`
 export const SUBSCRIBE_TO_NETWORK_ACTIVITY = gql`
   subscription SubscribeToNetworkActivity {
     blocks(limit: 1, order_by: { block_number: desc }) {
+      block_hash
       block_number
       timestamp
       deployment_count
@@ -429,7 +431,7 @@ export const GET_GENESIS_FUNDING_DEPLOYMENT = gql`
       deployment_type
       created_at
       block_number
-      block { token_decimals }
+      block { block_hash token_decimals }
     }
   }
 `;
@@ -438,6 +440,7 @@ export const GET_GENESIS_FUNDING_DEPLOYMENT = gql`
 export const GET_INDEXER_STATUS = gql`
   query GetIndexerStatus {
     blocks(order_by: { block_number: desc }, limit: 1) {
+      block_hash
       block_number
       timestamp
     }

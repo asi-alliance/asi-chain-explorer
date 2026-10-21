@@ -171,6 +171,7 @@ const SEARCH_TRANSACTIONS = gql`
         errored
       }
       block {
+        block_hash
         block_number
         timestamp
         proposer
