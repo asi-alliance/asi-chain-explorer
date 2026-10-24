@@ -13,6 +13,7 @@ export interface WalletBalance {
 export interface RChainExploreResponse {
     expr?: Array<{
         ExprInt?: { data: string };
+        ExprBigInt?: { data: string };
         ExprString?: { data: string };
     }>;
     error?: string;
@@ -94,9 +95,10 @@ export class WalletService {
 
         const firstExpr = response.expr[0];
 
-        if (firstExpr.ExprInt && firstExpr.ExprInt.data) {
+        const integerExpr = firstExpr.ExprInt ?? firstExpr.ExprBigInt;
+        if (integerExpr && integerExpr.data) {
             // Balance returned as integer (dust units)
-            return parseInt(firstExpr.ExprInt.data, 10);
+            return parseInt(integerExpr.data, 10);
         }
 
         if (firstExpr.ExprString && firstExpr.ExprString.data) {
