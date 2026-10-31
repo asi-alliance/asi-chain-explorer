@@ -13,6 +13,7 @@ export interface WalletBalance {
 export interface RChainExploreResponse {
     expr?: Array<{
         ExprInt?: { data: string };
+        ExprBigInt?: { data: string };
         ExprString?: { data: string };
     }>;
     error?: string;
@@ -36,7 +37,7 @@ export class WalletService {
      */
     private static generateBalanceQuery(address: string): string {
         return `new return, rl(\`rho:registry:lookup\`), ASIVaultCh, vaultCh in {
-  rl!(\`rho:rchain:asiVault\`, *ASIVaultCh) |
+  rl!(\`rho:vault:system\`, *ASIVaultCh) |
   for (@(_, ASIVault) <- ASIVaultCh) {
     @ASIVault!("findOrCreate", "${address}", *vaultCh) |
     for (@maybeVault <- vaultCh) {
@@ -94,9 +95,10 @@ export class WalletService {
 
         const firstExpr = response.expr[0];
 
-        if (firstExpr.ExprInt && firstExpr.ExprInt.data) {
+        const integerExpr = firstExpr.ExprInt ?? firstExpr.ExprBigInt;
+        if (integerExpr && integerExpr.data) {
             // Balance returned as integer (dust units)
-            return parseInt(firstExpr.ExprInt.data, 10);
+            return parseInt(integerExpr.data, 10);
         }
 
         if (firstExpr.ExprString && firstExpr.ExprString.data) {
@@ -122,9 +124,9 @@ export class WalletService {
             const response = await fetch(`${this.RCHAIN_NODE_URL}${this.EXPLORE_ENDPOINT}`, {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'text/plain',
+                    'Content-Type': 'application/json',
                 },
-                body: rholangCode,
+                body: JSON.stringify({ term: rholangCode }),
                 signal: controller.signal,
             });
 
