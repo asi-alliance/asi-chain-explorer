@@ -1,172 +1,69 @@
 import React from 'react';
-import { useQuery } from '@apollo/client';
-import { GET_INDEXER_STATUS } from '../graphql/queries';
 import { formatDistanceToNow } from 'date-fns';
-
-interface IndexerState {
-  key: string;
-  value: string;
-  updated_at: string;
-}
+import { useIndexerStatus } from '../hooks/useIndexerStatus';
 
 const IndexerStatusPage: React.FC = () => {
-  const { data, loading, error } = useQuery(GET_INDEXER_STATUS, {
-    pollInterval: 5000, // Poll every 5 seconds
-  });
-
-  const formatTimestamp = (timestamp: string) => {
-    try {
-      return formatDistanceToNow(new Date(timestamp), { addSuffix: true });
-    } catch {
-      return 'Invalid date';
-    }
-  };
-
-  const calculateSyncPercentage = (): number => {
-    // Since indexer_state table doesn't exist, we'll assume 100% sync
-    return 100;
-  };
-
-  const getSyncStatus = () => {
-    const syncPercentage = calculateSyncPercentage();
-    if (syncPercentage >= 99.9) return { status: 'Synched', color: 'var(--asi-lime)' };
-    if (syncPercentage >= 95) return { status: 'Syncing', color: 'var(--asi-pulse-blue)' };
-    return { status: 'Behind', color: 'var(--warning)' };
-  };
-
-  if (loading) {
-    return (
-      <div className="text-center">
-        <span className="loading"></span>
-        <p className="text-muted mt-2">Loading indexer status...</p>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="status-message error">
-        <strong>Error:</strong> {error.message}
-      </div>
-    );
-  }
-
-  const highestBlock = data?.blocks?.[0]?.block_number || 0;
-  const lastIndexedBlock = highestBlock; // Assume fully synced
-  const syncStatus = getSyncStatus();
-  const syncPercentage = calculateSyncPercentage();
-
-  // Use the timestamp from the latest block as last update
-  const lastUpdate = data?.blocks?.[0]?.timestamp ? 
-    new Date(parseInt(data.blocks[0].timestamp)).toISOString() : 
-    new Date().toISOString();
-
+  const { data, loading, error } = useIndexerStatus();
+  const label = loading ? 'Loading' : data?.label ?? 'Unavailable';
+  const color = label === 'Synced' ? 'var(--asi-lime)'
+    : label === 'Syncing' ? 'var(--asi-pulse-blue)' : 'var(--warning)';
+  const height = (value: number | null | undefined) => value == null ? 'Unknown' : value.toLocaleString();
+  // Do not round a nearly caught-up indexer to a misleading 100.00%.
+  const percentage = data?.percentage == null ? null : Math.floor(data.percentage * 100) / 100;
+  const indexed = height(data?.lastIndexedBlock);
+  const latest = height(data?.latestBlock);
   return (
-    <>
-      <section className="asi-card">
-        <div className="section-header">
-          <h1>Indexer Status</h1>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <span 
-              className="status-indicator" 
-              style={{ background: syncStatus.color }}
-            ></span>
-            <h3 className="text-muted">{syncStatus.status}</h3>
-          </div>
+    <section className="asi-card">
+      <div className="section-header">
+        <h1>Indexer Status</h1>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <span className="status-indicator" style={{ background: color }} />
+          <h3 className="text-muted">{label}</h3>
         </div>
-
-        {/* Status Cards */}
-        <div className="summary-grid mb-3">
-          <div className="asi-card glass">
-            <h5 className="text-muted" style={{ marginBottom: '0.5rem' }}>Sync Progress</h5>
-            <h2 style={{ margin: 0, color: syncStatus.color }}>
-              {syncPercentage.toFixed(2)}%
-            </h2>
-            <div style={{ 
-              marginTop: '0.5rem',
-              height: '4px',
-              background: 'var(--charcoal-400)',
-              borderRadius: '2px',
-              overflow: 'hidden'
-            }}>
-              <div style={{
-                width: `${syncPercentage}%`,
-                height: '100%',
-                background: syncStatus.color,
-                transition: 'width 0.3s ease'
-              }}></div>
+      </div>
+      {loading && <p role="status">Loading indexer status...</p>}
+      {error && <p role="alert">Indexer status is unavailable. Retrying automatically.</p>}
+      {data?.label === 'Unavailable' && <p role="alert">The indexer cannot reach the node.</p>}
+      <div className="summary-grid mb-3">
+        <div className="asi-card glass">
+          <h5 className="text-muted">Sync Progress</h5>
+          <h2 style={{ margin: 0, color }}>{percentage === null ? 'Unknown' : `${percentage.toFixed(2)}%`}</h2>
+          {percentage !== null && (
+            <div role="progressbar" aria-label="Sync progress" aria-valuenow={percentage}
+              aria-valuemin={0} aria-valuemax={100}
+              style={{ marginTop: '0.5rem', height: '4px', background: 'var(--charcoal-400)', borderRadius: '2px', overflow: 'hidden' }}>
+              <div style={{ width: `${percentage}%`, height: '100%', background: color }} />
             </div>
-          </div>
-
-          <div className="asi-card glass">
-            <h5 className="text-muted" style={{ marginBottom: '0.5rem' }}>Last Indexed Block</h5>
-            <h2 style={{ margin: 0 }}>
-              {lastIndexedBlock.toLocaleString()}
-            </h2>
-            <p className="text-3 text-muted" style={{ margin: '0.5rem 0 0 0' }}>
-              {highestBlock - lastIndexedBlock} blocks behind
-            </p>
-          </div>
-
-          <div className="asi-card glass">
-            <h5 className="text-muted" style={{ marginBottom: '0.5rem' }}>Highest Block</h5>
-            <h2 style={{ margin: 0 }}>
-              {highestBlock.toLocaleString()}
-            </h2>
-          </div>
-
-          <div className="asi-card glass">
-            <h5 className="text-muted" style={{ marginBottom: '0.5rem' }}>Last Update</h5>
-            <h2 style={{ margin: 0, fontSize: '1.2rem' }}>
-              {lastUpdate ? formatTimestamp(lastUpdate) : 'Unknown'}
-            </h2>
-          </div>
+          )}
         </div>
-
-        {/* Detailed Information */}
-        <h3 style={{ marginTop: '2rem', marginBottom: '1rem' }}>Indexer Status</h3>
-        <table>
-          <thead>
-            <tr>
-              <th>Property</th>
-              <th>Value</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td>
-                <span style={{ fontWeight: 600 }}>Last Indexed Block</span>
-              </td>
-              <td>
-                <span className="mono" style={{ fontSize: '14px' }}>
-                  {lastIndexedBlock.toLocaleString()}
-                </span>
-              </td>
-            </tr>
-            <tr>
-              <td>
-                <span style={{ fontWeight: 600 }}>Highest Block</span>
-              </td>
-              <td>
-                <span className="mono" style={{ fontSize: '14px' }}>
-                  {highestBlock.toLocaleString()}
-                </span>
-              </td>
-            </tr>
-            <tr>
-              <td>
-                <span style={{ fontWeight: 600 }}>Sync Status</span>
-              </td>
-              <td>
-                <span style={{ color: syncStatus.color, fontSize: '14px' }}>
-                  {syncStatus.status}
-                </span>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </section>
-    </>
+        <div className="asi-card glass">
+          <h5 className="text-muted">Last Indexed Block</h5>
+          <h2 style={{ margin: 0 }}>{indexed}</h2>
+          <p className="text-3 text-muted" style={{ margin: '0.5rem 0 0 0' }}>
+            {data?.lag == null ? 'Lag unknown' : `${data.lag.toLocaleString()} ${data.lag === 1 ? 'block' : 'blocks'} behind`}
+          </p>
+        </div>
+        <div className="asi-card glass">
+          <h5 className="text-muted">Node Finalized Block</h5>
+          <h2 style={{ margin: 0 }}>{latest}</h2>
+        </div>
+        <div className="asi-card glass">
+          <h5 className="text-muted">Last Update</h5>
+          <h2 style={{ margin: 0, fontSize: '1.2rem' }}>
+            {data?.lastUpdate ? formatDistanceToNow(data.lastUpdate, { addSuffix: true }) : 'Unknown'}
+          </h2>
+        </div>
+      </div>
+      <h3 style={{ marginTop: '2rem', marginBottom: '1rem' }}>Indexer Status</h3>
+      <table>
+        <thead><tr><th>Property</th><th>Value</th></tr></thead>
+        <tbody>
+          <tr><td>Last Indexed Block</td><td className="mono">{indexed}</td></tr>
+          <tr><td>Node Finalized Block</td><td className="mono">{latest}</td></tr>
+          <tr><td>Sync Status</td><td style={{ color }}>{label}</td></tr>
+        </tbody>
+      </table>
+    </section>
   );
 };
 

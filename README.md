@@ -239,7 +239,8 @@ For issues or questions:
 # Production (.env.production.secure)
 REACT_APP_GRAPHQL_URL=http://localhost:8080/v1/graphql
 REACT_APP_GRAPHQL_WS_URL=ws://localhost:8080/v1/graphql
-REACT_APP_INDEXER_API_URL=http://localhost:9090
+REACT_APP_INDEXER_API_URL=/api/indexer
+INDEXER_STATUS_URL=http://host.docker.internal:9090/status
 REACT_APP_HASURA_ADMIN_SECRET=myadminsecretkey
 REACT_APP_NETWORK_NAME=ASI Chain
 REACT_APP_ENVIRONMENT=production
@@ -250,6 +251,25 @@ REACT_APP_HASURA_ADMIN_SECRET=myadminsecretkey
 ```
 
 ## API Endpoints
+
+The indexer status page polls the current indexer's `/status` response every five
+seconds after the preceding request completes. It displays the stored sync cursor
+against the node's finalized height. Missing data and failed requests show an
+unavailable state; failed refreshes clear the previous status.
+
+Production nginx proxies only `GET /api/indexer/status` to `INDEXER_STATUS_URL`.
+Set that server-side URL to the monitoring endpoint reachable from the explorer
+container. Compose supplies a host-gateway alias for the default host port 9090;
+on a shared Docker network it can instead be `http://asi-indexer:9090/status`.
+Keep `REACT_APP_INDEXER_API_URL=/api/indexer` for this same-origin proxy. For local
+development, use a reverse proxy for the same path, or set the build-time variable
+to a monitoring proxy that permits the development origin. The indexer itself
+does not enable browser CORS. The browser never needs an admin credential.
+Keep the indexer database timezone at UTC: its current monitoring response emits
+timestamps without a timezone suffix. Nginx resolves the monitoring upstream at
+startup; reload it if a named upstream's address changes.
+When using a shared-network container name, start that upstream first so its name
+resolves before nginx starts.
 
 ### Local Development
 - **Explorer UI**: `http://localhost:3001`
