@@ -376,8 +376,11 @@ GraphQL as decimal strings and stay strings for display; monetary values must no
 be parsed as JavaScript floating-point numbers. Unsafe numeric responses are
 rejected instead of displaying a rounded balance.
 
-Deploy the matching indexer BigInt migration (`001_bigint_amounts.sql`) first,
-reload Hasura metadata, and keep `HASURA_GRAPHQL_STRINGIFY_NUMERIC_TYPES=true`.
+Deploy the matching [indexer #20](https://github.com/asi-alliance/asi-chain-indexer/pull/20)
+changes, including migrations through **003** and the documented history repair,
+before deploying this explorer. Migration `001_bigint_amounts.sql` alone does not
+provide the complete transfer-history backend. Reload Hasura metadata and keep
+`HASURA_GRAPHQL_STRINGIFY_NUMERIC_TYPES=true`.
 Transfers, bonds and blocks supply their own `token_decimals`, so historical
 8-decimal rows and 18-decimal rows display with their original units. Missing
 historical metadata retains the legacy 8-decimal interpretation.

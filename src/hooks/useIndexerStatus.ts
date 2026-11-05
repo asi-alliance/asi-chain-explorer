@@ -6,7 +6,7 @@ export interface IndexerStatus {
   lastUpdate: Date | null;
   lag: number | null;
   percentage: number | null;
-  label: 'Synced' | 'Syncing' | 'Waiting for first block' | 'Stopped' | 'Unavailable';
+  label: 'Synced' | 'Syncing' | 'Ahead of node' | 'Waiting for first block' | 'Stopped' | 'Unavailable';
 }
 
 function readStatus(value: any): IndexerStatus {
@@ -27,13 +27,14 @@ function readStatus(value: any): IndexerStatus {
     : null;
   const lastUpdate = lastIndexedBlock !== null && parsed && Number.isFinite(parsed.getTime()) ? parsed : null;
   const lag = lastIndexedBlock !== null && latestBlock !== null
-    ? Math.max(0, latestBlock - lastIndexedBlock) : null;
-  const percentage = latestBlock === null ? null : lastIndexedBlock === null ? 0
+    ? latestBlock - lastIndexedBlock : null;
+  const percentage = latestBlock === null || (lag !== null && lag < 0) ? null : lastIndexedBlock === null ? 0
     : latestBlock === 0 ? 100 : Math.min(100, lastIndexedBlock / latestBlock * 100);
   return {
     lastIndexedBlock, latestBlock, lastUpdate, lag, percentage,
     label: !indexer.running ? 'Stopped' : !node.connected ? 'Unavailable'
       : lastIndexedBlock === null ? 'Waiting for first block'
+      : lag !== null && lag < 0 ? 'Ahead of node'
       : lag === 0 ? 'Synced' : 'Syncing',
   };
 }

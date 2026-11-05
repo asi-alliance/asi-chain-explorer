@@ -24,6 +24,7 @@ const IndexerStatusPage: React.FC = () => {
       {loading && <p role="status">Loading indexer status...</p>}
       {error && <p role="alert">Indexer status is unavailable. Retrying automatically.</p>}
       {data?.label === 'Unavailable' && <p role="alert">The indexer cannot reach the node.</p>}
+      {data?.lag != null && data.lag < 0 && <p role="alert">The indexer is ahead of the node. Check that both are using the same network and current chain state.</p>}
       <div className="summary-grid mb-3">
         <div className="asi-card glass">
           <h5 className="text-muted">Sync Progress</h5>
@@ -40,7 +41,7 @@ const IndexerStatusPage: React.FC = () => {
           <h5 className="text-muted">Last Indexed Block</h5>
           <h2 style={{ margin: 0 }}>{indexed}</h2>
           <p className="text-3 text-muted" style={{ margin: '0.5rem 0 0 0' }}>
-            {data?.lag == null ? 'Lag unknown' : `${data.lag.toLocaleString()} ${data.lag === 1 ? 'block' : 'blocks'} behind`}
+            {data?.lag == null ? 'Lag unknown' : `${Math.abs(data.lag).toLocaleString()} ${Math.abs(data.lag) === 1 ? 'block' : 'blocks'} ${data.lag < 0 ? 'ahead of node' : 'behind'}`}
           </p>
         </div>
         <div className="asi-card glass">

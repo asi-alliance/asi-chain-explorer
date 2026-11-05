@@ -46,6 +46,20 @@ test('marks a truly caught-up cursor as synced, including indexed genesis', asyn
   expect(screen.getByText('100.00%')).toBeInTheDocument();
 });
 
+test('reports a cursor ahead of the node without claiming successful synchronization', async () => {
+  fetchMock.mockResolvedValueOnce(reply(status(120, 100))).mockResolvedValueOnce(reply(status(120, 120)));
+  render(<IndexerStatusPage />);
+  await flush();
+  expect(cell('Sync Status')).toHaveTextContent('Ahead of node');
+  expect(screen.getByText('20 blocks ahead of node')).toBeInTheDocument();
+  expect(screen.getByRole('alert')).toHaveTextContent('ahead of the node');
+  expect(screen.queryByRole('progressbar')).not.toBeInTheDocument();
+  expect(screen.queryByText('100.00%')).not.toBeInTheDocument();
+  await act(async () => { jest.advanceTimersByTime(5000); });
+  expect(cell('Sync Status')).toHaveTextContent('Synced');
+  expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+});
+
 test('one block behind a large chain remains syncing and below 100 percent', async () => {
   fetchMock.mockResolvedValue(reply(status(999999, 1000000)));
   render(<IndexerStatusPage />);

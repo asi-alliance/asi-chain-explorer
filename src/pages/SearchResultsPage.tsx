@@ -1,9 +1,7 @@
 import React from 'react';
-import { useQuery } from '@apollo/client';
 import { Link, useSearchParams } from 'react-router-dom';
-import { SEARCH_INDEX, searchVariables, searchResults, SearchType } from '../utils/search';
-
-const PAGE_SIZE = 20;
+import { SEARCH_PAGE_SIZE as PAGE_SIZE, SearchType } from '../utils/search';
+import { useSearchResults } from '../hooks/useSearchResults';
 
 const SearchResultsPage: React.FC = () => {
   const [params, setParams] = useSearchParams();
@@ -13,16 +11,7 @@ const SearchResultsPage: React.FC = () => {
   const order = params.get('order') === 'asc' ? 'asc' : 'desc';
   const requestedPage = Number(params.get('page') || 1);
   const page = Number.isSafeInteger(requestedPage) && requestedPage > 0 ? requestedPage : 1;
-  const { data, loading, error } = useQuery(SEARCH_INDEX, {
-    variables: searchVariables(query, page * PAGE_SIZE + 1, order, type),
-    skip: !query,
-    fetchPolicy: 'network-only',
-  });
-  // The first N from each stream contain the first N of the merged stream.
-  // Stable tie-breaking keeps equal-timestamp DAG siblings on separate pages.
-  const matches = searchResults(query ? data : undefined, order);
-  const rows = matches.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
-  const hasMore = matches.length > page * PAGE_SIZE;
+  const { rows, hasMore, loading, error } = useSearchResults(query, page, order, type);
   const update = (key: string, value: string) => {
     const next = new URLSearchParams(params);
     next.set(key, value);
