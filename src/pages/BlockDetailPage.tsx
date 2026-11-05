@@ -6,6 +6,7 @@ import { Block } from '../types';
 import { formatDistanceToNow } from 'date-fns';
 import { CURRENT_TOKEN } from '../utils/constants';
 import { getParentHashes } from '../utils/blockParent';
+import { formatRaw } from '../utils/amounts';
 import { getBlockPath } from '../utils/blockPath';
 
 const BlockDetailPage: React.FC = () => {
@@ -103,14 +104,14 @@ const BlockDetailPage: React.FC = () => {
   // Try to extract transfer details from Rholang term
   const extractTransferDetails = (term: string) => {
     const cleanTerm = term.replace(/\\n/g, ' ');
-    const matchPattern = /match\s*\(\s*"([^"]+)"\s*,\s*"([^"]+)"\s*,\s*(\d+)\s*\)/;
+    const matchPattern = /match\s*\(\s*"([^"]+)"\s*,\s*"([^"]+)"\s*,\s*(\d+)n?\s*\)/;
     const match = cleanTerm.match(matchPattern);
     
     if (match) {
       return {
         from: match[1],
         to: match[2],
-        amount: parseInt(match[3]) / 1000000000
+        amount: formatRaw(match[3], block.token_decimals)
       };
     }
     return null;
@@ -324,7 +325,7 @@ const BlockDetailPage: React.FC = () => {
                   <td className="mono" style={{ fontSize: '11px' }}>
                     {bond.validator}
                   </td>
-                  <td>{(bond.stake / 1e8).toFixed(2)} {CURRENT_TOKEN}</td>
+                  <td>{formatRaw(bond.stake, block.token_decimals)} {CURRENT_TOKEN}</td>
                 </tr>
               ))}
             </tbody>
@@ -432,7 +433,7 @@ const BlockDetailPage: React.FC = () => {
                             color: 'var(--asi-lime)', 
                             fontWeight: 600 
                           }}>
-                            {transferDetails.amount.toFixed(8)} {CURRENT_TOKEN}
+                            {transferDetails.amount} {CURRENT_TOKEN}
                           </dd>
                         </>
                       )}

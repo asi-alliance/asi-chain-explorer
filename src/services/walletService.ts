@@ -1,10 +1,11 @@
+import { rawInteger, formatRaw, NATIVE_DECIMALS, validateDecimals } from "../utils/amounts";
 import {CURRENT_TOKEN} from "../utils/constants";
 
 export interface WalletBalance {
     address: string;
     balance: {
-        dust: number;
-        asi: number;
+        dust: bigint;
+        asi: string;
     };
     transactions: any[];
     note?: string;
@@ -12,7 +13,8 @@ export interface WalletBalance {
 
 export interface RChainExploreResponse {
     expr?: Array<{
-        ExprInt?: { data: string };
+        ExprInt?: { data: string | number };
+        ExprBigInt?: { data: string };
         ExprString?: { data: string };
     }>;
     error?: string;
@@ -28,7 +30,6 @@ export class WalletService {
     private static readonly RCHAIN_NODE_URL = process.env.NODE_ENV === 'development' ? '' : (process.env.REACT_APP_RCHAIN_NODE_URL || 'http://localhost:40453');
     private static readonly GRAPHQL_URL = process.env.REACT_APP_GRAPHQL_URL || 'http://localhost:8080/v1/graphql';
     private static readonly EXPLORE_ENDPOINT = '/api/explore-deploy';
-    private static readonly ASI_DUST_RATIO = 100_000_000; // 1 ASI = 100,000,000 dust
     private static readonly REQUEST_TIMEOUT = 30000; // 30 seconds
 
     /**
@@ -73,42 +74,51 @@ export class WalletService {
         return address.length >= 32 && address.length <= 100;
     }
 
-    /**
-     * Convert dust units to ASI tokens
-     */
-    private static dustToAsi(dust: number): number {
-        return dust / this.ASI_DUST_RATIO;
+    private static async getNativeDecimals(): Promise<number> {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), this.REQUEST_TIMEOUT);
+        try {
+            const response = await fetch(`${this.RCHAIN_NODE_URL}/api/status`, {
+                signal: controller.signal,
+            });
+            if (!response.ok) throw new Error("Cannot read native token precision from node");
+            const status = await response.json();
+            return validateDecimals(status.nativeTokenDecimals ?? NATIVE_DECIMALS);
+        } finally {
+            clearTimeout(timeoutId);
+        }
     }
 
     /**
      * Parse the RChain explore-deploy response to extract balance
      */
-    private static parseBalanceResponse(response: RChainExploreResponse): number {
+    private static parseBalanceResponse(response: RChainExploreResponse): bigint {
         if (response.error) {
             throw new Error(`RChain node error: ${response.error}`);
         }
 
         if (!response.expr || response.expr.length === 0) {
-            return 0; // No response means uninitialized vault
+            return 0n; // No response means uninitialized vault
         }
 
         const firstExpr = response.expr[0];
 
-        if (firstExpr.ExprInt && firstExpr.ExprInt.data) {
+        if (firstExpr.ExprBigInt) return rawInteger(firstExpr.ExprBigInt.data);
+        if (firstExpr.ExprInt) {
             // Balance returned as integer (dust units)
-            return parseInt(firstExpr.ExprInt.data, 10);
+            return rawInteger(firstExpr.ExprInt.data);
         }
 
         if (firstExpr.ExprString && firstExpr.ExprString.data) {
             // Error message returned as string
             const errorMsg = firstExpr.ExprString.data;
             if (errorMsg.includes('Vault does not exist') || errorMsg.includes('not found')) {
-                return 0; // Uninitialized vault
+                return 0n; // Uninitialized vault
             }
             throw new Error(`AsiVault error: ${errorMsg}`);
         }
 
-        return 0; // Default to 0 if no recognizable response
+        throw new Error("Unrecognized wallet balance response");
     }
 
     /**
@@ -222,11 +232,14 @@ export class WalletService {
             const rholangCode = this.generateBalanceQuery(address);
 
             // Query RChain node
-            const response = await this.queryRChainNode(rholangCode);
+            const [response, decimals] = await Promise.all([
+                this.queryRChainNode(rholangCode),
+                this.getNativeDecimals(),
+            ]);
 
             // Parse balance response
             const balanceDust = this.parseBalanceResponse(response);
-            const balanceAsi = this.dustToAsi(balanceDust);
+            const balanceAsi = formatRaw(balanceDust, decimals);
 
             // Get related transactions (async, don't block on failure)
             const transactions = await this.getRelatedTransactions(address);
@@ -242,7 +255,7 @@ export class WalletService {
             };
 
             // Add note for uninitialized addresses
-            if (balanceDust === 0 && transactions.length === 0) {
+            if (balanceDust === 0n && transactions.length === 0) {
                 result.note = 'This address has not been initialized yet or has no transaction history.';
             }
 

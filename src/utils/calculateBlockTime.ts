@@ -1,3 +1,4 @@
+import { formatRaw, LEGACY_DECIMALS } from "./amounts";
 /**
  * Calculate average block time from recent blocks
  */
@@ -102,9 +103,8 @@ export const toMillis = (input: string | number | undefined | null): number => {
     return NaN;
 };
 
-export const fromCogs = (value: number, decimals: number = 8): number => {
-    return value / 10 ** decimals;
-};
+export const fromCogs = (value: unknown, decimals = LEGACY_DECIMALS): string => formatRaw(value, decimals);
+
 
 export const formatNumber = (value: string | number | undefined) => {
     if (!value) {

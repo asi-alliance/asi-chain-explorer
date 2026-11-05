@@ -216,7 +216,7 @@ Exported at: ${new Date().toLocaleString()}
 
   const getStatusIcon = (errored: boolean, status?: string) => {
     if (errored) return <XCircle size={20} style={{ color: '#ef4444' }} />;
-    if (status === 'success') return <CheckCircle size={20} style={{ color: '#10b981' }} />;
+    if (status === 'success' || status === 'included') return <CheckCircle size={20} style={{ color: '#10b981' }} />;
     if (status === 'pending') return <Clock size={20} style={{ color: '#f59e0b' }} />;
     return <AlertCircle size={20} style={{ color: '#9ca3af' }} />;
   };
@@ -224,13 +224,14 @@ Exported at: ${new Date().toLocaleString()}
   const getStatusText = (errored: boolean, status?: string) => {
     if (errored) return 'Failed';
     if (status === 'success') return 'Success';
+    if (status === 'included') return 'Included';
     if (status === 'pending') return 'Pending';
     return 'Unknown';
   };
 
   const getStatusColor = (errored: boolean, status?: string) => {
     if (errored) return '#ef4444';
-    if (status === 'success') return '#10b981';
+    if (status === 'success' || status === 'included') return '#10b981';
     if (status === 'pending') return '#f59e0b';
     return '#9ca3af';
   };
