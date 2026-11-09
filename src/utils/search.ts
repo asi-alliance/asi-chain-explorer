@@ -1,6 +1,7 @@
 import { gql } from '@apollo/client';
 import { decimalText } from './amounts';
 import { getBlockPath } from './blockPath';
+import { heightInput } from './blockHeight';
 
 export type SearchType = 'all' | 'blocks' | 'transfers' | 'deployments';
 export type SearchStream = Exclude<SearchType, 'all'>;
@@ -41,8 +42,8 @@ export function searchVariables(query: string, limit: number, order: 'asc' | 'de
   const value = query.trim();
   const pattern = `%${value.replace(/[\\%_]/g, '\\$&')}%`;
   const disabled = { _or: [] };
-  const height = /^\d+$/.test(value) && BigInt(value) <= 9223372036854775807n
-    ? [{ block_number: { _eq: BigInt(value).toString() } }] : [];
+  const exactHeight = heightInput(value);
+  const height = exactHeight === null ? [] : [{ block_number: { _eq: exactHeight } }];
   const afterCursor = (stream: SearchStream, filter: object) => {
     if (!cursor || type !== stream) return filter;
     // A saved page boundary is a global (timestamp, type, id) cursor. Include

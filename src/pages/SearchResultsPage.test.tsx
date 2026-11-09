@@ -3,6 +3,7 @@ import { ApolloClient, ApolloLink, ApolloProvider, InMemoryCache, Observable } f
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import SearchResultsPage from './SearchResultsPage';
+import { defaultOptions } from '../apolloDefaults';
 
 jest.mock('react-router-dom', () => {
   Object.assign(global, { TextEncoder: require('util').TextEncoder });
@@ -193,4 +194,27 @@ test('shows request failures without retaining the previous results', async () =
   fireEvent.click(screen.getByRole('button', { name: 'Next' }));
   expect(await screen.findByRole('alert')).toHaveTextContent('backend unavailable');
   expect(screen.queryByRole('link')).not.toBeInTheDocument();
+});
+
+describe('with the production Apollo default options (PR #58 review)', () => {
+  const graphQLError = { message: 'canceling statement due to statement timeout' };
+  function renderWithDefaults(search: string, result: object) {
+    const client = new ApolloClient({ cache: new InMemoryCache(), defaultOptions,
+      link: new ApolloLink(() => Observable.of(result)) });
+    return render(<ApolloProvider client={client}><MemoryRouter initialEntries={[`/search?${search}`]}>
+      <SearchResultsPage />
+    </MemoryRouter></ApolloProvider>);
+  }
+
+  test.each([
+    ['filtered search without data', 'q=hash&type=blocks', { errors: [graphQLError] }],
+    ['mixed search without data', 'q=hash&type=all', { errors: [graphQLError] }],
+    ['partial data with errors', 'q=hash&type=all',
+      { data: { blocks: blocks.slice(0, 3), transfers: null, deployments: [] }, errors: [graphQLError] }],
+  ])('reports an HTTP-200 GraphQL error envelope for %s', async (_name, search, result) => {
+    renderWithDefaults(search, result);
+    expect(await screen.findByRole('alert')).toHaveTextContent('statement timeout');
+    expect(screen.queryByRole('link')).not.toBeInTheDocument();
+    expect(screen.queryByText(/No results/i)).not.toBeInTheDocument();
+  });
 });

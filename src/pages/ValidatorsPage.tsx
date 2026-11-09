@@ -4,6 +4,7 @@ import { useQuery } from '@apollo/client';
 import { GET_ACTIVE_VALIDATORS } from '../graphql/queries';
 import { Validator } from '../types';
 import { CURRENT_TOKEN } from '../utils/constants';
+import { heightLabel, isNewerHeight } from '../utils/blockHeight';
 
 const ValidatorsPage: React.FC = () => {
   const { data, loading, error } = useQuery(GET_ACTIVE_VALIDATORS, {
@@ -51,8 +52,8 @@ const ValidatorsPage: React.FC = () => {
       if (validator.public_key.length > existing.public_key.length) {
         validatorMap.set(normalizedKey, validator);
       } else if (validator.public_key.length === existing.public_key.length) {
-        // If both have same key length, keep the one with higher stake or more recent activity
-        if ((validator.last_seen_block || 0) > (existing.last_seen_block || 0)) {
+        // If both have same key length, keep the one with more recent activity
+        if (isNewerHeight(validator.last_seen_block, existing.last_seen_block)) {
           validatorMap.set(normalizedKey, validator);
         }
       }
@@ -68,7 +69,8 @@ const ValidatorsPage: React.FC = () => {
   }
   
   // Create a map of validator public key to their latest bond
-  // Map both full and normalized keys to handle duplicates
+  // Map both full and normalized keys to handle duplicates.
+  // Heights are bigint strings from Hasura: compare them exactly, never as strings ("99" > "100").
   const bondsByValidator: { [key: string]: any } = {};
   const bondsByNormalizedKey: { [key: string]: any } = {};
   
@@ -77,13 +79,13 @@ const ValidatorsPage: React.FC = () => {
     
     // Store by original key
     const existingBond = bondsByValidator[bond.validator_public_key];
-    if (!existingBond || bond.block_number > existingBond.block_number) {
+    if (!existingBond || isNewerHeight(bond.block_number, existingBond.block_number)) {
       bondsByValidator[bond.validator_public_key] = bond;
     }
     
     // Also store by normalized key for lookup
     const existingNormalizedBond = bondsByNormalizedKey[normalizedKey];
-    if (!existingNormalizedBond || bond.block_number > existingNormalizedBond.block_number) {
+    if (!existingNormalizedBond || isNewerHeight(bond.block_number, existingNormalizedBond.block_number)) {
       bondsByNormalizedKey[normalizedKey] = bond;
     }
   });
@@ -257,14 +259,14 @@ const ValidatorsPage: React.FC = () => {
                           {blocksProposed.toLocaleString()}
                         </td>
                         <td className="text-3">
-                          {validator.first_seen_block ? `#${validator.first_seen_block}` : '--'}
+                          {heightLabel(validator.first_seen_block)}
                         </td>
                         <td className="text-3">
-                          {validator.last_seen_block ? `#${validator.last_seen_block}` : '--'}
+                          {heightLabel(validator.last_seen_block)}
                         </td>
                         <td className="text-3">
                           {latestBond ? (
-                            <span>#{latestBond.block_number.toLocaleString()}</span>
+                            <span>{heightLabel(latestBond.block_number)}</span>
                           ) : (
                             <span className="text-muted">Never bonded</span>
                           )}
