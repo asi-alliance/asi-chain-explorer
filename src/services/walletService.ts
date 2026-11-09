@@ -194,9 +194,9 @@ export class WalletService {
 
             const response = await fetch(WalletService.GRAPHQL_URL, {
                 method: 'POST',
+                // The public Hasura role can read deployments; never ship an admin secret to the browser.
                 headers: {
                     'Content-Type': 'application/json',
-                    'X-Hasura-Admin-Secret': 'myadminsecretkey',
                 },
                 body: JSON.stringify({
                     query,

@@ -49,3 +49,12 @@ test('rejects unsafe legacy numbers and malformed balances', async () => {
   nodeResponses({ ExprInt: { data: 1 } }, 78);
   await expect(WalletService.getWalletBalance(address)).rejects.toThrow('Invalid token decimals');
 });
+
+test('queries related transactions without a Hasura admin secret', async () => {
+  nodeResponses({ ExprInt: { data: 1 } }, 8);
+  await WalletService.getWalletBalance(address);
+  const graphqlCall = fetchMock.mock.calls.find(([url]) => !String(url).includes('/api/'));
+  expect(graphqlCall).toBeDefined();
+  const headers = Object.keys(graphqlCall![1].headers).map(name => name.toLowerCase());
+  expect(headers).not.toContain('x-hasura-admin-secret');
+});
