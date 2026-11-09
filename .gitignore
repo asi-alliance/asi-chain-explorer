@@ -104,3 +104,5 @@ test_*.html
 *_test.*
 *.test.*
 !src/utils/blockPath.test.ts
+!src/**/*.test.ts
+!src/**/*.test.tsx

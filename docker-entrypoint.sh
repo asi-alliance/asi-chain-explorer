@@ -5,6 +5,14 @@
 
 set -e
 
+# Keep the monitoring upstream server-side; the browser uses /api/indexer/status.
+export INDEXER_STATUS_URL="${INDEXER_STATUS_URL:-http://host.docker.internal:9090/status}"
+case "$INDEXER_STATUS_URL" in
+    http://*/status|https://*/status) ;;
+    *) echo "INDEXER_STATUS_URL must be an HTTP(S) URL ending in /status" >&2; exit 1 ;;
+esac
+envsubst '${INDEXER_STATUS_URL}' < /etc/nginx/templates/default.conf.template > /etc/nginx/conf.d/default.conf
+
 # Function to replace environment variables in built files
 replace_env_vars() {
     echo "🔧 Configuring environment variables..."

@@ -1,3 +1,4 @@
+import { decimalText } from "../utils/amounts";
 import React, { useState, useMemo } from 'react';
 import { useQuery } from '@apollo/client';
 import { Link } from 'react-router-dom';
@@ -109,27 +110,7 @@ const TransfersPage: React.FC = () => {
         }
     };
 
-    const formatAsiAmount = (amount: number | string) => {
-        const numAmount = parseFloat(amount.toString());
-        if (isNaN(numAmount)) return '0';
-
-        // If it's a whole number, show no decimals
-        if (numAmount % 1 === 0) {
-            return numAmount.toString();
-        }
-        // If it's >= 1, show up to 4 decimal places, removing trailing zeros
-        else if (numAmount >= 1) {
-            return parseFloat(numAmount.toFixed(4)).toString();
-        }
-        // If it's < 1, show up to 6 decimal places, removing trailing zeros
-        else if (numAmount >= 0.000001) {
-            return parseFloat(numAmount.toFixed(6)).toString();
-        }
-        // For very small amounts, use scientific notation
-        else {
-            return numAmount.toExponential(3);
-        }
-    };
+    const formatAsiAmount = decimalText;
 
     return (
         <section className="asi-card">

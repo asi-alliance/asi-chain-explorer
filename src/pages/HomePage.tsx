@@ -19,6 +19,7 @@ import { getBlockPath } from "../utils/blockPath";
 const GET_RECENT_BLOCKS = gql`
     query GetRecentBlocks {
         blocks(limit: 20, order_by: { block_number: desc }) {
+            block_hash
             block_number
             timestamp
         }

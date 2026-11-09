@@ -2,6 +2,8 @@ import { ApolloClient, InMemoryCache, createHttpLink, split } from '@apollo/clie
 import { GraphQLWsLink } from '@apollo/client/link/subscriptions';
 import { getMainDefinition } from '@apollo/client/utilities';
 import { createClient } from 'graphql-ws';
+import { amountTypePolicies } from './utils/amountPolicies';
+import { defaultOptions } from './apolloDefaults';
 
 // Use environment variables for external services
 const GRAPHQL_HTTP_URL = process.env.REACT_APP_GRAPHQL_URL || 'http://localhost:8080/v1/graphql';
@@ -52,28 +54,25 @@ export const apolloClient = new ApolloClient({
   link: splitLink,
   cache: new InMemoryCache({
     typePolicies: {
+      ...amountTypePolicies,
       blocks: {
         keyFields: ['block_hash'],
       },
       deployments: {
+        ...amountTypePolicies.deployments,
         keyFields: ['deploy_id'],
       },
       transfers: {
+        ...amountTypePolicies.transfers,
         keyFields: ['id'],
       },
       validators: {
+        ...amountTypePolicies.validators,
         keyFields: ['public_key'],
       },
     },
   }),
-  defaultOptions: {
-    watchQuery: {
-      errorPolicy: 'ignore',
-    },
-    query: {
-      errorPolicy: 'ignore',
-    },
-  },
+  defaultOptions,
 });
 
 export default apolloClient;

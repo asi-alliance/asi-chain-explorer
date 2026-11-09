@@ -16,6 +16,7 @@ import { Block, Transfer, Deployment } from "../types";
 import { getBlockPath } from "../utils/blockPath";
 import { gql } from "@apollo/client";
 import { CURRENT_TOKEN } from "../utils/constants";
+import { heightInput } from "../utils/blockHeight";
 
 const QUICK_SEARCH = gql`
     query QuickSearch(
@@ -65,7 +66,8 @@ const QUICK_SEARCH = gql`
 
 interface SearchFilters {
     searchType: "all" | "blocks" | "transfers" | "deployments";
-    query: string | number;
+    // Kept exactly as typed; numeric interpretation happens in constructBlocksWhere.
+    query: string;
 
     // Block filters
     proposer: string;
@@ -151,15 +153,18 @@ const transferQueryStatements = {
     maxAmount: (maxAmount: string) => ({ amount_asi: { _lte: maxAmount }}),
 }
 
-const constructBlocksWhere = (searchQuery: string | number, filters: SearchFilters) => {    
+const constructBlocksWhere = (searchQuery: string, filters: SearchFilters) => {
     if (filters.searchType !== 'blocks' && filters.searchType !== 'all') {
         return IGNORE_BLOCKS_WHERE;
     }
 
     const andStatementsArr: object[] = [];
+    // Build the height filter from the original decimal text: converting through
+    // Number would round heights above 2^53 to a different block.
+    const height = heightInput(searchQuery);
 
-    if (typeof searchQuery === 'number' || typeof searchQuery === 'bigint') {
-        andStatementsArr.push({ block_number: { _eq: `${BigInt(searchQuery)}` }})
+    if (height !== null) {
+        andStatementsArr.push({ block_number: { _eq: height }})
     } else {
         searchQuery && andStatementsArr.push({ _or: [
             { block_hash: { _ilike: `%${searchQuery}%` }},
@@ -181,7 +186,7 @@ const constructBlocksWhere = (searchQuery: string | number, filters: SearchFilte
     return {_and: andStatementsArr};
 }
 
-const constructTransfersWhere = (searchQuery: string | number, filters: SearchFilters) => {
+const constructTransfersWhere = (searchQuery: string, filters: SearchFilters) => {
     // if (typeof searchQuery === 'number' || typeof searchQuery === 'bigint') {
     //     return IGNORE_TRANSFERS_WHERE;
     // }
@@ -212,7 +217,7 @@ const constructTransfersWhere = (searchQuery: string | number, filters: SearchFi
     return {_and: andStatementsArr};
 }
 
-const constructDeploymentsWhere = (searchQuery: string | number, filters: SearchFilters) => {
+const constructDeploymentsWhere = (searchQuery: string, filters: SearchFilters) => {
 
     if (filters.searchType !== 'deployments' && filters.searchType !== 'all') {
         return IGNORE_DEPLOYMENTS_WHERE;
@@ -239,7 +244,8 @@ const constructDeploymentsWhere = (searchQuery: string | number, filters: Search
     return {_and: andStatementsArr};
 }
 
-const constructSearchQuery = (searchQuery: string | number, filters: SearchFilters) => {
+const constructSearchQuery = (rawQuery: string, filters: SearchFilters) => {
+    const searchQuery = rawQuery.trim();
     const blocks_where = constructBlocksWhere(searchQuery, filters);
     const deployments_where = constructDeploymentsWhere(searchQuery, filters);
     const transfers_where = constructTransfersWhere(searchQuery, filters);
@@ -284,16 +290,16 @@ const AdvancedSearch: React.FC<AdvancedSearchProps> = ({
 
     const [
         quickSearch,
-        { data: quickSearchData, loading: quickSearchLoading },
+        { data: quickSearchData, loading: quickSearchLoading, error: quickSearchError },
     ] = useLazyQuery(QUICK_SEARCH);
 
     const debounceRef = useRef<NodeJS.Timeout | undefined>(undefined);
 
     const performSearch = async (
-        searchQuery: string | number,
+        searchQuery: string,
         searchFilters: SearchFilters
     ) => {
-        if (!searchQuery.toString().trim() && !hasActiveFilters(searchFilters)) {
+        if (!searchQuery.trim() && !hasActiveFilters(searchFilters)) {
             setSearchResults([]);
             return;
         }
@@ -310,7 +316,7 @@ const AdvancedSearch: React.FC<AdvancedSearchProps> = ({
     };
 
     const debouncedSearch = useCallback(
-        (searchQuery: string | number, searchFilters: SearchFilters) => {
+        (searchQuery: string, searchFilters: SearchFilters) => {
             if (debounceRef.current) {
                 clearTimeout(debounceRef.current);
             }
@@ -384,11 +390,9 @@ const AdvancedSearch: React.FC<AdvancedSearchProps> = ({
         setSearchResults(results);
     }, [quickSearchData]);
     
-    const handleInputChange = (value: string | number) => {
-        const newValue = value === "" ? "" : (isNaN(+value) ? value : +value);
-         
-        setFilters((prev) => ({ ...prev, query: newValue }));
-        debouncedSearch(newValue, filters);
+    const handleInputChange = (value: string) => {
+        setFilters((prev) => ({ ...prev, query: value }));
+        debouncedSearch(value, filters);
         setIsOpen(true);
     };
 
@@ -1098,7 +1102,7 @@ const AdvancedSearch: React.FC<AdvancedSearchProps> = ({
 
             {/* Search Results Dropdown */}
             <AnimatePresence>
-                {isOpen && (searchResults.length > 0 || isSearching) && (
+                {isOpen && (searchResults.length > 0 || isSearching || quickSearchError) && (
                     <motion.div
                         initial={{ opacity: 0, y: -10 }}
                         animate={{ opacity: 1, y: 0 }}
@@ -1230,8 +1234,23 @@ const AdvancedSearch: React.FC<AdvancedSearchProps> = ({
                             </motion.div>
                         ))}
 
+                        {quickSearchError && !isSearching && (
+                            <p
+                                role="alert"
+                                style={{
+                                    padding: "1rem",
+                                    margin: 0,
+                                    textAlign: "center",
+                                    color: "#ef4444",
+                                }}
+                            >
+                                Search failed: {quickSearchError.message}
+                            </p>
+                        )}
+
                         {searchResults.length === 0 &&
                             !isSearching &&
+                            !quickSearchError &&
                             filters.query && (
                                 <div
                                     style={{
