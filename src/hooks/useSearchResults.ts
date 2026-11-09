@@ -27,6 +27,8 @@ export function useSearchResults(query: string, page: number, order: 'asc' | 'de
           query: SEARCH_INDEX,
           variables: searchVariables(query, limit, order, stream, offset, cursor),
           fetchPolicy: 'no-cache',
+          // Reject HTTP-200 GraphQL errors instead of paging an empty or partial stream.
+          errorPolicy: 'none',
           context: { fetchOptions: { signal: controller.signal }, queryDeduplication: false },
         });
         return searchResults(data, order);

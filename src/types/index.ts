@@ -81,14 +81,18 @@ export interface GenesisFunding {
   created_at: string;
 }
 
+// Hasura bigint heights arrive as decimal strings (HASURA_GRAPHQL_STRINGIFY_NUMERIC_TYPES);
+// legacy responses may still use safe integers. Compare them with utils/blockHeight.
+export type BlockHeight = string | number;
+
 export interface Validator {
   public_key: string;
   name?: string;
   status?: string;
   token_decimals?: number;
   total_stake?: string;
-  first_seen_block?: number;
-  last_seen_block?: number;
+  first_seen_block?: BlockHeight;
+  last_seen_block?: BlockHeight;
   created_at: string;
   updated_at?: string;
   validator_bonds?: ValidatorBond[];
@@ -96,7 +100,7 @@ export interface Validator {
 
 export interface ValidatorBond {
   id?: number;
-  block_number: number;
+  block_number: BlockHeight;
   token_decimals?: number;
   stake: string;
   block_hash?: string;
