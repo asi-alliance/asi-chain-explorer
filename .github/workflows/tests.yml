@@ -1,0 +1,49 @@
+name: Tests
+
+on:
+  pull_request:
+    branches: [dev, main]
+  push:
+    branches: [dev]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: tests-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Check out explorer
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          # Same major version as the Dockerfile build stage.
+          node-version: 22
+
+      - name: Install dependencies
+        # Same commands as the Dockerfile build stage, without changing package.json.
+        run: |
+          npm install --no-audit --no-fund --legacy-peer-deps
+          npm install --no-audit --no-fund --legacy-peer-deps --no-save ajv@^8.12.0 ajv-keywords@^5.1.0
+
+      - name: Unit tests
+        run: npm test -- --watchAll=false --runInBand
+        env:
+          CI: true
+
+      - name: Type check
+        run: npx tsc --noEmit
+
+      - name: Production build
+        # The Docker build does not set CI, so lint warnings do not fail it. Keep the same behavior here.
+        run: npm run build
+        env:
+          CI: false
