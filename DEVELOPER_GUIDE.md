@@ -93,7 +93,6 @@ explorer/src/
 │   ├── RecentTransactionsExporter.tsx
 │   ├── AnimatePresenceWrapper.tsx
 │   ├── ConnectionStatus.tsx
-│   ├── TransactionTracker.tsx
 │   ├── RealtimeActivityFeed.tsx
 │   └── Logo.tsx
 │
@@ -112,8 +111,7 @@ explorer/src/
 │   └── IndexerStatusPage.tsx
 │
 ├── graphql/            # GraphQL operations
-│   ├── queries.ts      # Query and subscription definitions
-│   └── combined-advanced-search.graphql
+│   └── queries.ts      # Query and subscription definitions
 │
 ├── services/           # Business logic
 │   ├── websocketService.ts
