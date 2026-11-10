@@ -30,6 +30,7 @@ import { toMillis } from '../utils/calculateBlockTime';
 import CopyButton from '../components/CopyButton';
 import { getParentHashes } from '../utils/blockParent';
 import { getBlockPath } from '../utils/blockPath';
+import { transferStatusView } from '../utils/transferStatus';
 
 // Helper functions to safely parse timestamps
 const parseTimestamp = (timestamp: any): number => {
@@ -213,6 +214,10 @@ Exported at: ${new Date().toLocaleString()}
       URL.revokeObjectURL(url);
     }
   };
+
+  const transferStatusColors = (status: unknown) => transferStatusView(status).completed
+    ? { backgroundColor: 'rgba(16, 185, 129, 0.2)', color: '#10b981' }
+    : { backgroundColor: 'rgba(156, 163, 175, 0.2)', color: '#9ca3af' };
 
   const getStatusIcon = (errored: boolean, status?: string) => {
     if (errored) return <XCircle size={20} style={{ color: '#ef4444' }} />;
@@ -598,12 +603,11 @@ Exported at: ${new Date().toLocaleString()}
                   <span style={{
                     padding: '0.25rem 0.5rem',
                     borderRadius: '4px',
-                    backgroundColor: transfer.status === 'success' ? 'rgba(16, 185, 129, 0.2)' : 'rgba(239, 68, 68, 0.2)',
-                    color: transfer.status === 'success' ? '#10b981' : '#ef4444',
+                    ...transferStatusColors(transfer.status),
                     fontSize: '0.75rem',
                     fontWeight: '500'
                   }}>
-                    {transfer.status}
+                    {transferStatusView(transfer.status).label}
                   </span>
                 </div>
                 <div style={{ fontSize: '0.875rem', color: '#d1d5db' }}>
@@ -761,12 +765,11 @@ Exported at: ${new Date().toLocaleString()}
                   gap: '0.5rem',
                   padding: '0.5rem 1rem',
                   borderRadius: '6px',
-                  backgroundColor: transfer.status === 'success' ? 'rgba(16, 185, 129, 0.2)' : 'rgba(239, 68, 68, 0.2)',
-                  color: transfer.status === 'success' ? '#10b981' : '#ef4444',
+                  ...transferStatusColors(transfer.status),
                   fontWeight: '500'
                 }}>
-                  {transfer.status === 'success' ? <CheckCircle size={16} /> : <XCircle size={16} />}
-                  {transfer.status}
+                  {transferStatusView(transfer.status).completed ? <CheckCircle size={16} /> : <AlertCircle size={16} />}
+                  {transferStatusView(transfer.status).label}
                 </div>
               </div>
 
