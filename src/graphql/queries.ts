@@ -353,3 +353,54 @@ export const GET_INDEXER_STATUS = gql`
     }
   }
 `;
+
+// Pending deploys: the indexer snapshot of the node deploy buffers. The sig
+// becomes the deploy_id once the deploy is included in a block.
+export const PENDING_DEPLOY_FRAGMENT = gql`
+  fragment PendingDeployFragment on pending_deploys {
+    sig
+    deployer
+    deployer_address
+    timestamp
+    phlo_price
+    phlo_limit
+    valid_after_block_number
+    shard_id
+    expiration_timestamp
+    is_rejected
+    fetched_at
+    included_deployment {
+      deploy_id
+      block_number
+      block_hash
+    }
+  }
+`;
+
+export const GET_PENDING_DEPLOYS = gql`
+  ${PENDING_DEPLOY_FRAGMENT}
+  query GetPendingDeploys($limit: Int!) {
+    pending_deploys(order_by: [{ timestamp: desc }, { sig: asc }], limit: $limit) {
+      ...PendingDeployFragment
+    }
+    pending_deploys_aggregate {
+      aggregate {
+        count
+      }
+    }
+    indexer_state(where: { key: { _eq: "pending_deploys_total_available" } }) {
+      key
+      value
+    }
+  }
+`;
+
+export const GET_PENDING_DEPLOY = gql`
+  ${PENDING_DEPLOY_FRAGMENT}
+  query GetPendingDeploy($sig: String!) {
+    pending_deploys(where: { sig: { _eq: $sig } }) {
+      ...PendingDeployFragment
+      term
+    }
+  }
+`;

@@ -222,3 +222,23 @@ export interface ErrorBoundaryState {
   hasError: boolean;
   error?: Error;
 }
+// Snapshot of the node deploy buffers (indexer table pending_deploys).
+export interface PendingDeploy {
+  sig: string;
+  deployer: string;
+  deployer_address: string;
+  term?: string;
+  timestamp: string | number;
+  phlo_price?: string | null;
+  phlo_limit?: string | number | null;
+  valid_after_block_number?: string | number | null;
+  shard_id?: string | null;
+  expiration_timestamp?: string | number | null;
+  is_rejected?: boolean | null;
+  fetched_at?: string | null;
+  included_deployment?: {
+    deploy_id: string;
+    block_number: string | number;
+    block_hash: string;
+  } | null;
+}
