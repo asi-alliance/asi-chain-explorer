@@ -1,7 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import TransactionTrackerImproved from '../components/TransactionTrackerImproved';
-import PendingDeploysPanel from '../components/PendingDeploysPanel';
 
 const TransactionsPage: React.FC = () => {
   const navigate = useNavigate();
@@ -13,7 +12,6 @@ const TransactionsPage: React.FC = () => {
 
   return (
     <div>
-      <PendingDeploysPanel />
       <TransactionTrackerImproved 
         onTransactionSelect={handleTransactionSelect}
         embedded={false}
