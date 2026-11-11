@@ -283,25 +283,6 @@ export const GET_NETWORK_STATS = gql`
   }
 `;
 
-export const GET_DEPLOYMENTS_BY_TYPE = gql`
-  query GetDeploymentsByType {
-    deployments_aggregate(group_by: deployment_type) {
-      aggregate {
-        count
-        avg {
-          phlo_cost
-        }
-        sum {
-          phlo_cost
-        }
-      }
-      nodes {
-        deployment_type
-      }
-    }
-  }
-`;
-
 // Subscriptions
 export const SUBSCRIBE_TO_NEW_BLOCKS = gql`
   ${BLOCK_FRAGMENT}
@@ -327,80 +308,6 @@ export const SUBSCRIBE_TO_NEW_TRANSFERS = gql`
       order_by: { created_at: desc }
     ) {
       ...TransferFragment
-    }
-  }
-`;
-
-export const SUBSCRIBE_TO_NETWORK_ACTIVITY = gql`
-  subscription SubscribeToNetworkActivity {
-    blocks(limit: 1, order_by: { block_number: desc }) {
-      block_hash
-      block_number
-      timestamp
-      deployment_count
-    }
-    transfers(limit: 1, order_by: { created_at: desc }) {
-      id
-      amount_asi
-      created_at
-    }
-  }
-`;
-
-export const SUBSCRIBE_TO_NETWORK_STATS = gql`
-  subscription SubscribeToNetworkStats {
-    network_stats {
-      total_blocks
-      avg_block_time_seconds
-      earliest_block_time
-      latest_block_time
-    }
-    blocks_aggregate {
-      aggregate {
-        count
-        max {
-          block_number
-        }
-      }
-    }
-    deployments_aggregate {
-      aggregate {
-        count
-        avg {
-          phlo_cost
-        }
-      }
-    }
-    deployments_aggregate_failed: deployments_aggregate(where: {errored: {_eq: true}}) {
-      aggregate {
-        count
-      }
-    }
-    transfers_aggregate {
-      aggregate {
-        count
-        sum {
-          amount_asi
-        }
-        avg {
-          amount_asi
-        }
-      }
-    }
-    transfers_aggregate_failed: transfers_aggregate(where: {status: {_neq: "success"}}) {
-      aggregate {
-        count
-      }
-    }
-    validators_aggregate {
-      aggregate {
-        count
-      }
-    }
-    validator_bonds_aggregate {
-      aggregate {
-        count
-      }
     }
   }
 `;

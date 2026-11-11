@@ -393,3 +393,18 @@ rescale tokens or upgrade a chain's denomination.
 
 Validation: `CI=true npm test -- --watchAll=false --runInBand`,
 `npx tsc --noEmit`, and `npm run build`.
+The `Tests` workflow runs these checks on pull requests to `dev` and `main` and
+on pushes to `dev`. Like the Docker build, its build step does not treat lint
+warnings as errors.
+
+### GraphQL schema compatibility
+
+`npm run validate:graphql -- <hasura-graphql-endpoint>` checks every GraphQL
+operation under `src/` against the schema that Hasura exposes to the public role.
+The check reports unknown fields, wrong argument and variable types, and
+aggregates that the public role cannot read. It does not run the queries.
+
+The `GraphQL Schema` workflow runs this check against the indexer stack: the
+indexer `docker-compose.yml` with its migrations and `scripts/full-init-hasura.sh`.
+It runs on pull requests to `dev`, on pushes to `dev` and once a day, against
+indexer `dev`. A manual run can select another indexer branch, tag or commit.

@@ -1,0 +1,92 @@
+name: GraphQL Schema
+
+# Validates the explorer GraphQL operations against the Hasura schema of the
+# indexer: its docker-compose PostgreSQL with migrations and its Hasura metadata.
+on:
+  pull_request:
+    branches: [dev]
+  push:
+    branches: [dev]
+  schedule:
+    # Scheduled runs use the workflow file on the default branch.
+    - cron: '17 5 * * *'
+  workflow_dispatch:
+    inputs:
+      indexer_ref:
+        description: asi-chain-indexer branch, tag or commit
+        required: false
+        default: dev
+
+permissions:
+  contents: read
+
+concurrency:
+  group: graphql-schema-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      HASURA_ADMIN_SECRET: ci-only-admin-secret
+      HASURA_BASE: http://127.0.0.1:8080
+    steps:
+      - name: Check out explorer
+        uses: actions/checkout@v4
+        with:
+          path: explorer
+          ref: ${{ github.event_name == 'schedule' && 'dev' || '' }}
+
+      - name: Check out indexer
+        uses: actions/checkout@v4
+        with:
+          repository: asi-alliance/asi-chain-indexer
+          ref: ${{ inputs.indexer_ref || 'dev' }}
+          path: indexer
+
+      - name: Record revisions
+        run: |
+          echo "explorer: $(git -C explorer rev-parse HEAD)"
+          echo "indexer:  $(git -C indexer rev-parse HEAD)"
+
+      - name: Start indexer PostgreSQL and apply migrations
+        working-directory: indexer
+        run: |
+          docker compose up -d postgres
+          # TCP accepts connections only after the init scripts (migrations) complete.
+          for attempt in $(seq 90); do
+            if docker compose exec -T -e PGPASSWORD=indexer_pass postgres \
+                psql -h 127.0.0.1 -U indexer -d asichain -tAc 'SELECT 1' >/dev/null 2>&1; then
+              exit 0
+            fi
+            if [ "$(docker compose ps -a --format '{{.State}}' postgres)" = "exited" ]; then
+              break
+            fi
+            sleep 2
+          done
+          docker compose logs postgres
+          exit 1
+
+      - name: Start Hasura and apply indexer metadata
+        working-directory: indexer
+        run: |
+          docker compose up -d hasura
+          bash scripts/full-init-hasura.sh </dev/null
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Validate explorer GraphQL operations
+        working-directory: explorer
+        run: |
+          version="$(node -p "require('./package.json').dependencies.graphql")"
+          npm install --no-save --no-audit --no-fund --prefix "$RUNNER_TEMP/graphql" "graphql@$version"
+          NODE_PATH="$RUNNER_TEMP/graphql/node_modules" node scripts/validate-graphql.js "$HASURA_BASE/v1/graphql"
+
+      - name: Show indexer service logs
+        if: failure()
+        working-directory: indexer
+        run: docker compose logs --tail 200 postgres hasura
