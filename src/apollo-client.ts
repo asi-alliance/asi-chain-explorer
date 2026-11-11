@@ -70,6 +70,10 @@ export const apolloClient = new ApolloClient({
         ...amountTypePolicies.validators,
         keyFields: ['public_key'],
       },
+      pending_deploys: {
+        ...amountTypePolicies.pending_deploys,
+        keyFields: ['sig'],
+      },
     },
   }),
   defaultOptions,

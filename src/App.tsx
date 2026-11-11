@@ -14,6 +14,7 @@ import ValidatorHistoryPage from "./pages/ValidatorHistoryPage";
 import SearchResultsPage from "./pages/SearchResultsPage";
 import TransactionDetailPage from "./pages/TransactionDetailPage";
 import TransactionsPage from "./pages/TransactionsPage";
+import PendingPage from "./pages/PendingPage";
 import FeedbackForm from "./components/community/FeedbackForm";
 
 import "./styles/global.css";
@@ -62,6 +63,7 @@ function App() {
                             path="/transactions"
                             element={<TransactionsPage />}
                         />
+                        <Route path="/pending" element={<PendingPage />} />
                         <Route
                             path="/transaction/:transactionId"
                             element={<TransactionDetailPage />}

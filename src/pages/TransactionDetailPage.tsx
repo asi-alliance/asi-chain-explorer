@@ -30,7 +30,12 @@ import { toMillis } from '../utils/calculateBlockTime';
 import CopyButton from '../components/CopyButton';
 import { getParentHashes } from '../utils/blockParent';
 import { getBlockPath } from '../utils/blockPath';
+import { GET_PENDING_DEPLOY } from '../graphql/queries';
+import PendingDeployDetails, { PendingDeployLeftBuffer } from '../components/PendingDeployDetails';
 import { transferStatusView } from '../utils/transferStatus';
+
+// The indexer refreshes its pending-deploy snapshot every sync cycle (5 s by default).
+const PENDING_POLL_MS = 5000;
 
 // Helper functions to safely parse timestamps
 const parseTimestamp = (timestamp: any): number => {
@@ -154,6 +159,31 @@ const TransactionDetailPage: React.FC = () => {
   const transfers = transaction?.transfers || [];
   const block = transaction?.block;
 
+  // A deploy that is not in a block yet exists only in the pending-deploy snapshot.
+  const notIndexed = !!transactionId && !loading && !error && !transaction;
+  const { data: pendingData, loading: pendingLoading } = useQuery(GET_PENDING_DEPLOY, {
+    variables: { sig: transactionId },
+    skip: !notIndexed,
+    pollInterval: PENDING_POLL_MS,
+  });
+  const pendingDeploy = notIndexed ? pendingData?.pending_deploys?.[0] : undefined;
+  const isPending = !!pendingDeploy;
+
+  // The node can drop a deploy from its buffer before the indexer stores the
+  // block that includes it. Keep the lookup alive after the deploy was seen.
+  const [pendingSeenFor, setPendingSeenFor] = useState<string | null>(null);
+  useEffect(() => {
+    if (isPending && transactionId) setPendingSeenFor(transactionId);
+  }, [isPending, transactionId]);
+  const leftBuffer = notIndexed && !isPending && pendingSeenFor === transactionId;
+  const awaitingIndexer = isPending || leftBuffer;
+
+  useEffect(() => {
+    if (!awaitingIndexer) return;
+    const timer = setInterval(() => { refetch(); }, PENDING_POLL_MS);
+    return () => clearInterval(timer);
+  }, [awaitingIndexer, refetch]);
+
   useEffect(() => {
     if (!transactionId) {
       navigate('/');
@@ -241,7 +271,7 @@ Exported at: ${new Date().toLocaleString()}
     return '#9ca3af';
   };
 
-  if (loading) {
+  if (loading || (notIndexed && pendingLoading && !pendingData)) {
     return (
       <div style={{
         display: 'flex',
@@ -255,6 +285,14 @@ Exported at: ${new Date().toLocaleString()}
         <p>Loading transaction details...</p>
       </div>
     );
+  }
+
+  if (pendingDeploy) {
+    return <PendingDeployDetails deploy={pendingDeploy} />;
+  }
+
+  if (leftBuffer && transactionId) {
+    return <PendingDeployLeftBuffer sig={transactionId} />;
   }
 
   if (error || !transaction) {

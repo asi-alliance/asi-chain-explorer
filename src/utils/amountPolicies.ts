@@ -19,5 +19,6 @@ export const amountTypePolicies: TypePolicies = {
   validators: { fields: { total_stake: rawAmount } },
   validator_bonds: { fields: { stake: rawAmount } },
   deployments: { fields: { phlo_cost: rawAmount, phlo_limit: rawAmount, phlo_price: rawAmount } },
+  pending_deploys: { fields: { phlo_limit: rawAmount, phlo_price: rawAmount } },
   transaction_history_view: { fields: { amount_asi: decimalAmount } },
 };
