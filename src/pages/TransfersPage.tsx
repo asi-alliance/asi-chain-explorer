@@ -9,6 +9,7 @@ import { useGenesisFunding } from '../hooks/useGenesisFunding';
 import { formatGenesisFunding } from '../utils/parseGenesisFunding';
 import { CURRENT_TOKEN } from '../utils/constants';
 import { getBlockPath } from '../utils/blockPath';
+import { transferStatusView } from '../utils/transferStatus';
 
 const TransfersPage: React.FC = () => {
     const [currentPage, setCurrentPage] = useState(1);
@@ -223,6 +224,7 @@ const TransfersPage: React.FC = () => {
 
                         // Regular transfer
                         const transfer = event as Transfer;
+                        const statusView = transferStatusView(transfer.status);
                         return (
                             <div key={transfer.id} className="deployment-item fade-in" style={{ marginBottom: '1.5rem' }}>
                                 <div style={{
@@ -286,9 +288,8 @@ const TransfersPage: React.FC = () => {
                                             Status
                                         </dt>
                                         <dd style={{ fontSize: '12px', margin: 0 }}>
-                    <span className={transfer.status === 'success' || transfer.status === 'genesis_bond' ? 'text-success' : 'text-error'}>
-                      {transfer.status === 'success' ? '✓ Success' :
-                          transfer.status === 'genesis_bond' ? '✓ Genesis Bond' : '✗ Failed'}
+                    <span className={statusView.completed ? 'text-success' : 'text-muted'}>
+                      {statusView.completed ? `✓ ${statusView.label}` : statusView.label}
                     </span>
                                         </dd>
 

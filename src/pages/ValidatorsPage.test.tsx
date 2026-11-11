@@ -105,6 +105,56 @@ test('prefers the duplicate validator record with the numerically newer last_see
   expect(row[5]).toBe('#100');
 });
 
+test('keeps inactive validators out of the count, total, average and percentages (issue #66)', () => {
+  const bonded = '04' + 'cd'.repeat(40);
+  const inactive = '04' + 'ef'.repeat(40);
+  cleanup();
+  (useQuery as jest.Mock).mockReturnValue({
+    data: {
+      validators: [
+        validator({ total_stake: '1000000000000000000' }),
+        validator({ public_key: bonded, status: 'bonded', total_stake: '3000000000000000000' }),
+        validator({ public_key: inactive, status: 'inactive', total_stake: '50000000000000000000' }),
+      ],
+      validator_bonds: [],
+      blocks: [],
+    },
+    loading: false,
+    error: undefined,
+  });
+  render(<ValidatorsPage />);
+
+  const cells = (table: HTMLElement) => within(table).getAllByRole('row').slice(1)
+    .map(row => within(row).getAllByRole('cell').map(cell => cell.textContent));
+
+  const current = cells(screen.getByRole('table', { name: 'Current validators' }));
+  expect(current.map(row => row[1])).toEqual(['3', '1']);
+  expect(current.map(row => row[2])).toEqual(['75%', '25%']);
+  expect(screen.getByRole('heading', { level: 1, name: '2' })).toBeInTheDocument();
+  expect(screen.getByText(/^4 ASI$/)).toBeInTheDocument();
+  expect(screen.getByText(/^2 ASI$/)).toBeInTheDocument();
+
+  const inactiveRows = cells(screen.getByRole('table', { name: 'Inactive Validators' }));
+  expect(inactiveRows).toHaveLength(1);
+  expect(inactiveRows[0][1]).toBe('50');
+  expect(inactiveRows[0][5]).toBe('inactive');
+});
+
+test('shows no current validators when every validator is inactive', () => {
+  cleanup();
+  (useQuery as jest.Mock).mockReturnValue({
+    data: { validators: [validator({ status: 'inactive', total_stake: '1000000000000000000' })], validator_bonds: [], blocks: [] },
+    loading: false,
+    error: undefined,
+  });
+  render(<ValidatorsPage />);
+
+  expect(screen.queryByRole('table', { name: 'Current validators' })).not.toBeInTheDocument();
+  expect(screen.getByRole('heading', { level: 1, name: '0' })).toBeInTheDocument();
+  expect(screen.getByText(/^0 ASI$/)).toBeInTheDocument();
+  expect(screen.getByRole('table', { name: 'Inactive Validators' })).toBeInTheDocument();
+});
+
 test('reports a failed validator query instead of zero stake', () => {
   cleanup();
   (useQuery as jest.Mock).mockReturnValue({ data: undefined, loading: false, error: new Error('database timeout') });
