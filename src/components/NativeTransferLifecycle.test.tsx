@@ -1,8 +1,8 @@
 import React from 'react';
 import { render, screen, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
-import { useQuery } from '@apollo/client';
-import NativeTransferLifecycle from './NativeTransferLifecycle';
+import { ApolloError, useQuery } from '@apollo/client';
+import NativeTransferLifecycle, { lifecycleCallLabel, useNativeTransferLifecycle } from './NativeTransferLifecycle';
 
 jest.mock('@apollo/client', () => ({ ...jest.requireActual('@apollo/client'), useQuery: jest.fn() }));
 jest.mock('react-router-dom', () => {
@@ -20,10 +20,15 @@ const outcome = (overrides: object) => ({
   ...overrides,
 });
 
+const Lifecycle: React.FC = () => <NativeTransferLifecycle lifecycle={useNativeTransferLifecycle(DEPLOY)} />;
+
 function renderLifecycle(result: object) {
   (useQuery as jest.Mock).mockReturnValue({ loading: false, error: undefined, ...result });
-  return render(<MemoryRouter><NativeTransferLifecycle deployId={DEPLOY} /></MemoryRouter>);
+  return render(<MemoryRouter><Lifecycle /></MemoryRouter>);
 }
+
+const hasuraError = (message: string, code: string) =>
+  new ApolloError({ graphQLErrors: [{ message, extensions: { code } }] as any });
 
 const cells = (table: HTMLElement) =>
   within(table).getAllByRole('row').slice(1).map((row) => within(row).getAllByRole('cell'));
@@ -60,10 +65,50 @@ test('links a completion deploy to the deploy that started the call', () => {
 });
 
 test.each([
-  ['the view is not available', { data: undefined, error: new Error("field 'native_transfer_lifecycle' not found") }],
+  ['the indexer does not expose the view', { data: undefined, error: hasuraError(
+    "field 'native_transfer_lifecycle' not found in type: 'query_root'", 'validation-failed') }],
   ['the deploy has no calls', { data: { native_transfer_lifecycle: [] } }],
   ['the query is loading', { data: undefined, loading: true }],
 ])('renders nothing when %s', (_, result) => {
   const { container } = renderLifecycle(result);
   expect(container).toBeEmptyDOMElement();
+});
+
+test.each([
+  ['a statement timeout', hasuraError('canceling statement due to statement timeout', 'postgres-error')],
+  ['a network failure', new ApolloError({ networkError: new Error('Failed to fetch') })],
+])('reports %s instead of hiding the section', (_, error) => {
+  renderLifecycle({ data: undefined, error });
+
+  expect(screen.getByRole('region', { name: 'Native Transfer Calls' })).toBeInTheDocument();
+  expect(screen.getByRole('status')).toHaveTextContent('not available');
+  expect(screen.queryByRole('table')).not.toBeInTheDocument();
+});
+
+test('asks for one row over the limit and marks a truncated list', () => {
+  const rows = Array.from({ length: 201 }, (_, i) => outcome({ call_id: `c${i}`, call_index: i }));
+  renderLifecycle({ data: { native_transfer_lifecycle: rows } });
+
+  expect(useQuery).toHaveBeenLastCalledWith(expect.anything(), expect.objectContaining({
+    variables: { deployId: DEPLOY, limit: 201 },
+  }));
+  expect(screen.getByRole('note', { name: 'Truncated list' })).toBeInTheDocument();
+  expect(cells(screen.getByRole('table', { name: 'Calls started by this deploy' }))).toHaveLength(200);
+});
+
+test('does not mark a list that fits the limit', () => {
+  renderLifecycle({ data: { native_transfer_lifecycle: [outcome({})] } });
+  expect(screen.queryByRole('note', { name: 'Truncated list' })).not.toBeInTheDocument();
+});
+
+test('counts distinct calls for the transfers tab label', () => {
+  const ready = (rows: object[], truncated = false) => ({
+    state: 'ready' as const, initiated: rows as any, completedHere: [], truncated,
+  });
+  expect(lifecycleCallLabel({ state: 'hidden' })).toBeNull();
+  expect(lifecycleCallLabel({ state: 'unavailable', message: 'timeout' })).toBeNull();
+  expect(lifecycleCallLabel(ready([outcome({ call_id: 'a' })]))).toBe('1 native call');
+  expect(lifecycleCallLabel(ready([outcome({ call_id: 'a' }), outcome({ call_id: 'a', result_id: 'r' }),
+    outcome({ call_id: 'b' })]))).toBe('2 native calls');
+  expect(lifecycleCallLabel(ready([outcome({ call_id: 'a' })], true))).toBe('1+ native calls');
 });

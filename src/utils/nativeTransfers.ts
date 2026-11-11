@@ -1,5 +1,8 @@
 import { formatRaw } from './amounts';
 
+// Rows shown for one deploy. The query asks for one more row to detect truncation.
+export const LIFECYCLE_ROW_LIMIT = 200;
+
 export interface NativeTransferOutcome {
   call_id: string;
   call_index: number;
@@ -49,4 +52,19 @@ export function splitByRole(rows: NativeTransferOutcome[], deployId: string) {
       (row) => row.completion_deploy_id === deployId && row.initiation_deploy_id !== deployId
     ),
   };
+}
+
+interface GraphQLErrorLike {
+  message?: string;
+  extensions?: { code?: unknown };
+}
+
+// Hasura rejects a query for a view that it does not track with "validation-failed".
+// Only that error means that the indexer does not expose the lifecycle. Timeouts and
+// network failures are errors, not missing data.
+export function isMissingSchemaError(error: unknown): boolean {
+  const graphQLErrors: GraphQLErrorLike[] = (error as { graphQLErrors?: GraphQLErrorLike[] } | null)?.graphQLErrors ?? [];
+  return graphQLErrors.length > 0 && graphQLErrors.every(
+    (e) => e.extensions?.code === 'validation-failed' || /not found in type/.test(e.message ?? '')
+  );
 }

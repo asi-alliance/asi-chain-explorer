@@ -3,7 +3,7 @@ import { gql } from '@apollo/client';
 // Read-only indexer view (migration 003): one row per observed native transfer
 // call outcome. Count movements from the transfers ledger, not from these rows.
 export const GET_NATIVE_TRANSFER_LIFECYCLE = gql`
-  query GetNativeTransferLifecycle($deployId: String!) {
+  query GetNativeTransferLifecycle($deployId: String!, $limit: Int!) {
     native_transfer_lifecycle(
       where: {
         _or: [
@@ -16,7 +16,7 @@ export const GET_NATIVE_TRANSFER_LIFECYCLE = gql`
         { call_index: asc }
         { completion_block_number: asc_nulls_last }
       ]
-      limit: 200
+      limit: $limit
     ) {
       call_id
       call_index

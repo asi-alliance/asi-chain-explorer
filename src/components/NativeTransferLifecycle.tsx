@@ -6,14 +6,48 @@ import { CURRENT_TOKEN } from '../utils/constants';
 import { heightLabel } from '../utils/blockHeight';
 import { getBlockPath } from '../utils/blockPath';
 import {
+  LIFECYCLE_ROW_LIMIT,
   NativeTransferOutcome,
   formatSignedRaw,
+  isMissingSchemaError,
   lifecycleStatusView,
   splitByRole,
 } from '../utils/nativeTransfers';
 
+export type NativeTransferLifecycleState =
+  | { state: 'hidden' }
+  | { state: 'unavailable'; message: string }
+  | { state: 'ready'; initiated: NativeTransferOutcome[]; completedHere: NativeTransferOutcome[]; truncated: boolean };
+
+const HIDDEN: NativeTransferLifecycleState = { state: 'hidden' };
+
+// Hidden only when the indexer does not expose the view, while the query loads,
+// or when the deploy has no calls. Other failures are shown as "not available".
+export function useNativeTransferLifecycle(deployId?: string | null): NativeTransferLifecycleState {
+  const { data, error } = useQuery(GET_NATIVE_TRANSFER_LIFECYCLE, {
+    variables: { deployId, limit: LIFECYCLE_ROW_LIMIT + 1 },
+    skip: !deployId,
+  });
+
+  if (!deployId) return HIDDEN;
+  if (error) return isMissingSchemaError(error) ? HIDDEN : { state: 'unavailable', message: error.message };
+  if (!data) return HIDDEN;
+  const rows: NativeTransferOutcome[] = data.native_transfer_lifecycle ?? [];
+  const truncated = rows.length > LIFECYCLE_ROW_LIMIT;
+  const { initiated, completedHere } = splitByRole(truncated ? rows.slice(0, LIFECYCLE_ROW_LIMIT) : rows, deployId);
+  if (initiated.length === 0 && completedHere.length === 0) return HIDDEN;
+  return { state: 'ready', initiated, completedHere, truncated };
+}
+
+// Number of distinct calls for the tab label. The ledger count stays zero until a call completes.
+export function lifecycleCallLabel(lifecycle: NativeTransferLifecycleState): string | null {
+  if (lifecycle.state !== 'ready') return null;
+  const calls = new Set([...lifecycle.initiated, ...lifecycle.completedHere].map((row) => row.call_id)).size;
+  return `${calls}${lifecycle.truncated ? '+' : ''} native call${calls === 1 && !lifecycle.truncated ? '' : 's'}`;
+}
+
 interface NativeTransferLifecycleProps {
-  deployId: string;
+  lifecycle: NativeTransferLifecycleState;
 }
 
 const shortKey = (value?: string | null) =>
@@ -45,25 +79,34 @@ const DeployRef: React.FC<{ deployId?: string | null; blockHash?: string | null;
   );
 };
 
-// Hidden when the indexer does not expose the view: the rest of the page must keep working.
-const NativeTransferLifecycle: React.FC<NativeTransferLifecycleProps> = ({ deployId }) => {
-  const { data, error } = useQuery(GET_NATIVE_TRANSFER_LIFECYCLE, {
-    variables: { deployId },
-    skip: !deployId,
-  });
+const Heading: React.FC = () => (
+  <h3 id="native-transfer-calls-heading" style={{ marginBottom: '0.5rem' }}>Native Transfer Calls</h3>
+);
 
-  if (error || !data) return null;
-  const rows: NativeTransferOutcome[] = data.native_transfer_lifecycle ?? [];
-  const { initiated, completedHere } = splitByRole(rows, deployId);
-  if (initiated.length === 0 && completedHere.length === 0) return null;
+const NativeTransferLifecycle: React.FC<NativeTransferLifecycleProps> = ({ lifecycle }) => {
+  if (lifecycle.state === 'hidden') return null;
+  if (lifecycle.state === 'unavailable') {
+    return (
+      <section className="asi-card mt-3" aria-labelledby="native-transfer-calls-heading">
+        <Heading />
+        <p className="text-muted" role="status">Native transfer calls are not available: {lifecycle.message}</p>
+      </section>
+    );
+  }
+  const { initiated, completedHere, truncated } = lifecycle;
 
   return (
     <section className="asi-card mt-3" aria-labelledby="native-transfer-calls-heading">
-      <h3 id="native-transfer-calls-heading" style={{ marginBottom: '0.5rem' }}>Native Transfer Calls</h3>
+      <Heading />
       <p className="text-muted" style={{ fontSize: '14px' }}>
         Native transfer calls and their observed outcomes. A transfer can complete in a later deploy.
         Only completed calls produce ledger transfers, and a fork can record more than one outcome for a call.
       </p>
+      {truncated && (
+        <p className="text-warning" role="note" aria-label="Truncated list" style={{ fontSize: '14px' }}>
+          This deploy has more than {LIFECYCLE_ROW_LIMIT} recorded call outcomes. The tables show only the first {LIFECYCLE_ROW_LIMIT}.
+        </p>
+      )}
 
       {initiated.length > 0 && (
         <div style={{ overflowX: 'auto' }}>

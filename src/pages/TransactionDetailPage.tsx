@@ -28,7 +28,10 @@ import { gql } from '@apollo/client';
 import { CURRENT_TOKEN } from '../utils/constants';
 import { toMillis } from '../utils/calculateBlockTime';
 import CopyButton from '../components/CopyButton';
-import NativeTransferLifecycle from '../components/NativeTransferLifecycle';
+import NativeTransferLifecycle, {
+  lifecycleCallLabel,
+  useNativeTransferLifecycle,
+} from '../components/NativeTransferLifecycle';
 import { getParentHashes } from '../utils/blockParent';
 import { getBlockPath } from '../utils/blockPath';
 import { transferStatusView } from '../utils/transferStatus';
@@ -154,6 +157,9 @@ const TransactionDetailPage: React.FC = () => {
   const transaction = data?.deployments?.[0];
   const transfers = transaction?.transfers || [];
   const block = transaction?.block;
+  // Calls started here show up before the ledger has a transfer, so the tab label counts them too.
+  const lifecycle = useNativeTransferLifecycle(transaction?.deploy_id);
+  const lifecycleLabel = lifecycleCallLabel(lifecycle);
 
   useEffect(() => {
     if (!transactionId) {
@@ -291,7 +297,7 @@ Exported at: ${new Date().toLocaleString()}
   const tabs = [
     { key: 'overview', label: 'Overview', icon: <Activity size={16} /> },
     { key: 'code', label: 'Code', icon: <Code size={16} /> },
-    { key: 'transfers', label: `Transfers (${transfers.length})`, icon: <TrendingUp size={16} /> },
+    { key: 'transfers', label: `Transfers (${transfers.length})${lifecycleLabel ? ` · ${lifecycleLabel}` : ''}`, icon: <TrendingUp size={16} /> },
     { key: 'block', label: 'Block Info', icon: <Database size={16} /> }
   ];
 
@@ -1097,7 +1103,7 @@ Exported at: ${new Date().toLocaleString()}
           {activeTab === 'transfers' && (
             <>
               {renderTransfersTab()}
-              <NativeTransferLifecycle deployId={transaction.deploy_id} />
+              <NativeTransferLifecycle lifecycle={lifecycle} />
             </>
           )}
           {activeTab === 'block' && renderBlockTab()}
