@@ -28,6 +28,7 @@ import { gql } from '@apollo/client';
 import { CURRENT_TOKEN } from '../utils/constants';
 import { toMillis } from '../utils/calculateBlockTime';
 import CopyButton from '../components/CopyButton';
+import NativeTransferLifecycle from '../components/NativeTransferLifecycle';
 import { getParentHashes } from '../utils/blockParent';
 import { getBlockPath } from '../utils/blockPath';
 import { transferStatusView } from '../utils/transferStatus';
@@ -1093,7 +1094,12 @@ Exported at: ${new Date().toLocaleString()}
         >
           {activeTab === 'overview' && renderOverviewTab()}
           {activeTab === 'code' && renderCodeTab()}
-          {activeTab === 'transfers' && renderTransfersTab()}
+          {activeTab === 'transfers' && (
+            <>
+              {renderTransfersTab()}
+              <NativeTransferLifecycle deployId={transaction.deploy_id} />
+            </>
+          )}
           {activeTab === 'block' && renderBlockTab()}
         </motion.div>
       </AnimatePresence>
