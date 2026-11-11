@@ -43,7 +43,5 @@ jobs:
         run: npx tsc --noEmit
 
       - name: Production build
-        # The Docker build does not set CI, so lint warnings do not fail it. Keep the same behavior here.
+        # GitHub sets CI=true, so create-react-app fails the build on any lint warning.
         run: npm run build
-        env:
-          CI: false

@@ -94,13 +94,6 @@ const HomePage: React.FC = () => {
             : latestBlockFromData;
     const totalPages = Math.ceil(totalBlocks / blocksPerPage);
 
-    // Helper function to safely parse numeric values
-    const safeParseFloat = (value: any): number | null => {
-        if (value === null || value === undefined) return null;
-        const parsed = parseFloat(value.toString());
-        return isNaN(parsed) ? null : parsed;
-    };
-
     const formatTimestamp = (timestamp: string | number) => {
         try {
             const ts = parseInt(timestamp.toString());

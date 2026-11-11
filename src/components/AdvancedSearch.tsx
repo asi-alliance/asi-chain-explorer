@@ -315,6 +315,10 @@ const AdvancedSearch: React.FC<AdvancedSearchProps> = ({
         }
     };
 
+    // debouncedSearch is created once; read the latest performSearch through a ref.
+    const performSearchRef = useRef(performSearch);
+    performSearchRef.current = performSearch;
+
     const debouncedSearch = useCallback(
         (searchQuery: string, searchFilters: SearchFilters) => {
             if (debounceRef.current) {
@@ -322,7 +326,7 @@ const AdvancedSearch: React.FC<AdvancedSearchProps> = ({
             }
 
             debounceRef.current = setTimeout(() => {
-                performSearch(searchQuery, searchFilters);
+                performSearchRef.current(searchQuery, searchFilters);
             }, 300);
         },
         []
