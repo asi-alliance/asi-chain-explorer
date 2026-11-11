@@ -37,3 +37,24 @@ export function truncatedTotal(stored: unknown, totalAvailable: unknown): number
   if (!Number.isSafeInteger(storedCount) || !Number.isSafeInteger(total)) return null;
   return total > storedCount ? total : null;
 }
+
+// The indexer stores fetched_at as a UTC timestamp without a time zone.
+export function snapshotTime(value: unknown): Date | null {
+  if (typeof value !== 'string' || value === '') return null;
+  const text = value.replace(' ', 'T');
+  const time = text.split('T')[1] ?? '';
+  const zoned = /(?:Z|[+-]\d{2}(?::?\d{2})?)$/i.test(time);
+  const date = new Date(zoned ? text : `${text}Z`);
+  return Number.isFinite(date.getTime()) ? date : null;
+}
+
+// The indexer refreshes the snapshot every sync cycle (5 s by default). When it
+// cannot read the node buffers, it keeps the last snapshot without a change.
+export const STALE_SNAPSHOT_MS = 60_000;
+
+export function staleSnapshotAge(fetchedAt: unknown, now: number): number | null {
+  const date = snapshotTime(fetchedAt);
+  if (!date) return null;
+  const age = now - date.getTime();
+  return age > STALE_SNAPSHOT_MS ? age : null;
+}

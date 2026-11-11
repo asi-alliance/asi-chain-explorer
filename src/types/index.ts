@@ -222,6 +222,7 @@ export interface ErrorBoundaryState {
   hasError: boolean;
   error?: Error;
 }
+
 // Snapshot of the node deploy buffers (indexer table pending_deploys).
 export interface PendingDeploy {
   sig: string;

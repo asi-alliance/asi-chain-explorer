@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen } from '@testing-library/react';
+import { act, render, screen } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { useQuery } from '@apollo/client';
 import TransactionDetailPage from './TransactionDetailPage';
@@ -21,7 +21,10 @@ const pending = {
   fetched_at: '2026-11-11T00:00:00', included_deployment: null,
 };
 
-function renderLookup(pendingResult: object) {
+let pendingResult: object = {};
+
+function renderLookup(initialPending: object) {
+  pendingResult = initialPending;
   const refetch = jest.fn();
   (useQuery as jest.Mock).mockImplementation((query, options) => {
     const name = query.definitions.find((d: any) => d.kind === 'OperationDefinition').name.value;
@@ -30,19 +33,24 @@ function renderLookup(pendingResult: object) {
     }
     return { data: { deployments: [] }, loading: false, error: undefined, refetch };
   });
-  render(
+  const page = () => (
     <MemoryRouter initialEntries={[`/transaction/${SIG}`]}>
       <Routes><Route path="/transaction/:transactionId" element={<TransactionDetailPage />} /></Routes>
     </MemoryRouter>
   );
-  return refetch;
+  const { rerender } = render(page());
+  const setPending = (next: object) => {
+    pendingResult = next;
+    rerender(page());
+  };
+  return { refetch, setPending };
 }
 
 afterEach(() => jest.useRealTimers());
 
 test('shows a pending deploy instead of "not found" and refetches until it is indexed (issue #70)', () => {
   jest.useFakeTimers();
-  const refetch = renderLookup({ data: { pending_deploys: [pending] } });
+  const { refetch } = renderLookup({ data: { pending_deploys: [pending] } });
 
   expect(screen.getByRole('heading', { name: 'Deploy Pending' })).toBeInTheDocument();
   expect(screen.queryByRole('heading', { name: 'Transaction Not Found' })).not.toBeInTheDocument();
@@ -50,7 +58,7 @@ test('shows a pending deploy instead of "not found" and refetches until it is in
   expect(screen.getByText('#12')).toBeInTheDocument();
   expect(screen.getByRole('heading', { name: 'Code' })).toBeInTheDocument();
 
-  jest.advanceTimersByTime(5000);
+  act(() => { jest.advanceTimersByTime(5000); });
   expect(refetch).toHaveBeenCalledTimes(1);
 });
 
@@ -71,4 +79,29 @@ test('keeps "not found" when the pending lookup fails', () => {
   renderLookup({ data: undefined, error: new Error('field "pending_deploys" not found') });
   expect(screen.getByRole('heading', { name: 'Transaction Not Found' })).toBeInTheDocument();
   expect(screen.queryByRole('heading', { name: 'Deploy Pending' })).not.toBeInTheDocument();
+});
+
+test('keeps refetching the deploy after it leaves the node buffer before the indexer stores its block', () => {
+  jest.useFakeTimers();
+  const { refetch, setPending } = renderLookup({ data: { pending_deploys: [pending] } });
+  expect(screen.getByRole('heading', { name: 'Deploy Pending' })).toBeInTheDocument();
+
+  setPending({ data: { pending_deploys: [] } });
+
+  expect(screen.getByRole('heading', { name: 'Waiting for the Indexer' })).toBeInTheDocument();
+  expect(screen.queryByRole('heading', { name: 'Transaction Not Found' })).not.toBeInTheDocument();
+  act(() => { jest.advanceTimersByTime(10000); });
+  expect(refetch).toHaveBeenCalledTimes(2);
+});
+
+test('warns when the pending-deploy snapshot is older than one minute', () => {
+  jest.useFakeTimers();
+  jest.setSystemTime(new Date('2026-11-11T00:00:10Z'));
+  renderLookup({ data: { pending_deploys: [pending] } });
+  expect(screen.queryByRole('note', { name: 'Stale snapshot' })).not.toBeInTheDocument();
+
+  jest.setSystemTime(new Date('2026-11-11T00:05:00Z'));
+  act(() => { jest.advanceTimersByTime(5000); });
+
+  expect(screen.getByRole('note', { name: 'Stale snapshot' })).toBeInTheDocument();
 });

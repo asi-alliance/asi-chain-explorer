@@ -6,6 +6,7 @@ import { GET_PENDING_DEPLOYS } from '../graphql/queries';
 import type { PendingDeploy } from '../types';
 import { heightLabel } from '../utils/blockHeight';
 import { deployTime, pendingDeployStatus, truncatedTotal } from '../utils/pendingDeploys';
+import { StaleSnapshotNote } from './PendingDeployDetails';
 
 export const PENDING_LIST_LIMIT = 20;
 // The indexer refreshes its pending-deploy snapshot every sync cycle (5 s by default).
@@ -44,6 +45,7 @@ const PendingDeploysPanel: React.FC = () => {
             Deploys in the node deploy buffers that are not in a block yet.
             {stored > deploys.length && ` Showing the latest ${deploys.length} of ${stored}.`}
           </p>
+          <StaleSnapshotNote fetchedAt={deploys[0]?.fetched_at} />
           {total !== null && (
             <p className="text-warning" role="note" style={{ fontSize: '14px' }}>
               The node reports {total} pending deploys, but its response is limited to {stored}.

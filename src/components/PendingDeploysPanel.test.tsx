@@ -15,7 +15,7 @@ const SIG = '3045022100' + 'ab'.repeat(30);
 const deploy = (overrides: object = {}) => ({
   __typename: 'pending_deploys', sig: SIG, deployer: '04' + 'cd'.repeat(32), deployer_address: '1111' + 'x'.repeat(50),
   timestamp: String(Date.now() - 60_000), phlo_price: '1', phlo_limit: '500000', valid_after_block_number: '0',
-  shard_id: 'root', expiration_timestamp: '0', is_rejected: false, fetched_at: '2026-11-11T00:00:00',
+  shard_id: 'root', expiration_timestamp: '0', is_rejected: false, fetched_at: new Date().toISOString(),
   included_deployment: null, ...overrides,
 });
 
@@ -70,4 +70,15 @@ test('reports a failed query instead of an empty list', () => {
   expect(screen.getByRole('status')).toHaveTextContent('not available');
   expect(screen.queryByRole('table')).not.toBeInTheDocument();
   expect(screen.queryByLabelText('Pending deploy count')).not.toBeInTheDocument();
+});
+
+test('warns when the indexer stopped refreshing the snapshot', () => {
+  renderPanel({ data: {
+    pending_deploys: [deploy({ fetched_at: new Date(Date.now() - 10 * 60_000).toISOString() })],
+    pending_deploys_aggregate: { aggregate: { count: 1 } },
+    indexer_state: [{ key: 'pending_deploys_total_available', value: '1' }],
+  } });
+
+  expect(screen.getByRole('note', { name: 'Stale snapshot' })).toBeInTheDocument();
+  expect(rows()).toHaveLength(1);
 });
