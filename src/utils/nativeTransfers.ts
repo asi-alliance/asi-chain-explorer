@@ -45,15 +45,6 @@ export function formatSignedRaw(value: unknown, decimals: unknown): string | nul
   return negative ? `-${formatted}` : formatted;
 }
 
-export function splitByRole(rows: NativeTransferOutcome[], deployId: string) {
-  return {
-    initiated: rows.filter((row) => row.initiation_deploy_id === deployId),
-    completedHere: rows.filter(
-      (row) => row.completion_deploy_id === deployId && row.initiation_deploy_id !== deployId
-    ),
-  };
-}
-
 interface GraphQLErrorLike {
   message?: string;
   extensions?: { code?: unknown };

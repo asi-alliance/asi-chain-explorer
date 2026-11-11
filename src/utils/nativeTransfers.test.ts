@@ -1,4 +1,4 @@
-import { formatSignedRaw, lifecycleStatusView, splitByRole, NativeTransferOutcome } from './nativeTransfers';
+import { formatSignedRaw, lifecycleStatusView } from './nativeTransfers';
 
 test.each([
   ['pending', 'Pending', 'text-warning'],
@@ -25,13 +25,4 @@ test.each([
   ['1.5', 18], ['-0', 18], ['+5', 18], ['0x10', 18], ['007', 18], ['', 18], [5, 18], ['5', 78], ['5', 1.5], ['5', null],
 ])('does not format %p with decimals %p', (value, decimals) => {
   expect(formatSignedRaw(value, decimals)).toBeNull();
-});
-
-test('separates calls started by a deploy from calls it completes', () => {
-  const row = (call_id: string, initiation_deploy_id: string, completion_deploy_id: string | null) =>
-    ({ call_id, initiation_deploy_id, completion_deploy_id } as NativeTransferOutcome);
-  const rows = [row('a', 'd1', null), row('b', 'd1', 'd2'), row('c', 'd0', 'd1'), row('d', 'd1', 'd1')];
-  const { initiated, completedHere } = splitByRole(rows, 'd1');
-  expect(initiated.map((r) => r.call_id)).toEqual(['a', 'b', 'd']);
-  expect(completedHere.map((r) => r.call_id)).toEqual(['c']);
 });

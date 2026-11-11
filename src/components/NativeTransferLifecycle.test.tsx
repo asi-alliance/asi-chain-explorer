@@ -27,6 +27,12 @@ function renderLifecycle(result: object) {
   return render(<MemoryRouter><Lifecycle /></MemoryRouter>);
 }
 
+// The query returns calls started by the deploy and calls it completes as two fields.
+const byRole = (rows: Array<ReturnType<typeof outcome>>) => ({
+  initiated: rows.filter((row) => row.initiation_deploy_id === DEPLOY),
+  completedHere: rows.filter((row) => row.completion_deploy_id === DEPLOY && row.initiation_deploy_id !== DEPLOY),
+});
+
 const hasuraError = (message: string, code: string) =>
   new ApolloError({ graphQLErrors: [{ message, extensions: { code } }] as any });
 
@@ -34,13 +40,13 @@ const cells = (table: HTMLElement) =>
   within(table).getAllByRole('row').slice(1).map((row) => within(row).getAllByRole('cell'));
 
 test('lists calls started by the deploy with status, exact amount and completion link (issue #71)', () => {
-  renderLifecycle({ data: { native_transfer_lifecycle: [
+  renderLifecycle({ data: byRole([
     outcome({ call_id: 'c0', call_index: 0 }),
     outcome({ call_id: 'c1', call_index: 1, status: 'completed', result_id: 'r1', completion_deploy_id: 'deploy-later',
       completion_block_hash: 'hash-2', completion_block_number: '2', transfer_id: '5' }),
     outcome({ call_id: 'c2', call_index: 2, status: 'rejected', result_id: 'r2', requested_amount: '-5' }),
     outcome({ call_id: 'c3', call_index: 3, status: 'coalesced', result_id: 'r1', requested_amount: 'not-a-number' }),
-  ] } });
+  ]) });
 
   const rows = cells(screen.getByRole('table', { name: 'Calls started by this deploy' }));
   expect(rows.map((row) => row[4].textContent)).toEqual(['Pending', 'Completed', 'Rejected', 'Coalesced']);
@@ -52,10 +58,10 @@ test('lists calls started by the deploy with status, exact amount and completion
 });
 
 test('links a completion deploy to the deploy that started the call', () => {
-  renderLifecycle({ data: { native_transfer_lifecycle: [
+  renderLifecycle({ data: byRole([
     outcome({ call_id: 'c9', initiation_deploy_id: 'deploy-earlier', initiation_block_hash: 'hash-0',
       initiation_block_number: '0', status: 'completed', result_id: 'r9', completion_deploy_id: DEPLOY }),
-  ] } });
+  ]) });
 
   expect(screen.queryByRole('table', { name: 'Calls started by this deploy' })).not.toBeInTheDocument();
   const [row] = cells(screen.getByRole('table', { name: 'Calls completed by this deploy' }));
@@ -67,7 +73,7 @@ test('links a completion deploy to the deploy that started the call', () => {
 test.each([
   ['the indexer does not expose the view', { data: undefined, error: hasuraError(
     "field 'native_transfer_lifecycle' not found in type: 'query_root'", 'validation-failed') }],
-  ['the deploy has no calls', { data: { native_transfer_lifecycle: [] } }],
+  ['the deploy has no calls', { data: { initiated: [], completedHere: [] } }],
   ['the query is loading', { data: undefined, loading: true }],
 ])('renders nothing when %s', (_, result) => {
   const { container } = renderLifecycle(result);
@@ -87,7 +93,7 @@ test.each([
 
 test('asks for one row over the limit and marks a truncated list', () => {
   const rows = Array.from({ length: 201 }, (_, i) => outcome({ call_id: `c${i}`, call_index: i }));
-  renderLifecycle({ data: { native_transfer_lifecycle: rows } });
+  renderLifecycle({ data: byRole(rows) });
 
   expect(useQuery).toHaveBeenLastCalledWith(expect.anything(), expect.objectContaining({
     variables: { deployId: DEPLOY, limit: 201 },
@@ -97,7 +103,7 @@ test('asks for one row over the limit and marks a truncated list', () => {
 });
 
 test('does not mark a list that fits the limit', () => {
-  renderLifecycle({ data: { native_transfer_lifecycle: [outcome({})] } });
+  renderLifecycle({ data: byRole([outcome({})]) });
   expect(screen.queryByRole('note', { name: 'Truncated list' })).not.toBeInTheDocument();
 });
 

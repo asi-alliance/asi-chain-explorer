@@ -11,7 +11,6 @@ import {
   formatSignedRaw,
   isMissingSchemaError,
   lifecycleStatusView,
-  splitByRole,
 } from '../utils/nativeTransfers';
 
 export type NativeTransferLifecycleState =
@@ -32,9 +31,11 @@ export function useNativeTransferLifecycle(deployId?: string | null): NativeTran
   if (!deployId) return HIDDEN;
   if (error) return isMissingSchemaError(error) ? HIDDEN : { state: 'unavailable', message: error.message };
   if (!data) return HIDDEN;
-  const rows: NativeTransferOutcome[] = data.native_transfer_lifecycle ?? [];
-  const truncated = rows.length > LIFECYCLE_ROW_LIMIT;
-  const { initiated, completedHere } = splitByRole(truncated ? rows.slice(0, LIFECYCLE_ROW_LIMIT) : rows, deployId);
+  const initiatedRows: NativeTransferOutcome[] = data.initiated ?? [];
+  const completedRows: NativeTransferOutcome[] = data.completedHere ?? [];
+  const truncated = initiatedRows.length > LIFECYCLE_ROW_LIMIT || completedRows.length > LIFECYCLE_ROW_LIMIT;
+  const initiated = initiatedRows.slice(0, LIFECYCLE_ROW_LIMIT);
+  const completedHere = completedRows.slice(0, LIFECYCLE_ROW_LIMIT);
   if (initiated.length === 0 && completedHere.length === 0) return HIDDEN;
   return { state: 'ready', initiated, completedHere, truncated };
 }
@@ -104,7 +105,7 @@ const NativeTransferLifecycle: React.FC<NativeTransferLifecycleProps> = ({ lifec
       </p>
       {truncated && (
         <p className="text-warning" role="note" aria-label="Truncated list" style={{ fontSize: '14px' }}>
-          This deploy has more than {LIFECYCLE_ROW_LIMIT} recorded call outcomes. The tables show only the first {LIFECYCLE_ROW_LIMIT}.
+          This deploy has more than {LIFECYCLE_ROW_LIMIT} recorded call outcomes in a table. Each table shows only the first {LIFECYCLE_ROW_LIMIT}.
         </p>
       )}
 
