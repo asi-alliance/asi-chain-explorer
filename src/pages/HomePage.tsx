@@ -13,7 +13,7 @@ import { calculateAverageBlockTime } from "../utils/calculateBlockTime";
 import RealtimeActivityFeed from "../components/RealtimeActivityFeed";
 import RecentDataExporter, { ExportEntities } from "../components/RecentDataExporter";
 import { getBlockPath } from "../utils/blockPath";
-// import { useRealtimeBlocks, useRealtimeNetworkStats } from '../services/websocketService';
+// import { useRealtimeBlocks } from '../services/websocketService';
 
 // Query to get recent blocks for calculating average block time
 const GET_RECENT_BLOCKS = gql`
