@@ -394,8 +394,9 @@ rescale tokens or upgrade a chain's denomination.
 Validation: `CI=true npm test -- --watchAll=false --runInBand`,
 `npx tsc --noEmit`, and `npm run build`.
 The `Tests` workflow runs these checks on pull requests to `dev` and `main` and
-on pushes to `dev`. Like the Docker build, its build step does not treat lint
-warnings as errors.
+on pushes to `dev`. Its build runs with `CI=true`, so a lint warning fails the
+check. The Docker build does not set `CI`; run `CI=true npm run build` locally
+to see the same result.
 
 ### GraphQL schema compatibility
 
