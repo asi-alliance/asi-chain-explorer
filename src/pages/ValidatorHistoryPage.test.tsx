@@ -23,5 +23,5 @@ test('selects one complete sibling snapshot and permits genesis height zero', ()
   expect(screen.getAllByRole('row')).toHaveLength(4);
   expect(screen.getAllByRole('cell', {name: '0.00002 ASI'})).toHaveLength(3);
   fireEvent.change(screen.getByLabelText('Block:'), {target: {value: '0'}});
-  expect(query.mock.calls.at(-1)?.[1].variables.blockNumber).toBe(0);
+  expect(query.mock.calls.at(-1)?.[1].variables.blockNumber).toBe('0');
 });
