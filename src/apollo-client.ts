@@ -2,78 +2,55 @@ import { ApolloClient, InMemoryCache, createHttpLink, split } from '@apollo/clie
 import { GraphQLWsLink } from '@apollo/client/link/subscriptions';
 import { getMainDefinition } from '@apollo/client/utilities';
 import { createClient } from 'graphql-ws';
+import { amountTypePolicies } from './utils/amountPolicies';
+import { defaultOptions } from './apolloDefaults';
+import type { PublicConfig } from './runtimeConfig';
 
-// Use environment variables for external services
-const GRAPHQL_HTTP_URL = process.env.REACT_APP_GRAPHQL_URL || 'http://localhost:8080/v1/graphql';
-const GRAPHQL_WS_URL = process.env.REACT_APP_GRAPHQL_WS_URL || 'ws://localhost:8080/v1/graphql';
+// The explorer reads only data that Hasura's public role exposes. It sends no
+// admin secret or shared bearer token: anything in the bundle is public.
+export function createApolloClient(config: Pick<PublicConfig, 'graphqlUrl' | 'graphqlWsUrl'>) {
+  const httpLink = createHttpLink({ uri: config.graphqlUrl });
 
-// Admin secret for Hasura (production servers require this)
-// Note: In production, this should be handled by a backend proxy for security
-const HASURA_ADMIN_SECRET = process.env.REACT_APP_HASURA_ADMIN_SECRET || '';
-const AUTH_TOKEN = process.env.REACT_APP_AUTH_TOKEN || '';
+  const wsLink = new GraphQLWsLink(createClient({ url: config.graphqlWsUrl }));
 
-// HTTP link for queries and mutations
-const httpLink = createHttpLink({
-  uri: GRAPHQL_HTTP_URL,
-  headers: {
-    ...(HASURA_ADMIN_SECRET && { 'x-hasura-admin-secret': HASURA_ADMIN_SECRET }),
-    ...(AUTH_TOKEN && { 'Authorization': `Bearer ${AUTH_TOKEN}` }),
-  },
-});
-
-// WebSocket link for subscriptions
-const wsLink = new GraphQLWsLink(
-  createClient({
-    url: GRAPHQL_WS_URL,
-    connectionParams: {
-      headers: {
-        ...(HASURA_ADMIN_SECRET && { 'x-hasura-admin-secret': HASURA_ADMIN_SECRET }),
-        ...(AUTH_TOKEN && { 'Authorization': `Bearer ${AUTH_TOKEN}` }),
-      },
+  const splitLink = split(
+    ({ query }) => {
+      const definition = getMainDefinition(query);
+      return (
+        definition.kind === 'OperationDefinition' &&
+        definition.operation === 'subscription'
+      );
     },
-  })
-);
+    wsLink,
+    httpLink
+  );
 
-// Split between HTTP and WebSocket links
-const splitLink = split(
-  ({ query }) => {
-    const definition = getMainDefinition(query);
-    return (
-      definition.kind === 'OperationDefinition' &&
-      definition.operation === 'subscription'
-    );
-  },
-  wsLink,
-  httpLink
-);
-
-// Create Apollo Client
-export const apolloClient = new ApolloClient({
-  link: splitLink,
-  cache: new InMemoryCache({
-    typePolicies: {
-      blocks: {
-        keyFields: ['block_hash'],
+  return new ApolloClient({
+    link: splitLink,
+    cache: new InMemoryCache({
+      typePolicies: {
+        ...amountTypePolicies,
+        blocks: {
+          keyFields: ['block_hash'],
+        },
+        deployments: {
+          ...amountTypePolicies.deployments,
+          keyFields: ['deploy_id'],
+        },
+        transfers: {
+          ...amountTypePolicies.transfers,
+          keyFields: ['id'],
+        },
+        validators: {
+          ...amountTypePolicies.validators,
+          keyFields: ['public_key'],
+        },
+        pending_deploys: {
+          ...amountTypePolicies.pending_deploys,
+          keyFields: ['sig'],
+        },
       },
-      deployments: {
-        keyFields: ['deploy_id'],
-      },
-      transfers: {
-        keyFields: ['id'],
-      },
-      validators: {
-        keyFields: ['public_key'],
-      },
-    },
-  }),
-  defaultOptions: {
-    watchQuery: {
-      errorPolicy: 'ignore',
-    },
-    query: {
-      errorPolicy: 'ignore',
-    },
-  },
-});
-
-export default apolloClient;
+    }),
+    defaultOptions,
+  });
+}

@@ -1,6 +1,5 @@
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
-import { ApolloProvider } from "@apollo/client";
-import apolloClient from "./apollo-client";
+import { ApolloClient, ApolloProvider } from "@apollo/client";
 import Layout from "./components/Layout";
 import HomePage from "./pages/HomePage";
 import BlocksPage from "./pages/BlocksPage";
@@ -14,12 +13,13 @@ import ValidatorHistoryPage from "./pages/ValidatorHistoryPage";
 import SearchResultsPage from "./pages/SearchResultsPage";
 import TransactionDetailPage from "./pages/TransactionDetailPage";
 import TransactionsPage from "./pages/TransactionsPage";
+import PendingPage from "./pages/PendingPage";
 import FeedbackForm from "./components/community/FeedbackForm";
 
 import "./styles/global.css";
-function App() {
+function App({ client }: { client: ApolloClient<unknown> }) {
     return (
-        <ApolloProvider client={apolloClient}>
+        <ApolloProvider client={client}>
             <Router>
                 <Layout>
                     <Routes>
@@ -62,6 +62,7 @@ function App() {
                             path="/transactions"
                             element={<TransactionsPage />}
                         />
+                        <Route path="/pending" element={<PendingPage />} />
                         <Route
                             path="/transaction/:transactionId"
                             element={<TransactionDetailPage />}

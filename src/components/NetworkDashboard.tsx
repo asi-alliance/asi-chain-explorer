@@ -56,6 +56,7 @@ const GET_STATS = gql`
         }
 
         blocks(limit: 1, order_by: { block_number: desc }) {
+            block_hash
             block_number
         }
     }

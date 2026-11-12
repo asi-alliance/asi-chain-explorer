@@ -1,0 +1,11 @@
+# Local .env files would become compiled-in defaults of the image (issue #60).
+.env
+.env.*
+**/.env
+**/.env.*
+node_modules
+**/node_modules
+build
+coverage
+.git
+*.log

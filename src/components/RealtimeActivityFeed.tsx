@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { AnimatePresence } from './AnimatePresenceWrapper';
 import { formatDistanceToNow } from 'date-fns';
@@ -51,9 +51,10 @@ const RealtimeActivityFeed: React.FC<RealtimeActivityFeedProps> = ({
     pollInterval: 3000,
   });
   
-  const blocks = blocksData?.blocks || [];
-  const transfers = transfersData?.transfers || [];
-  const deployments = deploymentsData?.deployments || [];
+  // Memoize the fallbacks: a new [] on every render re-ran the effect below in a loop.
+  const blocks = useMemo(() => blocksData?.blocks || [], [blocksData]);
+  const transfers = useMemo(() => transfersData?.transfers || [], [transfersData]);
+  const deployments = useMemo(() => deploymentsData?.deployments || [], [deploymentsData]);
 
   // Convert data to activity items
   useEffect(() => {

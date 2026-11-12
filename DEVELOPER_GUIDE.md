@@ -9,8 +9,8 @@ This guide provides detailed information for developers working on the ASI Chain
 - Operating System: Linux, macOS, or Windows with WSL2
 - Docker Desktop 20.10+
 - Python 3.11+
-- Node.js 20+
-- PostgreSQL 14+ (for local development without Docker)
+- Node.js 22 (the Docker build and CI use Node.js 22)
+- PostgreSQL 18.6 (indexer stack, for local development without Docker)
 - Git
 
 ### IDE Recommendations
@@ -93,7 +93,6 @@ explorer/src/
 │   ├── RecentTransactionsExporter.tsx
 │   ├── AnimatePresenceWrapper.tsx
 │   ├── ConnectionStatus.tsx
-│   ├── TransactionTracker.tsx
 │   ├── RealtimeActivityFeed.tsx
 │   └── Logo.tsx
 │
@@ -112,8 +111,7 @@ explorer/src/
 │   └── IndexerStatusPage.tsx
 │
 ├── graphql/            # GraphQL operations
-│   ├── queries.ts      # Query and subscription definitions
-│   └── combined-advanced-search.graphql
+│   └── queries.ts      # Query and subscription definitions
 │
 ├── services/           # Business logic
 │   ├── websocketService.ts

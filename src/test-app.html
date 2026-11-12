@@ -33,8 +33,7 @@
                 const graphqlResponse = await fetch('http://localhost:8080/v1/graphql', {
                     method: 'POST',
                     headers: {
-                        'Content-Type': 'application/json',
-                        'x-hasura-admin-secret': 'myadminsecretkey'
+                        'Content-Type': 'application/json'
                     },
                     body: JSON.stringify({
                         query: '{ blocks_aggregate { aggregate { count } } }'
