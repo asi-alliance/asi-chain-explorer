@@ -18,11 +18,8 @@ RUN npm install --legacy-peer-deps && \
 # Copy source code
 COPY . .
 
-# Set build-time environment variables (AWS Lightsail production server)
-#ENV REACT_APP_GRAPHQL_URL=http://localhost:8080/v1/graphql
-#ENV REACT_APP_GRAPHQL_WS_URL=ws://localhost:8080/v1/graphql
-#ENV REACT_APP_INDEXER_API_URL=http://localhost:9090
-ENV REACT_APP_HASURA_ADMIN_SECRET=""
+# Build-time settings. Public endpoints are not compiled in: the production
+# image reads them at container start (see the production stage).
 ENV REACT_APP_ENVIRONMENT=production
 ENV REACT_APP_API_TIMEOUT=30000
 ENV REACT_APP_NETWORK_NAME="ASI Chain"
@@ -33,16 +30,6 @@ ENV REACT_APP_POLLING_INTERVAL=5000
 
 ARG REACT_APP_NATIVE_TOKEN_DECIMALS=8
 ENV REACT_APP_NATIVE_TOKEN_DECIMALS=${REACT_APP_NATIVE_TOKEN_DECIMALS}
-
-# Public endpoint build arguments; credentials must never enter the browser bundle.
-ARG REACT_APP_GRAPHQL_URL
-ARG REACT_APP_GRAPHQL_WS_URL
-ARG REACT_APP_RCHAIN_NODE_URL
-ARG REACT_APP_INDEXER_API_URL
-ENV REACT_APP_GRAPHQL_URL=${REACT_APP_GRAPHQL_URL}
-ENV REACT_APP_GRAPHQL_WS_URL=${REACT_APP_GRAPHQL_WS_URL}
-ENV REACT_APP_RCHAIN_NODE_URL=${REACT_APP_RCHAIN_NODE_URL}
-ENV REACT_APP_INDEXER_API_URL=${REACT_APP_INDEXER_API_URL}
 
 # Build the React application for production
 RUN npm run build
@@ -58,7 +45,21 @@ COPY --from=builder /app/build /usr/share/nginx/html
 
 # Copy environment configuration script
 COPY --from=builder /app/docker-entrypoint.sh /docker-entrypoint.sh
-RUN chmod +x /docker-entrypoint.sh
+COPY --from=builder /app/docker/write-runtime-config.sh /usr/local/bin/write-runtime-config.sh
+RUN chmod +x /docker-entrypoint.sh /usr/local/bin/write-runtime-config.sh
+
+# Public endpoints, written to /config.js at container start. The build
+# arguments only set defaults. Runtime environment variables override them.
+# GraphQL HTTP and WebSocket URLs are required: without them the container
+# exits. Never put a credential here: every value is served to visitors.
+ARG REACT_APP_GRAPHQL_URL=
+ARG REACT_APP_GRAPHQL_WS_URL=
+ARG REACT_APP_INDEXER_API_URL=/api/indexer
+ARG REACT_APP_RCHAIN_NODE_URL=
+ENV REACT_APP_GRAPHQL_URL=${REACT_APP_GRAPHQL_URL} \
+    REACT_APP_GRAPHQL_WS_URL=${REACT_APP_GRAPHQL_WS_URL} \
+    REACT_APP_INDEXER_API_URL=${REACT_APP_INDEXER_API_URL} \
+    REACT_APP_RCHAIN_NODE_URL=${REACT_APP_RCHAIN_NODE_URL}
 
 # Expose port 80
 EXPOSE 80
