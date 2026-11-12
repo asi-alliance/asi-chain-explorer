@@ -1,7 +1,8 @@
 #!/bin/sh
 
 # ASI-Chain Explorer Docker Entrypoint Script
-# This script handles environment variable substitution in production builds
+# Writes the nginx configuration and the browser's public endpoint configuration
+# (/config.js) from the container environment, then starts nginx.
 
 set -e
 
@@ -13,33 +14,12 @@ case "$INDEXER_STATUS_URL" in
 esac
 envsubst '${INDEXER_STATUS_URL}' < /etc/nginx/templates/default.conf.template > /etc/nginx/conf.d/default.conf
 
-# Function to replace environment variables in built files
-replace_env_vars() {
-    echo "🔧 Configuring environment variables..."
-    
-    # Find the main JS file
-    MAIN_JS=$(find /usr/share/nginx/html/static/js -name "main.*.js" | head -1)
-    
-    if [ -n "$MAIN_JS" ]; then
-        echo "📄 Found main JS file: $MAIN_JS"
-        
-        # Replace environment variables
-        sed -i "s|REACT_APP_GRAPHQL_URL_PLACEHOLDER|${REACT_APP_GRAPHQL_URL:-http://localhost:8080/v1/graphql}|g" "$MAIN_JS"
-        sed -i "s|REACT_APP_GRAPHQL_WS_URL_PLACEHOLDER|${REACT_APP_GRAPHQL_WS_URL:-ws://localhost:8080/v1/graphql}|g" "$MAIN_JS"
-        sed -i "s|REACT_APP_RCHAIN_NODE_URL_PLACEHOLDER|${REACT_APP_RCHAIN_NODE_URL:-http://localhost:40453}|g" "$MAIN_JS"
-        
-        echo "✅ Environment variables configured"
-    else
-        echo "⚠️  Main JS file not found, using default configuration"
-    fi
-}
-
-# Replace environment variables if in production mode
-if [ "${NODE_ENV:-production}" = "production" ]; then
-    replace_env_vars
+# Public endpoints for the browser. A missing or unsafe value stops the container
+# instead of serving a bundle that connects to an unrelated default service.
+if ! /usr/local/bin/write-runtime-config.sh /usr/share/nginx/html/config.js; then
+    echo "Set REACT_APP_GRAPHQL_URL and REACT_APP_GRAPHQL_WS_URL to the public Hasura endpoints" >&2
+    exit 1
 fi
+echo "Explorer endpoints: GraphQL ${REACT_APP_GRAPHQL_URL}, subscriptions ${REACT_APP_GRAPHQL_WS_URL}"
 
-echo "🚀 Starting ASI-Chain Explorer..."
-
-# Execute the main command
 exec "$@"

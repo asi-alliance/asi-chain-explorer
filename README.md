@@ -209,16 +209,27 @@ Application will open at http://localhost:3000
 ### Explorer Environment Variables
 
 [.env.example](.env.example) lists every variable that the code, the Dockerfile
-or nginx reads. `REACT_APP_*` values are build-time values: the bundle contains
-them, and every visitor can read them.
+or nginx reads. Every `REACT_APP_*` value is public: every visitor can read it.
+Do not put a credential in one. The explorer sends no Hasura admin secret or
+bearer token: it reads only what the public role exposes.
+
+The four endpoint variables (GraphQL HTTP, GraphQL WebSocket, indexer API, node
+URL) are runtime values in the Docker image. The container writes them to
+`/config.js` at startup, so one image works for every network. Docker build
+arguments with the same names only set defaults. The container exits when
+`REACT_APP_GRAPHQL_URL` or `REACT_APP_GRAPHQL_WS_URL` is missing, uses the wrong
+scheme, contains credentials or contains characters such as quotes, backslashes,
+angle brackets or spaces. With `npm start` and `npm run build`, these variables
+are build-time values. A production bundle without them shows a configuration
+error and never falls back to localhost.
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `REACT_APP_GRAPHQL_URL` | Hasura GraphQL HTTP endpoint | `http://localhost:8080/v1/graphql` |
-| `REACT_APP_GRAPHQL_WS_URL` | Hasura GraphQL WebSocket endpoint | `ws://localhost:8080/v1/graphql` |
+| `REACT_APP_GRAPHQL_URL` | Hasura GraphQL HTTP endpoint: `http(s)://` URL or same-origin path. Required | `npm start` only: `http://localhost:8080/v1/graphql` |
+| `REACT_APP_GRAPHQL_WS_URL` | Hasura GraphQL WebSocket endpoint: `ws(s)://` URL or same-origin path. Required | `npm start` only: `ws://localhost:8080/v1/graphql` |
 | `REACT_APP_INDEXER_API_URL` | Base path of the indexer status request | `/api/indexer` |
+| `REACT_APP_RCHAIN_NODE_URL` | Node HTTP API for the wallet balance lookup (not mounted in the current UI) | Same origin |
 | `INDEXER_STATUS_URL` | Server-side indexer `/status` URL for nginx (runtime, not in the bundle) | `http://host.docker.internal:9090/status` |
-| `REACT_APP_HASURA_ADMIN_SECRET` | Keep empty: the public role reads everything the explorer queries | Empty |
 | `REACT_APP_NATIVE_TOKEN_DECIMALS` | Wallet-balance precision for nodes without `nativeTokenDecimals` | `8` |
 | `REACT_APP_FEEDBACK_FORM_URL` | URL that receives the feedback form | Empty |
 | `REACT_APP_JSAPI_URL`, `REACT_APP_CAPTCHA_TOKEN` | AWS WAF CAPTCHA for the feedback form | Empty |
@@ -249,8 +260,20 @@ REACT_APP_INDEXER_API_URL=/api/indexer
 INDEXER_STATUS_URL=http://host.docker.internal:9090/status
 ```
 
-The explorer needs no Hasura credential. Do not set `REACT_APP_HASURA_ADMIN_SECRET`
-for a public build: the value is visible in the bundle.
+The explorer needs no Hasura credential and does not send one. Give the Hasura
+public role read access instead (the indexer's `scripts/full-init-hasura.sh`).
+
+Run the published image with the public endpoints of the target network:
+
+```bash
+docker run -p 3001:80 \
+  -e REACT_APP_GRAPHQL_URL=https://hasura.example.com/v1/graphql \
+  -e REACT_APP_GRAPHQL_WS_URL=wss://hasura.example.com/v1/graphql \
+  -e INDEXER_STATUS_URL=http://asi-indexer:9090/status \
+  asi-explorer:latest
+```
+
+`scripts/test-docker-image.sh` builds the image and checks this startup contract.
 
 ## API Endpoints
 
@@ -321,8 +344,8 @@ docker rmi asi-explorer:latest
 - `Dockerfile` - Container definition
 - `docker-compose.standalone.yml` - Docker Compose config
 - `docker-entrypoint.sh` - Runtime configuration
+- `docker/write-runtime-config.sh` - Writes and validates `/config.js`
 - `nginx.conf` - Web server config
-- `.env.production.secure` - Production environment
 - `deploy-docker.sh` - Deployment automation
 
 

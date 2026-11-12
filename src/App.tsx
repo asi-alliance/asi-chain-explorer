@@ -1,6 +1,5 @@
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
-import { ApolloProvider } from "@apollo/client";
-import apolloClient from "./apollo-client";
+import { ApolloClient, ApolloProvider } from "@apollo/client";
 import Layout from "./components/Layout";
 import HomePage from "./pages/HomePage";
 import BlocksPage from "./pages/BlocksPage";
@@ -18,9 +17,9 @@ import PendingPage from "./pages/PendingPage";
 import FeedbackForm from "./components/community/FeedbackForm";
 
 import "./styles/global.css";
-function App() {
+function App({ client }: { client: ApolloClient<unknown> }) {
     return (
-        <ApolloProvider client={apolloClient}>
+        <ApolloProvider client={client}>
             <Router>
                 <Layout>
                     <Routes>

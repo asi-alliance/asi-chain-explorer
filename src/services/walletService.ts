@@ -1,5 +1,6 @@
 import { rawInteger, formatRaw, NATIVE_DECIMALS, validateDecimals } from "../utils/amounts";
 import {CURRENT_TOKEN} from "../utils/constants";
+import { getPublicConfig } from "../runtimeConfig";
 
 export interface WalletBalance {
     address: string;
@@ -27,8 +28,12 @@ export interface RChainExploreResponse {
  * to execute Rholang code that queries the AsiVault contract for wallet balances.
  */
 export class WalletService {
-    private static readonly RCHAIN_NODE_URL = process.env.NODE_ENV === 'development' ? '' : (process.env.REACT_APP_RCHAIN_NODE_URL || 'http://localhost:40453');
-    private static readonly GRAPHQL_URL = process.env.REACT_APP_GRAPHQL_URL || 'http://localhost:8080/v1/graphql';
+    private static get RCHAIN_NODE_URL(): string {
+        return process.env.NODE_ENV === 'development' ? '' : getPublicConfig().nodeUrl.replace(/\/+$/, '');
+    }
+    private static get GRAPHQL_URL(): string {
+        return getPublicConfig().graphqlUrl;
+    }
     private static readonly EXPLORE_ENDPOINT = '/api/explore-deploy';
     private static readonly REQUEST_TIMEOUT = 30000; // 30 seconds
 

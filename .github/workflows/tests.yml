@@ -34,6 +34,10 @@ jobs:
           npm install --no-audit --no-fund --legacy-peer-deps
           npm install --no-audit --no-fund --legacy-peer-deps --no-save ajv@^8.12.0 ajv-keywords@^5.1.0
 
+      - name: Runtime config script tests
+        # The docker-image job runs the same script under the image's busybox shell.
+        run: bash scripts/test-runtime-config.sh
+
       - name: Unit tests
         run: npm test -- --watchAll=false --runInBand
         env:
@@ -45,3 +49,17 @@ jobs:
       - name: Production build
         # GitHub sets CI=true, so create-react-app fails the build on any lint warning.
         run: npm run build
+
+      - name: Check the bundle for credentials and default endpoints
+        run: bash scripts/check-bundle.sh build
+
+  docker-image:
+    # Startup contract of the published image: issue #60.
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Check out explorer
+        uses: actions/checkout@v4
+
+      - name: Build the image and check its endpoint configuration
+        run: bash scripts/test-docker-image.sh

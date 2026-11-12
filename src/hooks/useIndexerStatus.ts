@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { getPublicConfig } from '../runtimeConfig';
 
 export interface IndexerStatus {
   lastIndexedBlock: number | null;
@@ -48,7 +49,7 @@ export function useIndexerStatus() {
     let nextPoll: ReturnType<typeof setTimeout> | undefined;
     let requestTimeout: ReturnType<typeof setTimeout> | undefined;
     let controller: AbortController;
-    const base = (process.env.REACT_APP_INDEXER_API_URL || '/api/indexer').replace(/\/+$/, '');
+    const base = getPublicConfig().indexerApiUrl.replace(/\/+$/, '');
     const poll = async () => {
       controller = new AbortController();
       requestTimeout = setTimeout(() => controller.abort(), 10000);
