@@ -52,7 +52,17 @@ const DEVELOPMENT_DEFAULTS: ConfigSource =
 // browser accept the same values (scripts/runtime-config-cases.tsv). No quotes,
 // backslashes, angle brackets, whitespace, credentials, query or fragment.
 const SAFE_URL = /^[A-Za-z0-9._~:/[\]@!$&()*+,;=%-]+$/;
-const HOST = '([A-Za-z0-9._-]+|\\[[0-9A-Fa-f:.]+\\])';
+// A name whose last label is a number (all digits or 0x...) would be parsed as
+// IPv4, so it must be a valid dotted address instead.
+const LAST_LABEL = '([A-Za-z_-][A-Za-z0-9_-]*|[1-9][A-Za-z0-9_-]*[A-Za-z_-][A-Za-z0-9_-]*|0[A-WYZa-wyz_-][A-Za-z0-9_-]*|0[0-9][A-Za-z0-9_-]*[A-Za-z_-][A-Za-z0-9_-]*)';
+const OCTET = '(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])';
+const H16 = '[0-9A-Fa-f]{1,4}';
+const IPV6 = [
+  `(${H16}:){7}${H16}`, `(${H16}:){1,7}:`, `(${H16}:){1,6}:${H16}`, `(${H16}:){1,5}(:${H16}){1,2}`,
+  `(${H16}:){1,4}(:${H16}){1,3}`, `(${H16}:){1,3}(:${H16}){1,4}`, `(${H16}:){1,2}(:${H16}){1,5}`,
+  `${H16}:(:${H16}){1,6}`, `:((:${H16}){1,7}|:)`,
+].join('|');
+const HOST = `(([A-Za-z0-9_-]*\\.)*${LAST_LABEL}\\.?|(${OCTET}\\.){3}${OCTET}|\\[(${IPV6})\\])`;
 const PORT = '(:(6553[0-5]|655[0-2][0-9]|65[0-4][0-9]{2}|6[0-4][0-9]{3}|[1-5][0-9]{4}|[1-9][0-9]{0,3}))?';
 const PATH = '(/[A-Za-z0-9._~!$&()*+,;=:@%/-]*)?';
 const RELATIVE = '/([A-Za-z0-9._~!$&()*+,;=:@%-][A-Za-z0-9._~!$&()*+,;=:@%/-]*)?';

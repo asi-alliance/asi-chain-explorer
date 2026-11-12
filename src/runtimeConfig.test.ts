@@ -120,3 +120,13 @@ test.each(SHARED_CASES)('agrees with the container: %s %s endpoint %p', (verdict
     expect(resolve).toThrow(ConfigError);
   }
 });
+
+test.each(SHARED_CASES.filter(([verdict, , value]) => verdict === 'accept' && !value.startsWith('/')))(
+  'an accepted %s %s endpoint is also a valid URL for the browser: %p',
+  (_verdict, kind, value) => {
+    const url = new URL(value);
+    expect(kind === 'ws' ? ['ws:', 'wss:'] : ['http:', 'https:']).toContain(url.protocol);
+    expect(url.username).toBe('');
+    expect(url.password).toBe('');
+  },
+);

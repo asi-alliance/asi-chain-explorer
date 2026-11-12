@@ -37,7 +37,14 @@ check() {
     # (quotes, backslashes, angle brackets, spaces) could break out of the
     # generated JavaScript string, so they are rejected rather than escaped.
     # Credentials, a query and a fragment are rejected too.
-    host='([A-Za-z0-9._-]+|\[[0-9A-Fa-f:.]+\])'
+    # A host is a name, a dotted IPv4 address or a bracketed IPv6 address. The
+    # last label of a name must not be a number (all digits or 0x...): browsers
+    # parse such a host as IPv4 and reject it when it is not a valid address.
+    last='([A-Za-z_-][A-Za-z0-9_-]*|[1-9][A-Za-z0-9_-]*[A-Za-z_-][A-Za-z0-9_-]*|0[A-WYZa-wyz_-][A-Za-z0-9_-]*|0[0-9][A-Za-z0-9_-]*[A-Za-z_-][A-Za-z0-9_-]*)'
+    octet='(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])'
+    h='[0-9A-Fa-f]{1,4}'
+    ipv6="($h:){7}$h|($h:){1,7}:|($h:){1,6}:$h|($h:){1,5}(:$h){1,2}|($h:){1,4}(:$h){1,3}|($h:){1,3}(:$h){1,4}|($h:){1,2}(:$h){1,5}|$h:(:$h){1,6}|:((:$h){1,7}|:)"
+    host="(([A-Za-z0-9_-]*\\.)*$last\\.?|($octet\\.){3}$octet|\\[($ipv6)\\])"
     port='(:(6553[0-5]|655[0-2][0-9]|65[0-4][0-9]{2}|6[0-4][0-9]{3}|[1-5][0-9]{4}|[1-9][0-9]{0,3}))?'
     path='(/[A-Za-z0-9._~!$&()*+,;=:@%/-]*)?'
     relative='/([A-Za-z0-9._~!$&()*+,;=:@%-][A-Za-z0-9._~!$&()*+,;=:@%/-]*)?'

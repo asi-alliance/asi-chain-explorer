@@ -38,6 +38,10 @@ jobs:
         # The docker-image job runs the same script under the image's busybox shell.
         run: bash scripts/test-runtime-config.sh
 
+      - name: Served JavaScript check tests
+        # Negative controls for the leak check of scripts/test-docker-image.sh.
+        run: bash scripts/test-served-js-check.sh
+
       - name: Unit tests
         run: npm test -- --watchAll=false --runInBand
         env:

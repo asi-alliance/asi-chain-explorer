@@ -47,20 +47,8 @@ docker build -q --target production -t "$image-defaults" \
     --build-arg REACT_APP_GRAPHQL_WS_URL=wss://build-default.example.test/v1/graphql \
     "$context" >/dev/null
 
-# served_js_absent NAME BASE PATTERN: no served JavaScript asset matches PATTERN.
-served_js_absent() {
-    local name=$1 base=$2 pattern=$3 assets asset found=0
-    assets=$(curl -fsS "$base/asset-manifest.json" | grep -oE '"/static/js/[^"]+\.js"' | tr -d '"')
-    if [ -z "$assets" ]; then
-        fail "$name: no JavaScript assets in asset-manifest.json"; return
-    fi
-    for asset in $assets; do
-        if curl -fsS "$base$asset" | grep -qE -- "$pattern"; then
-            fail "$name: $asset matches $pattern"; found=1
-        fi
-    done
-    if [ "$found" -eq 0 ]; then pass "$name"; fi
-}
+# shellcheck source=scripts/lib/served-js.sh
+. "$root/scripts/lib/served-js.sh"
 
 # expect_exit NAME MESSAGE IMAGE [ENV...]: the container must stop with MESSAGE in its log.
 expect_exit() {
