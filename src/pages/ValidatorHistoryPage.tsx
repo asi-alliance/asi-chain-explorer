@@ -4,6 +4,7 @@ import { useQuery } from '@apollo/client';
 import { gql } from '@apollo/client';
 import { formatDistanceToNow } from 'date-fns';
 import { CURRENT_TOKEN } from '../utils/constants';
+import { blockHeight, heightInput } from '../utils/blockHeight';
 
 const GET_VALIDATOR_HISTORY = gql`
   query GetValidatorHistory($blockNumber: bigint) {
@@ -29,12 +30,13 @@ const GET_BLOCK_RANGE = gql`
 `;
 
 const ValidatorHistoryPage: React.FC = () => {
-  const [selectedBlock, setSelectedBlock] = useState<number | null>(null);
+  const [selectedBlock, setSelectedBlock] = useState<string | null>(null);
   const [selectedHash, setSelectedHash] = useState('');
   
   const { data: rangeData } = useQuery(GET_BLOCK_RANGE);
-  const maxBlock = rangeData?.blocks?.[0]?.block_number || 0;
-  const minBlock = 0; // We don't need min block for this functionality
+  // Heights stay exact decimal strings: Hasura returns bigint heights as strings.
+  const maxBlock = (blockHeight(rangeData?.blocks?.[0]?.block_number) ?? 0n).toString();
+  const minBlock = '0';
   
   const { data, loading, error } = useQuery(GET_VALIDATOR_HISTORY, {
     variables: { blockNumber: selectedBlock ?? maxBlock },
@@ -42,8 +44,8 @@ const ValidatorHistoryPage: React.FC = () => {
   });
 
   const handleBlockChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = parseInt(e.target.value);
-    if (!isNaN(value) && value >= minBlock && value <= maxBlock) {
+    const value = heightInput(e.target.value);
+    if (value !== null && BigInt(value) <= BigInt(maxBlock)) {
       setSelectedBlock(value);
       setSelectedHash('');
     }
@@ -105,7 +107,7 @@ const ValidatorHistoryPage: React.FC = () => {
               }}
             />
             <span className="text-muted" style={{ fontSize: '12px' }}>
-              ({minBlock.toLocaleString()} - {maxBlock.toLocaleString()})
+              ({minBlock} - {maxBlock})
             </span>
           </div>
         </div>
@@ -135,7 +137,7 @@ const ValidatorHistoryPage: React.FC = () => {
             <div className="summary-grid mb-3">
               <div className="asi-card glass">
                 <p className="text-muted" style={{ marginBottom: '0.5rem' }}>Block Number</p>
-                <h3 style={{ margin: 0 }}>#{currentBlock.toLocaleString()}</h3>
+                <h3 style={{ margin: 0 }}>#{currentBlock}</h3>
               </div>
               <div className="asi-card glass">
                 <p className="text-muted" style={{ marginBottom: '0.5rem' }}>Block Time</p>
