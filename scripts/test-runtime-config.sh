@@ -78,6 +78,31 @@ expect_rejected "javascript scheme" "REACT_APP_GRAPHQL_URL must be" \
 expect_rejected "invalid optional node URL" "REACT_APP_RCHAIN_NODE_URL must be" \
     "$HTTP" "$WS" REACT_APP_RCHAIN_NODE_URL=ftp://node.example.test
 
+# src/runtimeConfig.test.ts runs the browser validation over the same table.
+cases=0
+mismatches=0
+while IFS=$'\t' read -r verdict kind value; do
+    case "$verdict" in accept|reject) ;; *) continue ;; esac
+    cases=$((cases + 1))
+    if [ "$kind" = ws ]; then
+        set -- "$HTTP" "REACT_APP_GRAPHQL_WS_URL=$value"
+    else
+        set -- "REACT_APP_GRAPHQL_URL=$value" "$WS"
+    fi
+    if run "$@"; then result=accept; else result=reject; fi
+    if [ "$result" != "$verdict" ]; then
+        echo "FAIL shared case: expected $verdict, got $result for $kind $value"
+        cat "$work/stderr"
+        mismatches=$((mismatches + 1))
+    fi
+done < "$root/scripts/runtime-config-cases.tsv"
+failures=$((failures + mismatches))
+if [ "$cases" -lt 30 ]; then
+    echo "FAIL shared case table has only $cases cases"; failures=$((failures + 1))
+elif [ "$mismatches" -eq 0 ]; then
+    echo "ok   $cases shared cases agree with scripts/runtime-config-cases.tsv"
+fi
+
 if [ "$failures" -ne 0 ]; then
     echo "$failures runtime config test(s) failed" >&2
     exit 1

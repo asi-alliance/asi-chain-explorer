@@ -32,13 +32,21 @@ check() {
         *"$newline"*) fail "$name must be a single line"; return 0 ;;
         //*) fail "$name must not be a protocol-relative URL"; return 0 ;;
     esac
-    # Characters outside this set (quotes, backslashes, angle brackets, spaces)
-    # could break out of the generated JavaScript string, so they are rejected
-    # rather than escaped. Credentials in the authority part are rejected too.
+    # src/runtimeConfig.ts uses the same grammar, and scripts/runtime-config-cases.tsv
+    # holds the cases that both must agree on. Characters outside these sets
+    # (quotes, backslashes, angle brackets, spaces) could break out of the
+    # generated JavaScript string, so they are rejected rather than escaped.
+    # Credentials, a query and a fragment are rejected too.
+    host='([A-Za-z0-9._-]+|\[[0-9A-Fa-f:.]+\])'
+    port='(:(6553[0-5]|655[0-2][0-9]|65[0-4][0-9]{2}|6[0-4][0-9]{3}|[1-5][0-9]{4}|[1-9][0-9]{0,3}))?'
     path='(/[A-Za-z0-9._~!$&()*+,;=:@%/-]*)?'
-    host='([A-Za-z0-9.-]+|\[[0-9A-Fa-f:.]+\])(:[0-9]{1,5})?'
-    if ! printf '%s' "$value" | grep -Eq "^(($schemes)://$host$path|/[A-Za-z0-9._~!$&()*+,;=:@%-][A-Za-z0-9._~!$&()*+,;=:@%/-]*)\$|^/\$"; then
-        fail "$name must be a ${schemes} URL or a path starting with /, without credentials, query or unsafe characters"
+    relative='/([A-Za-z0-9._~!$&()*+,;=:@%-][A-Za-z0-9._~!$&()*+,;=:@%/-]*)?'
+    if ! printf '%s' "$value" | grep -Eq "^(($schemes)://$host$port$path|$relative)\$"; then
+        case "$schemes" in
+            'https?') kind='http or https' ;;
+            *) kind='ws or wss' ;;
+        esac
+        fail "$name must be a $kind URL (lowercase scheme, host, optional port 1-65535, path) or a path starting with /, without credentials, query, fragment or unsafe characters"
     fi
 }
 

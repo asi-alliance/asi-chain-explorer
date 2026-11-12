@@ -60,7 +60,6 @@ Cargo.lock
 *.sqlite3
 
 # Docker
-.dockerignore
 docker-compose.override.yml
 
 # Temporary files

@@ -26,16 +26,16 @@ declare global {
 
 interface Field {
   key: ConfigKey;
-  schemes: string[];
+  schemes: Array<"http" | "https" | "ws" | "wss">;
   required: boolean;
   fallback: string;
 }
 
 const FIELDS: Record<keyof PublicConfig, Field> = {
-  graphqlUrl: { key: 'REACT_APP_GRAPHQL_URL', schemes: ['http:', 'https:'], required: true, fallback: '' },
-  graphqlWsUrl: { key: 'REACT_APP_GRAPHQL_WS_URL', schemes: ['ws:', 'wss:'], required: true, fallback: '' },
-  indexerApiUrl: { key: 'REACT_APP_INDEXER_API_URL', schemes: ['http:', 'https:'], required: false, fallback: '/api/indexer' },
-  nodeUrl: { key: 'REACT_APP_RCHAIN_NODE_URL', schemes: ['http:', 'https:'], required: false, fallback: '' },
+  graphqlUrl: { key: 'REACT_APP_GRAPHQL_URL', schemes: ['http', 'https'], required: true, fallback: '' },
+  graphqlWsUrl: { key: 'REACT_APP_GRAPHQL_WS_URL', schemes: ['ws', 'wss'], required: true, fallback: '' },
+  indexerApiUrl: { key: 'REACT_APP_INDEXER_API_URL', schemes: ['http', 'https'], required: false, fallback: '/api/indexer' },
+  nodeUrl: { key: 'REACT_APP_RCHAIN_NODE_URL', schemes: ['http', 'https'], required: false, fallback: '' },
 };
 
 // Local development talks to a local indexer stack. A production bundle never
@@ -48,9 +48,18 @@ const DEVELOPMENT_DEFAULTS: ConfigSource =
         REACT_APP_GRAPHQL_WS_URL: 'ws://localhost:8080/v1/graphql',
       };
 
-// Same characters as docker/write-runtime-config.sh: no quotes, backslashes,
-// angle brackets, whitespace, query or fragment.
+// The grammar of docker/write-runtime-config.sh, so that the container and the
+// browser accept the same values (scripts/runtime-config-cases.tsv). No quotes,
+// backslashes, angle brackets, whitespace, credentials, query or fragment.
 const SAFE_URL = /^[A-Za-z0-9._~:/[\]@!$&()*+,;=%-]+$/;
+const HOST = '([A-Za-z0-9._-]+|\\[[0-9A-Fa-f:.]+\\])';
+const PORT = '(:(6553[0-5]|655[0-2][0-9]|65[0-4][0-9]{2}|6[0-4][0-9]{3}|[1-5][0-9]{4}|[1-9][0-9]{0,3}))?';
+const PATH = '(/[A-Za-z0-9._~!$&()*+,;=:@%/-]*)?';
+const RELATIVE = '/([A-Za-z0-9._~!$&()*+,;=:@%-][A-Za-z0-9._~!$&()*+,;=:@%/-]*)?';
+
+function grammar(schemes: string[]): RegExp {
+  return new RegExp(`^((${schemes.join('|')})://${HOST}${PORT}${PATH}|${RELATIVE})$`);
+}
 
 export class ConfigError extends Error {
   constructor(readonly problems: string[]) {
@@ -61,20 +70,17 @@ export class ConfigError extends Error {
 
 function validate(field: Field, value: string): string | null {
   if (!SAFE_URL.test(value)) return `${field.key} contains characters that are not allowed in a URL`;
-  if (value.startsWith('/')) {
-    return value.startsWith('//') ? `${field.key} must not be a protocol-relative URL` : null;
+  if (value.startsWith('//')) return `${field.key} must not be a protocol-relative URL`;
+  const schemes = field.schemes.join(' or ');
+  if (!value.startsWith('/')) {
+    const scheme = /^([A-Za-z][A-Za-z0-9+.-]*):/.exec(value)?.[1];
+    if (scheme === undefined) return `${field.key} must be an absolute ${schemes} URL or a path starting with /`;
+    if (!(field.schemes as string[]).includes(scheme)) return `${field.key} must use ${schemes} (lowercase), not ${scheme}`;
+    if (value.slice(scheme.length + 3).split('/')[0].includes('@')) return `${field.key} must not contain credentials`;
   }
-  let url: URL;
-  try {
-    url = new URL(value);
-  } catch {
-    return `${field.key} must be an absolute ${field.schemes.join('//, ')}// URL or a path starting with /`;
+  if (!grammar(field.schemes).test(value)) {
+    return `${field.key} must be a ${schemes} URL with a host and an optional port 1-65535, or a path starting with /`;
   }
-  if (!field.schemes.includes(url.protocol)) {
-    return `${field.key} must use ${field.schemes.map(s => s.slice(0, -1)).join(' or ')}, not ${url.protocol.slice(0, -1)}`;
-  }
-  if (!url.hostname) return `${field.key} has no host`;
-  if (url.username || url.password) return `${field.key} must not contain credentials`;
   return null;
 }
 

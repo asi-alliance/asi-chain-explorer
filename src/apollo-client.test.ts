@@ -43,6 +43,8 @@ test('queries the configured endpoint without admin or bearer credentials (issue
 });
 
 test('opens subscriptions on the configured WebSocket endpoint without connection credentials', () => {
+  process.env.REACT_APP_HASURA_ADMIN_SECRET = 'example-admin-secret';
+  process.env.REACT_APP_AUTH_TOKEN = 'example-token';
   createApolloClient(CONFIG);
   const calls = (createClient as jest.Mock).mock.calls;
   const options = calls[calls.length - 1][0];

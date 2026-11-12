@@ -218,10 +218,22 @@ URL) are runtime values in the Docker image. The container writes them to
 `/config.js` at startup, so one image works for every network. Docker build
 arguments with the same names only set defaults. The container exits when
 `REACT_APP_GRAPHQL_URL` or `REACT_APP_GRAPHQL_WS_URL` is missing, uses the wrong
-scheme, contains credentials or contains characters such as quotes, backslashes,
-angle brackets or spaces. With `npm start` and `npm run build`, these variables
-are build-time values. A production bundle without them shows a configuration
-error and never falls back to localhost.
+or an uppercase scheme, has a port outside 1-65535, contains credentials, a query
+or a fragment, or contains characters such as quotes, backslashes, angle brackets
+or spaces. The browser applies the same rules (`scripts/runtime-config-cases.tsv`).
+With `npm start` and `npm run build`, these variables are build-time values. A
+production bundle without them shows a configuration error and never falls back
+to localhost.
+
+A same-origin path such as `/v1/graphql` needs a reverse proxy in front of the
+explorer that routes that path to Hasura, for both HTTP and WebSocket. The nginx
+in the image proxies only `/api/indexer/status`. Without such a proxy, use
+absolute Hasura URLs.
+
+`REACT_APP_NATIVE_TOKEN_DECIMALS` stays a build-time value. It only sets the
+wallet-balance precision for nodes that report no `nativeTokenDecimals`. Indexed
+rows carry their own `token_decimals`, and rows without it use 8. Build a
+separate image only when the wallet lookup must use a different fallback.
 
 | Variable | Description | Default |
 |----------|-------------|---------|
@@ -230,7 +242,7 @@ error and never falls back to localhost.
 | `REACT_APP_INDEXER_API_URL` | Base path of the indexer status request | `/api/indexer` |
 | `REACT_APP_RCHAIN_NODE_URL` | Node HTTP API for the wallet balance lookup (not mounted in the current UI) | Same origin |
 | `INDEXER_STATUS_URL` | Server-side indexer `/status` URL for nginx (runtime, not in the bundle) | `http://host.docker.internal:9090/status` |
-| `REACT_APP_NATIVE_TOKEN_DECIMALS` | Wallet-balance precision for nodes without `nativeTokenDecimals` | `8` |
+| `REACT_APP_NATIVE_TOKEN_DECIMALS` | Wallet-balance precision for nodes without `nativeTokenDecimals`. Build time only, also in the Docker image | `8` |
 | `REACT_APP_FEEDBACK_FORM_URL` | URL that receives the feedback form | Empty |
 | `REACT_APP_JSAPI_URL`, `REACT_APP_CAPTCHA_TOKEN` | AWS WAF CAPTCHA for the feedback form | Empty |
 
@@ -260,8 +272,19 @@ REACT_APP_INDEXER_API_URL=/api/indexer
 INDEXER_STATUS_URL=http://host.docker.internal:9090/status
 ```
 
-The explorer needs no Hasura credential and does not send one. Give the Hasura
-public role read access instead (the indexer's `scripts/full-init-hasura.sh`).
+The explorer needs no Hasura credential and does not send one. Every page uses
+the Hasura `public` role. Before you deploy this image, make sure that the target
+Hasura has:
+
+- `HASURA_GRAPHQL_UNAUTHORIZED_ROLE=public`. Without it, every page fails.
+- The public-role permissions of the indexer's `scripts/full-init-hasura.sh`:
+  `select` on the explorer tables and views with `limit: 5000`, and aggregates
+  on `deployments`, `transfers`, `transaction_history_view` and `pending_deploys`.
+
+The `GraphQL Schema` workflow validates every explorer operation against the
+schema that Hasura gives to an unauthenticated request after that script. It does
+not check the row limit. The CSV export requests 5000 rows, so a lower limit
+shortens the export.
 
 Run the published image with the public endpoints of the target network:
 

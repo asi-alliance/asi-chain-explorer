@@ -1,0 +1,42 @@
+# Endpoint values that docker/write-runtime-config.sh (container) and
+# src/runtimeConfig.ts (browser) must both accept or both reject. Issue #60.
+# Columns, separated by one tab: accept|reject, http|ws (the field kind), value.
+accept	http	https://hasura.example.test/v1/graphql
+accept	http	https://hasura.example.test
+accept	http	http://hasura_service:8080/v1/graphql
+accept	http	http://HASURA.example.test/v1/graphql
+accept	http	http://192.0.2.10:8080/v1/graphql
+accept	http	http://[::1]:8080/v1/graphql
+accept	http	https://hasura.example.test:1/v1/graphql
+accept	http	https://hasura.example.test:65535/v1/graphql
+accept	http	https://hasura.example.test/v1/@graphql
+accept	http	/v1/graphql
+accept	http	/
+accept	ws	wss://hasura.example.test/v1/graphql
+accept	ws	ws://hasura_service:8080/v1/graphql
+accept	ws	/v1/graphql
+reject	http	https://hasura.example.test:0/v1/graphql
+reject	http	https://hasura.example.test:080/v1/graphql
+reject	http	https://hasura.example.test:65536/v1/graphql
+reject	http	https://hasura.example.test:99999/v1/graphql
+reject	http	https://hasura.example.test:/v1/graphql
+reject	http	HTTP://HASURA.EXAMPLE.TEST/v1/graphql
+reject	http	Https://hasura.example.test/v1/graphql
+reject	http	https://
+reject	http	https:///v1/graphql
+reject	http	https://[zz]/v1/graphql
+reject	http	ws://hasura.example.test/v1/graphql
+reject	ws	https://hasura.example.test/v1/graphql
+reject	http	ftp://hasura.example.test/v1/graphql
+reject	http	javascript:alert(1)
+reject	http	hasura.example.test/v1/graphql
+reject	http	//hasura.example.test/v1/graphql
+reject	http	https://admin:secret@hasura.example.test/v1/graphql
+reject	http	https://admin@hasura.example.test/v1/graphql
+reject	http	https://hasura.example.test/v1/graphql?admin=1
+reject	http	https://hasura.example.test/v1/graphql#x
+reject	http	https://hasura.example.test/v1 graphql
+reject	http	https://evil.example.test/"});alert(1);//
+reject	http	https://hasura.example.test/v1\graphql
+reject	http	https://hasura.example.test/</script>
+reject	http	https://hasura.example.test/v1/graphql'

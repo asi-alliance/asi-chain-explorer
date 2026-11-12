@@ -1,3 +1,5 @@
+import { readFileSync } from 'fs';
+import { join } from 'path';
 import { ConfigError, resolvePublicConfig } from './runtimeConfig';
 
 const ORIGIN = 'https://explorer.example.test/blocks';
@@ -89,4 +91,32 @@ test.each([
   const found = problems(runtime);
   expect(found).toHaveLength(1);
   expect(found[0]).toMatch(message);
+});
+
+// scripts/test-runtime-config.sh runs the container writer over the same table.
+const SHARED_CASES = readFileSync(join(__dirname, '../scripts/runtime-config-cases.tsv'), 'utf8')
+  .split('\n')
+  .filter(line => line !== '' && !line.startsWith('#'))
+  .map(line => line.split('\t'));
+
+test('the shared case table is well formed', () => {
+  expect(SHARED_CASES.length).toBeGreaterThan(30);
+  SHARED_CASES.forEach(row => {
+    expect(row).toHaveLength(3);
+    expect(['accept', 'reject']).toContain(row[0]);
+    expect(['http', 'ws']).toContain(row[1]);
+  });
+});
+
+test.each(SHARED_CASES)('agrees with the container: %s %s endpoint %p', (verdict, kind, value) => {
+  const runtime = {
+    REACT_APP_GRAPHQL_URL: kind === 'http' ? value : 'https://hasura.example.test/v1/graphql',
+    REACT_APP_GRAPHQL_WS_URL: kind === 'ws' ? value : 'wss://hasura.example.test/v1/graphql',
+  };
+  const resolve = () => resolvePublicConfig(runtime, {}, ORIGIN, PRODUCTION);
+  if (verdict === 'accept') {
+    expect(resolve).not.toThrow();
+  } else {
+    expect(resolve).toThrow(ConfigError);
+  }
 });
