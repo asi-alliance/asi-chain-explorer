@@ -33,19 +33,29 @@ const ValidatorHistoryPage: React.FC = () => {
   const [selectedBlock, setSelectedBlock] = useState<string | null>(null);
   const [selectedHash, setSelectedHash] = useState('');
   
-  const { data: rangeData } = useQuery(GET_BLOCK_RANGE);
+  const { data: rangeData, loading: rangeLoading, error: rangeError } = useQuery(GET_BLOCK_RANGE);
   // Heights stay exact decimal strings: Hasura returns bigint heights as strings.
-  const maxBlock = (blockHeight(rangeData?.blocks?.[0]?.block_number) ?? 0n).toString();
+  // A failed, empty or invalid latest-block response is never read as height 0.
+  const latestRow = rangeData?.blocks?.[0];
+  const maxBlock = blockHeight(latestRow?.block_number)?.toString() ?? null;
   const minBlock = '0';
-  
+  const rangeProblem = rangeError
+    ? `Could not load the latest block: ${rangeError.message}`
+    : rangeLoading || maxBlock !== null
+      ? null
+      : latestRow
+        ? 'The latest block has an invalid height.'
+        : 'No blocks are indexed yet.';
+
+  const currentBlock = selectedBlock ?? maxBlock;
   const { data, loading, error } = useQuery(GET_VALIDATOR_HISTORY, {
-    variables: { blockNumber: selectedBlock ?? maxBlock },
-    skip: !rangeData && selectedBlock === null,
+    variables: { blockNumber: currentBlock },
+    skip: currentBlock === null,
   });
 
   const handleBlockChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = heightInput(e.target.value);
-    if (value !== null && BigInt(value) <= BigInt(maxBlock)) {
+    if (value !== null && maxBlock !== null && BigInt(value) <= BigInt(maxBlock)) {
       setSelectedBlock(value);
       setSelectedHash('');
     }
@@ -69,7 +79,13 @@ const ValidatorHistoryPage: React.FC = () => {
 
   const calculateStake = (stake: unknown, decimals?: number): string => formatRaw(stake, decimals);
 
-  const currentBlock = selectedBlock ?? maxBlock;
+  // Intl formats a bigint exactly, so separators do not cost precision.
+  const grouped = (height: string) => BigInt(height).toLocaleString('en-US');
+  const returnedHeight = (value: unknown) => {
+    const height = blockHeight(value);
+    return height === null ? 'Invalid height' : `#${height.toLocaleString('en-US')}`;
+  };
+
   const blocks = data?.blocks || [];
   const blockInfo = blocks.find((block: any) => block.block_hash === selectedHash) || blocks[0];
   const validators = blockInfo?.validator_bonds || [];
@@ -94,8 +110,9 @@ const ValidatorHistoryPage: React.FC = () => {
               id="block-input"
               type="number"
               min={minBlock}
-              max={maxBlock}
-              value={currentBlock}
+              max={maxBlock ?? undefined}
+              value={currentBlock ?? ''}
+              disabled={maxBlock === null}
               onChange={handleBlockChange}
               style={{
                 padding: '0.5rem',
@@ -107,7 +124,7 @@ const ValidatorHistoryPage: React.FC = () => {
               }}
             />
             <span className="text-muted" style={{ fontSize: '12px' }}>
-              ({minBlock} - {maxBlock})
+              ({grouped(minBlock)} - {maxBlock === null ? '--' : grouped(maxBlock)})
             </span>
           </div>
         </div>
@@ -121,7 +138,11 @@ const ValidatorHistoryPage: React.FC = () => {
         </select>
       </label>}
 
-      {loading ? (
+      {rangeProblem ? (
+        <div className="status-message error">
+          <strong>Error:</strong> {rangeProblem}
+        </div>
+      ) : loading || currentBlock === null ? (
         <div className="text-center">
           <span className="loading"></span>
           <p className="text-muted mt-2">Loading validator history...</p>
@@ -137,7 +158,7 @@ const ValidatorHistoryPage: React.FC = () => {
             <div className="summary-grid mb-3">
               <div className="asi-card glass">
                 <p className="text-muted" style={{ marginBottom: '0.5rem' }}>Block Number</p>
-                <h3 style={{ margin: 0 }}>#{currentBlock}</h3>
+                <h3 style={{ margin: 0 }}>{returnedHeight(blockInfo.block_number)}</h3>
               </div>
               <div className="asi-card glass">
                 <p className="text-muted" style={{ marginBottom: '0.5rem' }}>Block Time</p>
@@ -161,7 +182,7 @@ const ValidatorHistoryPage: React.FC = () => {
           {/* Validators Table */}
           {validators.length === 0 ? (
             <div className="text-center" style={{ padding: '3rem' }}>
-              <p className="text-muted">No validator data available for block #{currentBlock}</p>
+              <p className="text-muted">No validator data available for block #{grouped(currentBlock)}</p>
             </div>
           ) : (
             <div style={{ overflowX: 'auto' }}>
@@ -273,4 +294,4 @@ const ValidatorHistoryPage: React.FC = () => {
   );
 };
 
-export default ValidatorHistoryPage;
+export default ValidatorHistoryPage;

@@ -14,11 +14,9 @@ import ValidatorHistoryPage from '../pages/ValidatorHistoryPage';
 import { amountTypePolicies } from '../utils/amountPolicies';
 import { defaultOptions } from '../apolloDefaults';
 
-jest.mock('react-router-dom', () => {
-  Object.assign(global, { TextEncoder: require('util').TextEncoder });
-  // CRA's Jest resolver predates react-router-dom's react-router/dom export.
-  return jest.requireActual('react-router');
-});
+// CRA's Jest resolver predates react-router-dom's react-router/dom export, so this
+// suite loads react-router directly. It does not cover the shipped module graph.
+jest.mock('react-router-dom', () => jest.requireActual('react-router'));
 jest.mock('react-syntax-highlighter', () => ({ Prism: () => null }));
 jest.mock('react-syntax-highlighter/dist/esm/styles/prism', () => ({ vscDarkPlus: {} }), { virtual: true });
 
@@ -109,7 +107,7 @@ test('deploy details keep exact 18-decimal, legacy 8-decimal, zero, smallest, 2^
   await screen.findByText('Transfer #7', undefined, { timeout: 3000 });
 
   const amounts = screen.getAllByText(/ ASI$/).map(node => node.textContent);
-  expect(amounts).toEqual(expect.arrayContaining([
+  expect(amounts).toEqual([
     '1.000000000000000001 ASI',
     '1 ASI',
     '115792089237316195423570985008687907853269984665640564039457.584007913129639935 ASI',
@@ -117,7 +115,7 @@ test('deploy details keep exact 18-decimal, legacy 8-decimal, zero, smallest, 2^
     '0.000000000000000001 ASI',
     '9.223372036854775808 ASI',
     '10 ASI',
-  ]));
+  ]);
   expect(screen.getByText(`Dust: ${UINT256_MAX}`)).toBeInTheDocument();
   expect(screen.getByText('Dust: 1000000000000000001')).toBeInTheDocument();
 });
@@ -173,6 +171,8 @@ const block = (overrides: object = {}) => ({
   ...overrides,
 });
 
+// bondStakes() and validatorRow() read cells by column position. A markup or column
+// change breaks them without a change in the amount path.
 function bondStakes(): string[] {
   const table = screen.getByRole('heading', { name: 'Validator Bonds Map' }).closest('section') as HTMLElement;
   return within(table).getAllByRole('row').slice(1).map(row => within(row).getAllByRole('cell')[1].textContent ?? '');
@@ -247,26 +247,71 @@ test('an unsafe JSON stake is rejected, not rounded', async () => {
     .replace('"STAKE"', TWO_POW_53_PLUS_1);
   mount('/validators', '/validators', <ValidatorsPage />, op => (op === 'GetActiveValidators' ? { body } : undefined));
   expect(await screen.findByText(/Unsafe integer from API/)).toBeInTheDocument();
-  expect(screen.queryByText('0.000000000000000009')).not.toBeInTheDocument();
+  // JSON.parse rounds 2^53+1 to 2^53. Neither the raw nor the scaled form
+  // (0.009007199254740992) of the rounded value may appear.
   expect(document.body.textContent).not.toContain('9007199254740992');
+});
+
+test.each([
+  ['an HTTP 500 response', () => ({ status: 500, body: '{"error":"upstream unavailable"}' }), /Response not successful|status code 500/i],
+  ['an HTTP-200 GraphQL error envelope', () => ({ body: JSON.stringify({ errors: [{ message: 'statement timeout' }] }) }), /statement timeout/],
+])('validators show %s as an error, not an empty validator set', async (_name, reply, message) => {
+  mount('/validators', '/validators', <ValidatorsPage />, op => (op === 'GetActiveValidators' ? reply() : undefined));
+  expect(await screen.findByText(message)).toBeInTheDocument();
+  expect(screen.queryAllByRole('row')).toHaveLength(0);
+});
+
+test.each([
+  ['an HTTP 500 response', () => ({ status: 500, body: '{"error":"upstream unavailable"}' }), /Response not successful|status code 500/i],
+  ['an HTTP-200 GraphQL error envelope', () => ({ body: JSON.stringify({ errors: [{ message: 'statement timeout' }] }) }), /statement timeout/],
+])('a block view shows %s as an error, not a missing block', async (_name, reply, message) => {
+  mount('/block/0', '/block/:blockNumber', <BlockDetailPage />, op => (op === 'GetBlocksAtHeight' ? reply() : undefined));
+  expect(await screen.findByText(message)).toBeInTheDocument();
+  expect(screen.queryByText(/Block Not Found/)).not.toBeInTheDocument();
+  expect(screen.queryByText(/ ASI$/)).not.toBeInTheDocument();
 });
 
 // ---------------------------------------------------------------- validator history
 
-test('validator history requests an exact height beyond 2^53', async () => {
-  const latest = '9007199254740995';
-  mount('/validator-history', '/validator-history', <ValidatorHistoryPage />, (op, variables) => {
-    if (op === 'GetBlockRange') return json({ blocks: [{ __typename: 'blocks', block_hash: 'h', block_number: latest }] });
-    if (op === 'GetValidatorHistory') return json({ blocks: [{ __typename: 'blocks', block_number: variables.blockNumber,
-      timestamp: '1762000000000', block_hash: 'h', proposer: 'p', validator_bonds: [{ __typename: 'validator_bonds',
-        id: 1, block_hash: 'h', block_number: variables.blockNumber, stake: '1000000000000000001', token_decimals: 18,
-        validator_public_key: KEY }] }] });
+const historyBlock = (blockNumber: unknown) => ({ __typename: 'blocks', block_number: blockNumber,
+  timestamp: '1762000000000', block_hash: 'h', proposer: 'p', validator_bonds: [{ __typename: 'validator_bonds',
+    id: 1, block_hash: 'h', block_number: blockNumber, stake: '1000000000000000001', token_decimals: 18,
+    validator_public_key: KEY }] });
+
+function mountHistory(range: () => Reply) {
+  return mount('/validator-history', '/validator-history', <ValidatorHistoryPage />, (op, variables) => {
+    if (op === 'GetBlockRange') return range();
+    if (op === 'GetValidatorHistory') return json({ blocks: [historyBlock(variables.blockNumber)] });
     return undefined;
   });
+}
+
+const historyRequests = () => requests.filter(r => r.operation === 'GetValidatorHistory');
+
+test('validator history requests and shows an exact height beyond 2^53', async () => {
+  const latest = '9007199254740995';
+  mountHistory(() => json({ blocks: [{ __typename: 'blocks', block_hash: 'h', block_number: latest }] }));
   await screen.findByRole('cell', { name: '1.000000000000000001 ASI' });
-  expect(requests.filter(r => r.operation === 'GetValidatorHistory')[0].variables).toEqual({ blockNumber: latest });
+  expect(historyRequests()[0].variables).toEqual({ blockNumber: latest });
+  expect(screen.getByRole('heading', { name: '#9,007,199,254,740,995' })).toBeInTheDocument();
+  expect(screen.getByText('(0 - 9,007,199,254,740,995)')).toBeInTheDocument();
 
   fireEvent.change(screen.getByLabelText('Block:'), { target: { value: TWO_POW_53_PLUS_1 } });
-  await waitFor(() => expect(requests.filter(r => r.operation === 'GetValidatorHistory')).toHaveLength(2));
-  expect(requests.filter(r => r.operation === 'GetValidatorHistory')[1].variables).toEqual({ blockNumber: TWO_POW_53_PLUS_1 });
+  await waitFor(() => expect(historyRequests()).toHaveLength(2));
+  expect(historyRequests()[1].variables).toEqual({ blockNumber: TWO_POW_53_PLUS_1 });
+  expect(await screen.findByRole('heading', { name: '#9,007,199,254,740,993' })).toBeInTheDocument();
+  expect((screen.getByLabelText('Block:') as HTMLInputElement).value).toBe(TWO_POW_53_PLUS_1);
+});
+
+test.each([
+  ['an HTTP 500 response', () => ({ status: 500, body: '{"error":"upstream unavailable"}' }), /Could not load the latest block: .*(Response not successful|status code 500)/i],
+  ['an HTTP-200 GraphQL error envelope', () => ({ body: JSON.stringify({ errors: [{ message: 'statement timeout' }] }) }), /Could not load the latest block: statement timeout/],
+  ['no indexed block', () => json({ blocks: [] }), /No blocks are indexed yet/],
+  ['an invalid latest height', () => json({ blocks: [{ __typename: 'blocks', block_hash: 'h', block_number: '-1' }] }), /invalid height/],
+])('validator history shows %s from the latest-block query, not block #0', async (_name, range, message) => {
+  mountHistory(range);
+  expect(await screen.findByText(message)).toBeInTheDocument();
+  expect(historyRequests()).toHaveLength(0);
+  expect(screen.queryByText(/block #0/)).not.toBeInTheDocument();
+  expect(screen.getByLabelText('Block:')).toBeDisabled();
 });
