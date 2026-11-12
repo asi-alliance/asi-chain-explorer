@@ -93,6 +93,12 @@ config=$(curl -fsS -D "$work/config-headers" "$base/config.js")
 expected="window.__ASI_EXPLORER_CONFIG__ = Object.freeze({\"REACT_APP_GRAPHQL_URL\":\"$HTTP_URL\",\"REACT_APP_GRAPHQL_WS_URL\":\"$WS_URL\",\"REACT_APP_INDEXER_API_URL\":\"/api/indexer\",\"REACT_APP_RCHAIN_NODE_URL\":\"$NODE_URL\"});"
 [ "$config" = "$expected" ] && pass "serves runtime endpoints in /config.js" || { fail "served /config.js"; echo "$config" >&2; }
 grep -qi '^cache-control: no-store' "$work/config-headers" && pass "/config.js is not cached" || fail "/config.js cache headers"
+curl -fsS -D "$work/index-headers" -o /dev/null "$base/"
+for headers in "$work/index-headers" "$work/config-headers"; do
+    grep -qiE "^content-security-policy:.*connect-src 'self' http: https: ws: wss:" "$headers" \
+        && pass "browser CSP permits HTTP and WebSocket endpoints ($(basename "$headers"))" \
+        || fail "browser CSP blocks cross-origin WebSocket endpoints ($(basename "$headers"))"
+done
 curl -fsS "$base/" | grep -q 'src="/config.js"' && pass "index.html loads /config.js" || fail "index.html does not load /config.js"
 
 served_js_absent "served JavaScript has no credential or localhost endpoint" "$base" \
