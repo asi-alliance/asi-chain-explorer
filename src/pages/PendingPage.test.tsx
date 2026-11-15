@@ -1,11 +1,15 @@
 import React from 'react';
 import { render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
-import { useQuery } from '@apollo/client';
 import PendingPage from './PendingPage';
 import TransactionsPage from './TransactionsPage';
+import { mockOperations, pendingStatusRows } from '../testing/apolloOperations';
 
-jest.mock('@apollo/client', () => ({ ...jest.requireActual('@apollo/client'), useQuery: jest.fn() }));
+jest.mock('@apollo/client', () => ({
+  ...jest.requireActual('@apollo/client'),
+  useQuery: jest.fn(),
+  useSubscription: jest.fn(),
+}));
 jest.mock('react-router-dom', () => {
   Object.assign(global, { TextEncoder: require('util').TextEncoder });
   // CRA's Jest resolver predates react-router-dom's react-router/dom export.
@@ -14,10 +18,9 @@ jest.mock('react-router-dom', () => {
 jest.mock('../components/TransactionTrackerImproved', () => () => <section aria-label="Transaction list" />);
 
 beforeEach(() => {
-  (useQuery as jest.Mock).mockReturnValue({
-    loading: false,
-    error: undefined,
-    data: { pending_deploys: [], pending_deploys_aggregate: { aggregate: { count: 0 } }, indexer_state: [] },
+  mockOperations({
+    WatchPendingDeploysStatus: () => ({ data: { indexer_state: pendingStatusRows() } }),
+    WatchPendingDeploys: () => ({ data: { pending_deploys: [] } }),
   });
 });
 

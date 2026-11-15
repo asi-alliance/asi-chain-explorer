@@ -34,12 +34,18 @@ import NativeTransferLifecycle, {
 } from '../components/NativeTransferLifecycle';
 import { getParentHashes } from '../utils/blockParent';
 import { getBlockPath } from '../utils/blockPath';
-import { GET_PENDING_DEPLOY } from '../graphql/queries';
+import {
+  GET_DEPLOYMENT_INDEXED,
+  GET_PENDING_DEPLOY,
+  WATCH_DEPLOYMENT_INDEXED,
+  WATCH_PENDING_DEPLOY,
+} from '../graphql/queries';
+import { useLiveQuery } from '../hooks/useLiveQuery';
+import { usePendingDeploysEnabled } from '../hooks/usePendingDeploysStatus';
 import PendingDeployDetails, { PendingDeployLeftBuffer } from '../components/PendingDeployDetails';
 import { transferStatusView } from '../utils/transferStatus';
 
 // The indexer refreshes its pending-deploy snapshot every sync cycle (5 s by default).
-const PENDING_POLL_MS = 5000;
 
 // Helper functions to safely parse timestamps
 const parseTimestamp = (timestamp: any): number => {
@@ -166,12 +172,13 @@ const TransactionDetailPage: React.FC = () => {
   const lifecycle = useNativeTransferLifecycle(transaction?.deploy_id);
   const lifecycleLabel = lifecycleCallLabel(lifecycle);
 
-  // A deploy that is not in a block yet exists only in the pending-deploy snapshot.
+  // A deploy that is not in a block yet exists only in the pending-deploy
+  // snapshot, which the indexer keeps only when it reads validator buffers.
   const notIndexed = !!transactionId && !loading && !error && !transaction;
-  const { data: pendingData, loading: pendingLoading } = useQuery(GET_PENDING_DEPLOY, {
+  const pendingFeature = usePendingDeploysEnabled();
+  const { data: pendingData, loading: pendingLoading } = useLiveQuery(WATCH_PENDING_DEPLOY, GET_PENDING_DEPLOY, {
     variables: { sig: transactionId },
-    skip: !notIndexed,
-    pollInterval: PENDING_POLL_MS,
+    skip: !notIndexed || !pendingFeature.enabled,
   });
   const pendingDeploy = notIndexed ? pendingData?.pending_deploys?.[0] : undefined;
   const isPending = !!pendingDeploy;
@@ -185,11 +192,15 @@ const TransactionDetailPage: React.FC = () => {
   const leftBuffer = notIndexed && !isPending && pendingSeenFor === transactionId;
   const awaitingIndexer = isPending || leftBuffer;
 
+  // Reload the details once the indexer stores the deploy, instead of polling them.
+  const { data: indexedData } = useLiveQuery(WATCH_DEPLOYMENT_INDEXED, GET_DEPLOYMENT_INDEXED, {
+    variables: { deployId: transactionId },
+    skip: !awaitingIndexer,
+  });
+  const indexedNow = awaitingIndexer && (indexedData?.deployments?.length ?? 0) > 0;
   useEffect(() => {
-    if (!awaitingIndexer) return;
-    const timer = setInterval(() => { refetch(); }, PENDING_POLL_MS);
-    return () => clearInterval(timer);
-  }, [awaitingIndexer, refetch]);
+    if (indexedNow) refetch();
+  }, [indexedNow, refetch]);
 
   useEffect(() => {
     if (!transactionId) {
@@ -278,7 +289,7 @@ Exported at: ${new Date().toLocaleString()}
     return '#9ca3af';
   };
 
-  if (loading || (notIndexed && pendingLoading && !pendingData)) {
+  if (loading || (notIndexed && (pendingFeature.loading || (pendingLoading && !pendingData)))) {
     return (
       <div style={{
         display: 'flex',

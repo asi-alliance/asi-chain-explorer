@@ -65,6 +65,7 @@ function mount(url: string, path: string, element: React.ReactElement, respond: 
 
 function emptyData(operation: string): object {
   if (operation === 'GetPendingDeploy') return { pending_deploys: [] };
+  if (operation === 'GetPendingDeploysStatus') return { indexer_state: [] };
   return {};
 }
 

@@ -1,10 +1,15 @@
 import React from 'react';
 import { render, screen, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
-import { useQuery } from '@apollo/client';
 import PendingDeploysPanel from './PendingDeploysPanel';
+import { mockOperations, pendingStatusRows } from '../testing/apolloOperations';
+import type { OperationResult } from '../testing/apolloOperations';
 
-jest.mock('@apollo/client', () => ({ ...jest.requireActual('@apollo/client'), useQuery: jest.fn() }));
+jest.mock('@apollo/client', () => ({
+  ...jest.requireActual('@apollo/client'),
+  useQuery: jest.fn(),
+  useSubscription: jest.fn(),
+}));
 jest.mock('react-router-dom', () => {
   Object.assign(global, { TextEncoder: require('util').TextEncoder });
   // CRA's Jest resolver predates react-router-dom's react-router/dom export.
@@ -19,24 +24,36 @@ const deploy = (overrides: object = {}) => ({
   included_deployment: null, ...overrides,
 });
 
-function renderPanel(result: object) {
-  (useQuery as jest.Mock).mockReturnValue({ loading: false, error: undefined, ...result });
+interface Results {
+  status?: OperationResult;
+  list?: OperationResult;
+  statusFallback?: OperationResult;
+  listFallback?: OperationResult;
+}
+
+function renderPanel({ status, list, statusFallback, listFallback }: Results) {
+  const requested = mockOperations({
+    WatchPendingDeploysStatus: () => status ?? { data: { indexer_state: pendingStatusRows() } },
+    WatchPendingDeploys: () => list ?? { data: { pending_deploys: [] } },
+    GetPendingDeploysStatus: () => statusFallback ?? {},
+    GetPendingDeploys: () => listFallback ?? {},
+  });
   render(<MemoryRouter><PendingDeploysPanel /></MemoryRouter>);
+  return requested;
 }
 
 const rows = () => within(screen.getByRole('table', { name: 'Pending Deploys' }))
   .getAllByRole('row').slice(1).map((row) => within(row).getAllByRole('cell'));
 
 test('lists pending deploys with links and their buffer status (issue #70)', () => {
-  renderPanel({ data: {
-    pending_deploys: [
+  const requested = renderPanel({
+    status: { data: { indexer_state: pendingStatusRows({ count: 3, total_available: 3 }) } },
+    list: { data: { pending_deploys: [
       deploy(),
       deploy({ sig: SIG + '01', is_rejected: true }),
       deploy({ sig: SIG + '02', included_deployment: { __typename: 'deployments', deploy_id: SIG + '02', block_number: '42', block_hash: 'aa' } }),
-    ],
-    pending_deploys_aggregate: { aggregate: { count: 3 } },
-    indexer_state: [{ key: 'pending_deploys_total_available', value: '3' }],
-  } });
+    ] } },
+  });
 
   expect(screen.getByLabelText('Pending deploy count')).toHaveTextContent('3');
   const cells = rows();
@@ -44,41 +61,73 @@ test('lists pending deploys with links and their buffer status (issue #70)', () 
   expect(within(cells[0][0]).getByRole('link')).toHaveAttribute('href', `/transaction/${SIG}`);
   expect(cells.map((row) => row[5].textContent)).toEqual(['Pending', 'Retrying after rejection', 'Included in block #42']);
   expect(screen.queryByRole('note')).not.toBeInTheDocument();
+  expect(screen.getByText(/3 validators/)).toHaveTextContent('Updates live.');
+  // Only subscriptions while the WebSocket works: no HTTP requests.
+  expect(new Set(requested)).toEqual(new Set(['WatchPendingDeploys', 'WatchPendingDeploysStatus']));
 });
 
-test('states when the node response truncated the pending list', () => {
-  renderPanel({ data: {
-    pending_deploys: [deploy()],
-    pending_deploys_aggregate: { aggregate: { count: 1000 } },
-    indexer_state: [{ key: 'pending_deploys_total_available', value: '1500' }],
-  } });
+test('states when the node responses truncated the pending list', () => {
+  renderPanel({
+    status: { data: { indexer_state: pendingStatusRows({ count: 1000, total_available: 1500 }) } },
+    list: { data: { pending_deploys: [deploy()] } },
+  });
 
   expect(screen.getByRole('note')).toHaveTextContent('1500');
+  expect(screen.getByText(/Showing the latest 1 of 1000/)).toBeInTheDocument();
   expect(rows()).toHaveLength(1);
 });
 
 test('shows an empty state without a table', () => {
-  renderPanel({ data: { pending_deploys: [], pending_deploys_aggregate: { aggregate: { count: 0 } }, indexer_state: [] } });
+  renderPanel({});
 
   expect(screen.queryByRole('table')).not.toBeInTheDocument();
+  expect(screen.getByText('No deploys are waiting for a block.')).toBeInTheDocument();
   expect(screen.getByLabelText('Pending deploy count')).toHaveTextContent('0');
 });
 
+test('says that the indexer does not track pending deploys instead of showing an empty queue', () => {
+  const requested = renderPanel({ status: { data: { indexer_state: [] } } });
+
+  expect(screen.getByRole('status')).toHaveTextContent('does not track pending deploys');
+  expect(screen.queryByText('No deploys are waiting for a block.')).not.toBeInTheDocument();
+  expect(screen.queryByLabelText('Pending deploy count')).not.toBeInTheDocument();
+  expect(requested).not.toContain('WatchPendingDeploys');
+});
+
 test('reports a failed query instead of an empty list', () => {
-  renderPanel({ data: undefined, error: new Error('field "pending_deploys" not found') });
+  renderPanel({
+    list: { error: new Error('closed') },
+    listFallback: { error: new Error('field "pending_deploys" not found') },
+  });
 
   expect(screen.getByRole('status')).toHaveTextContent('not available');
   expect(screen.queryByRole('table')).not.toBeInTheDocument();
   expect(screen.queryByLabelText('Pending deploy count')).not.toBeInTheDocument();
 });
 
-test('warns when the indexer stopped refreshing the snapshot', () => {
-  renderPanel({ data: {
-    pending_deploys: [deploy({ fetched_at: new Date(Date.now() - 10 * 60_000).toISOString() })],
-    pending_deploys_aggregate: { aggregate: { count: 1 } },
-    indexer_state: [{ key: 'pending_deploys_total_available', value: '1' }],
-  } });
+test('polls over HTTP when live updates fail', () => {
+  const requested = renderPanel({
+    list: { error: new Error('WebSocket closed') },
+    listFallback: { data: { pending_deploys: [deploy()] } },
+  });
+
+  expect(rows()).toHaveLength(1);
+  expect(screen.getByText(/refreshes every 5 seconds/)).toBeInTheDocument();
+  expect(requested).toContain('GetPendingDeploys');
+});
+
+test('warns when the indexer stopped refreshing the pending deploys', () => {
+  renderPanel({
+    status: { data: { indexer_state: pendingStatusRows({ count: 1 }, new Date(Date.now() - 10 * 60_000)) } },
+    list: { data: { pending_deploys: [deploy()] } },
+  });
 
   expect(screen.getByRole('note', { name: 'Stale snapshot' })).toBeInTheDocument();
   expect(rows()).toHaveLength(1);
+});
+
+test('warns when some validators cannot be read', () => {
+  renderPanel({ status: { data: { indexer_state: pendingStatusRows({ reachable: 2 }) } } });
+
+  expect(screen.getByRole('note', { name: 'Unreachable validators' })).toHaveTextContent('1 of 3 validators');
 });

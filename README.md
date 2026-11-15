@@ -52,7 +52,7 @@ The system indexes blockchain data including blocks, deployments, transfers, val
 ## Core Functionality
 - **Block Explorer**: Real-time block monitoring with detailed information
 - **Transaction Viewer**: Comprehensive transaction details including deployments and transfers
-- **Pending Deploys**: Deploys in the node deploy buffers that no indexed block includes yet (Pending page)
+- **Pending Deploys** (optional): Deploys in the validators' deploy buffers that no indexed block includes yet, updated live over the GraphQL WebSocket (Pending page). Shown only when the indexer reads validator buffers
 - **Native Transfer Calls**: Calls that a deploy started or completed, with pending, completed, rejected or coalesced status (Transfers tab of a deploy)
 - **Validator Dashboard**: Current validators with stake distribution; inactive validators are listed separately and are not counted in totals
 - **Network Statistics**: Simplified Network Dashboard view
@@ -329,7 +329,7 @@ resolves before nginx starts.
 - `/blocks` - Block explorer with pagination
 - `/block/:blockNumber`, `/block/hash/:blockHash` - Block details
 - `/transactions` - Transaction list
-- `/pending` - Deploys in the node deploy buffers that no indexed block includes yet
+- `/pending` - Deploys in the validators' deploy buffers that no indexed block includes yet (the navigation tab appears only when the indexer tracks pending deploys)
 - `/transaction/:transactionId` - Deploy details: overview, code, transfers with native transfer calls, block. A pending deploy shows its pending state until it is indexed.
 - `/validators` - Current validators; inactive validators in a separate table
 - `/validator-history` - Validator history
@@ -429,6 +429,17 @@ the documented history repair, and Hasura metadata from
 `scripts/full-init-hasura.sh`. The explorer reads `pending_deploys` and the
 `native_transfer_lifecycle` view, which only that metadata exposes. Keep
 `HASURA_GRAPHQL_STRINGIFY_NUMERIC_TYPES=true`.
+
+Pending deploys are optional. A deploy waits only in the buffer of the validator
+that received it: nodes do not gossip deploys, and an observer rejects them. The
+explorer shows the Pending tab only when the indexer reports the
+`pending_deploys_status` row in `indexer_state`, which it writes only while its
+`PENDING_DEPLOYS_NODES` lists the validators. The page reads the list and that status
+through GraphQL subscriptions on `REACT_APP_GRAPHQL_WS_URL`. Hasura runs one query
+per refetch interval for all subscribers of the same query, so open pages do not
+multiply database reads as 5-second HTTP polling did. If the WebSocket fails, the
+page falls back to HTTP polling every 5 seconds and says so. A deploy detail page
+waits for indexing through a subscription too, instead of polling the details.
 Transfers, bonds and blocks supply their own `token_decimals`, so historical
 8-decimal rows and 18-decimal rows display with their original units. Missing
 historical metadata retains the legacy 8-decimal interpretation.

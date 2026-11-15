@@ -1,4 +1,6 @@
-import { deployTime, pendingDeployStatus, snapshotTime, staleSnapshotAge, truncatedTotal } from './pendingDeploys';
+import {
+  deployTime, parsePendingDeploysStatus, pendingDeployStatus, snapshotTime, staleSnapshotAge, truncatedTotal,
+} from './pendingDeploys';
 
 test('derives pending deploy status from inclusion and the rejected-recovery flag (issue #70)', () => {
   expect(pendingDeployStatus({ is_rejected: false, included_deployment: null }).state).toBe('pending');
@@ -17,11 +19,34 @@ test('reads millisecond timestamps from bigint strings and rejects malformed val
   }
 });
 
-test('reports a truncated pending list only when the node total exceeds the stored rows', () => {
-  expect(truncatedTotal(1000, '1500')).toBe(1500);
-  expect(truncatedTotal(1000, '1000')).toBeNull();
-  expect(truncatedTotal(3, undefined)).toBeNull();
-  expect(truncatedTotal(undefined, '10')).toBeNull();
+test('reports a truncated pending list only when the node total exceeds the merged count', () => {
+  expect(truncatedTotal({ count: 1000, totalAvailable: 1500 })).toBe(1500);
+  expect(truncatedTotal({ count: 1000, totalAvailable: 1000 })).toBeNull();
+});
+
+const statusRow = (value: unknown, updated_at = '2026-11-15T00:00:00.5') => ({
+  key: 'pending_deploys_status', value: typeof value === 'string' ? value : JSON.stringify(value), updated_at,
+});
+
+test('reads the indexer pending-deploy status row', () => {
+  expect(parsePendingDeploysStatus([
+    { key: 'pending_deploys_total_available', value: '4', updated_at: '2026-11-15T00:00:00' },
+    statusRow({ nodes: 3, reachable: 2, count: 4, total_available: 4, interval_ms: 1000 }),
+  ])).toEqual({
+    nodes: 3, reachable: 2, count: 4, totalAvailable: 4, updatedAt: new Date('2026-11-15T00:00:00.500Z'),
+  });
+});
+
+test('treats a missing or unreadable status row as pending deploys not tracked', () => {
+  const valid = { nodes: 1, reachable: 1, count: 0, total_available: 0 };
+  for (const rows of [
+    undefined, null, [], [{ key: 'pending_deploys_total_available', value: '0' }],
+    [statusRow('not json')], [statusRow('null')], [statusRow({ ...valid, nodes: 0 })],
+    [statusRow({ ...valid, count: -1 })], [statusRow({ ...valid, reachable: '1' })],
+    [statusRow({ ...valid, total_available: 1.5 })], [{ key: 'pending_deploys_status', value: null }],
+  ]) {
+    expect(parsePendingDeploysStatus(rows)).toBeNull();
+  }
 });
 
 test('reads the zone-less snapshot time as UTC', () => {
@@ -34,8 +59,8 @@ test('reads the zone-less snapshot time as UTC', () => {
 });
 
 test('reports the snapshot age only after the stale threshold', () => {
-  const fetched = Date.parse('2026-11-11T00:00:00Z');
-  expect(staleSnapshotAge('2026-11-11T00:00:00', fetched + 60_000)).toBeNull();
-  expect(staleSnapshotAge('2026-11-11T00:00:00', fetched + 60_001)).toBe(60_001);
-  expect(staleSnapshotAge(null, fetched + 600_000)).toBeNull();
+  const updated = new Date('2026-11-11T00:00:00Z');
+  expect(staleSnapshotAge(updated, updated.getTime() + 30_000)).toBeNull();
+  expect(staleSnapshotAge(updated, updated.getTime() + 30_001)).toBe(30_001);
+  expect(staleSnapshotAge(null, updated.getTime() + 600_000)).toBeNull();
 });

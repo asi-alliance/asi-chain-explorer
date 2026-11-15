@@ -287,10 +287,12 @@ type indexer_state {
 
 #### pending_deploys
 
-Snapshot of one node's deploy buffers, refreshed every indexer sync cycle. A deploy
-leaves the table when the node includes it in a block or drops it. The snapshot
-keeps its last content while the node is unavailable; compare `fetched_at`
-(UTC, without a time-zone suffix) with the current time.
+Merged deploy buffers of the validators that the indexer lists in
+`PENDING_DEPLOYS_NODES`, read about every second. A deploy leaves the table when
+its validator includes it in a block or drops it. Rows change only when the
+buffers change, and the last snapshot of an unreachable validator is kept.
+`fetched_at` (UTC, without a time-zone suffix) is when the indexer first saw the
+deploy. The table is empty when the indexer does not track pending deploys.
 
 ```graphql
 type pending_deploys {
@@ -310,8 +312,14 @@ type pending_deploys {
 }
 ```
 
-`indexer_state` key `pending_deploys_total_available` holds the node's count before
-its response limit. A value larger than the row count means a truncated snapshot.
+`indexer_state` key `pending_deploys_status` holds JSON
+`{"nodes", "reachable", "count", "total_available", "interval_ms"}`. The indexer
+rewrites it on each change and at least every 10 seconds, so an `updated_at` older
+than 30 seconds marks a stale view; a missing row means pending deploys are not
+tracked. `total_available` larger than `count` means the validators' responses
+were truncated. The explorer reads both through subscriptions
+(`WatchPendingDeploys`, `WatchPendingDeploysStatus`); Hasura allows one root field
+per subscription.
 
 ### Views
 
