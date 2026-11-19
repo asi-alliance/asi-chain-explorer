@@ -4,7 +4,7 @@ import { format, formatDistanceStrict } from 'date-fns';
 import { Clock } from 'lucide-react';
 import type { PendingDeploy } from '../types';
 import { useNow } from '../hooks/useNow';
-import { useLivePendingDeploysStatus } from '../hooks/usePendingDeploysStatus';
+import { usePendingDeploysStatus } from '../hooks/usePendingDeploysStatus';
 import { heightLabel } from '../utils/blockHeight';
 import { getBlockPath } from '../utils/blockPath';
 import { deployTime, pendingDeployStatus, snapshotTime, staleSnapshotAge } from '../utils/pendingDeploys';
@@ -52,7 +52,7 @@ export const PendingSourceNotes: React.FC<{ status: PendingDeploysStatus }> = ({
 };
 
 const LivePendingSourceNotes: React.FC = () => {
-  const { status } = useLivePendingDeploysStatus();
+  const { status } = usePendingDeploysStatus();
   return status ? <PendingSourceNotes status={status} /> : null;
 };
 

@@ -2,7 +2,7 @@ import React from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import AdvancedSearch from "./AdvancedSearch";
 import ConnectionStatus from "./ConnectionStatus";
-import { usePendingDeploysEnabled } from "../hooks/usePendingDeploysStatus";
+import { usePendingDeploysStatus } from "../hooks/usePendingDeploysStatus";
 import Logo from "./Logo";
 
 interface LayoutProps {
@@ -14,7 +14,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     const navigate = useNavigate();
     // Pending deploys are optional: the indexer reads them only when it is
     // configured with the validators that accept deploys.
-    const pendingDeploys = usePendingDeploysEnabled();
+    const pendingDeploys = usePendingDeploysStatus();
 
     const isActive = (href: string) => {
         if (href === "/") {
@@ -26,7 +26,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     const navigation = [
         { name: "Blocks", href: "/" },
         { name: "Transactions", href: "/transactions" },
-        ...(pendingDeploys.enabled || pendingDeploys.loading ? [{ name: "Pending", href: "/pending" }] : []),
+        ...(pendingDeploys.status || pendingDeploys.loading ? [{ name: "Pending", href: "/pending" }] : []),
         // { name: "ASI Transfers", href: "/transfers" },
         // { name: "Deployments", href: "/deployments" },
         { name: "Validators", href: "/validators" },

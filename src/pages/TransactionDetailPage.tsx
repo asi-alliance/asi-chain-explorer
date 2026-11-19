@@ -41,7 +41,7 @@ import {
   WATCH_PENDING_DEPLOY,
 } from '../graphql/queries';
 import { useLiveQuery } from '../hooks/useLiveQuery';
-import { usePendingDeploysEnabled } from '../hooks/usePendingDeploysStatus';
+import { usePendingDeploysStatus } from '../hooks/usePendingDeploysStatus';
 import PendingDeployDetails, { PendingDeployLeftBuffer } from '../components/PendingDeployDetails';
 import { transferStatusView } from '../utils/transferStatus';
 
@@ -155,6 +155,10 @@ const GET_TRANSACTION_DETAILS = gql`
 
 const TransactionDetailPage: React.FC = () => {
   const { transactionId } = useParams<{ transactionId: string }>();
+  return <TransactionDetail key={transactionId} transactionId={transactionId} />;
+};
+
+const TransactionDetail: React.FC<{ transactionId?: string }> = ({ transactionId }) => {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<'overview' | 'code' | 'transfers' | 'block'>('overview');
   const [showRawData, setShowRawData] = useState(false);
@@ -175,15 +179,16 @@ const TransactionDetailPage: React.FC = () => {
   // A deploy that is not in a block yet exists only in the pending-deploy
   // snapshot, which the indexer keeps only when it reads validator buffers.
   const notIndexed = !!transactionId && !loading && !error && !transaction;
-  const pendingFeature = usePendingDeploysEnabled();
-  const [expiredFor, setExpiredFor] = useState<string>();
-  const watchExpired = !!transactionId && expiredFor === transactionId;
-  const watchPending = notIndexed && pendingFeature.enabled && !watchExpired;
+  const pendingFeature = usePendingDeploysStatus();
+  const [watchExpired, setWatchExpired] = useState(false);
+  const [detailsChecked, setDetailsChecked] = useState(false);
+  const awaitingIndexer = notIndexed && !watchExpired && !detailsChecked;
+  const watchPending = awaitingIndexer && !!pendingFeature.status;
   useEffect(() => {
-    if (!watchPending) return;
-    const timer = window.setTimeout(() => setExpiredFor(transactionId), PENDING_WATCH_MS);
+    if (!awaitingIndexer) return;
+    const timer = window.setTimeout(() => setWatchExpired(true), PENDING_WATCH_MS);
     return () => window.clearTimeout(timer);
-  }, [transactionId, watchPending]);
+  }, [awaitingIndexer]);
 
   const { data: pendingData, loading: pendingLoading } = useLiveQuery(WATCH_PENDING_DEPLOY, GET_PENDING_DEPLOY, {
     variables: { sig: transactionId },
@@ -192,30 +197,27 @@ const TransactionDetailPage: React.FC = () => {
   const pendingDeploy = notIndexed ? pendingData?.pending_deploys?.[0] : undefined;
   const isPending = !!pendingDeploy;
 
-  // The node can drop a deploy from its buffer before the indexer stores the
-  // block that includes it. Keep the lookup alive after the deploy was seen.
-  const [pendingSeenFor, setPendingSeenFor] = useState<string | null>(null);
+  // Remember a pending observation so the page can explain a subsequent empty buffer.
+  const [seenInBuffer, setSeenInBuffer] = useState(false);
   useEffect(() => {
-    if (isPending && transactionId) setPendingSeenFor(transactionId);
-  }, [isPending, transactionId]);
-  const leftBuffer = notIndexed && !isPending && pendingSeenFor === transactionId;
-  const awaitingIndexer = watchPending && (isPending || leftBuffer);
+    if (isPending) setSeenInBuffer(true);
+  }, [isPending]);
+  const leftBuffer = notIndexed && !isPending && seenInBuffer;
 
   // Reload the details once the indexer stores the deploy, instead of polling them.
-  const { data: indexedData } = useLiveQuery(WATCH_DEPLOYMENT_INDEXED, GET_DEPLOYMENT_INDEXED, {
+  const { data: indexedData, loading: indexedLoading } = useLiveQuery(WATCH_DEPLOYMENT_INDEXED, GET_DEPLOYMENT_INDEXED, {
     variables: { deployId: transactionId },
     skip: !awaitingIndexer,
   });
   const indexedNow = awaitingIndexer && (indexedData?.deployments?.length ?? 0) > 0;
-  const [checkedFor, setCheckedFor] = useState<string>();
-  const reloadedFor = useRef<string | undefined>(undefined);
+  const requestedDetails = useRef(false);
   useEffect(() => {
-    if (indexedNow && reloadedFor.current !== transactionId) {
-      reloadedFor.current = transactionId;
+    if (indexedNow && !requestedDetails.current) {
+      requestedDetails.current = true;
       // Keep a manual retry available if the detail row is still absent or the request fails.
-      void refetch().then(() => setCheckedFor(transactionId), () => setCheckedFor(transactionId));
+      void refetch().then(() => setDetailsChecked(true), () => setDetailsChecked(true));
     }
-  }, [indexedNow, transactionId, refetch]);
+  }, [indexedNow, refetch]);
 
   useEffect(() => {
     if (!transactionId) {
@@ -304,7 +306,9 @@ Exported at: ${new Date().toLocaleString()}
     return '#9ca3af';
   };
 
-  if (loading || (notIndexed && (pendingFeature.loading || (pendingLoading && !pendingData)))) {
+  if (loading || (awaitingIndexer && !isPending && (
+    indexedNow || indexedLoading || pendingFeature.loading || (pendingLoading && !pendingData)
+  ))) {
     return (
       <div style={{
         display: 'flex',
@@ -320,17 +324,14 @@ Exported at: ${new Date().toLocaleString()}
     );
   }
 
-  if (!transaction && (watchExpired || (transactionId && checkedFor === transactionId))) {
+  if (!transaction && (watchExpired || detailsChecked)) {
     return (
       <section className="asi-card">
         <p role="status">{watchExpired ? 'Automatic updates stopped after three minutes.' :
           'The indexer has recorded this deploy. Its details are currently unavailable.'}</p>
         <button className="btn btn-secondary" onClick={() => {
-          setExpiredFor(undefined);
-          setCheckedFor(undefined);
-          void refetch().then(result => {
-            if (!result.data?.deployments?.length && checkedFor === transactionId) setCheckedFor(transactionId);
-          }, () => setCheckedFor(transactionId));
+          setWatchExpired(false);
+          void refetch().catch(() => { /* useQuery reports the failure. */ });
         }}>Check again</button>
       </section>
     );

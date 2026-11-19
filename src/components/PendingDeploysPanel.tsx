@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { formatDistanceToNow } from 'date-fns';
 import { GET_PENDING_DEPLOYS, WATCH_PENDING_DEPLOYS } from '../graphql/queries';
 import { useLiveQuery } from '../hooks/useLiveQuery';
-import { useLivePendingDeploysStatus } from '../hooks/usePendingDeploysStatus';
+import { usePendingDeploysStatus } from '../hooks/usePendingDeploysStatus';
 import type { PendingDeploy } from '../types';
 import { heightLabel } from '../utils/blockHeight';
 import { deployTime, pendingDeployStatus, truncatedTotal } from '../utils/pendingDeploys';
@@ -14,7 +14,7 @@ export const PENDING_LIST_LIMIT = 20;
 const shortKey = (value: string) => (value.length > 20 ? `${value.slice(0, 10)}...${value.slice(-8)}` : value);
 
 const PendingDeploysPanel: React.FC = () => {
-  const status = useLivePendingDeploysStatus();
+  const status = usePendingDeploysStatus();
   const configured = status.status !== null;
   const list = useLiveQuery<{ pending_deploys: PendingDeploy[] }>(WATCH_PENDING_DEPLOYS, GET_PENDING_DEPLOYS, {
     variables: { limit: PENDING_LIST_LIMIT },

@@ -1,4 +1,5 @@
 import React from 'react';
+import { PendingDeploysStatusProvider } from '../hooks/usePendingDeploysStatus';
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { useSubscription } from '@apollo/client';
@@ -42,15 +43,16 @@ function renderLookup(initial: Lookup) {
   const statusData = () => (state.status ?? { data: { indexer_state: pendingStatusRows() } });
   const requested = mockOperations({
     GetTransactionDetails: () => ({ data: { deployments: [] }, refetch }),
-    GetPendingDeploysStatus: () =>
+    WatchPendingDeploysStatus: () =>
       state.enabled === false ? { data: { indexer_state: [] } } : statusData(),
-    WatchPendingDeploysStatus: statusData,
     WatchPendingDeploy: () => state.pending ?? { data: { pending_deploys: [] } },
     WatchDeploymentIndexed: () => state.indexed ?? { data: { deployments: [] } },
   });
   const page = () => (
     <MemoryRouter initialEntries={[`/transaction/${SIG}`]}>
-      <Routes><Route path="/transaction/:transactionId" element={<TransactionDetailPage />} /></Routes>
+      <PendingDeploysStatusProvider>
+        <Routes><Route path="/transaction/:transactionId" element={<TransactionDetailPage />} /></Routes>
+      </PendingDeploysStatusProvider>
     </MemoryRouter>
   );
   const { rerender } = render(page());
@@ -88,6 +90,17 @@ test('releases per-deploy subscriptions when the wait expires and resumes on req
   expect(requested).not.toContain('WatchPendingDeploy');
   await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Check again' })); });
   expect(requested).toContain('WatchPendingDeploy');
+});
+
+test.each([true, false])('refetches on inclusion without seeing a pending row (tracking %s)', async enabled => {
+  const { refetch, requested } = renderLookup({
+    enabled,
+    indexed: { data: { deployments: [{ deploy_id: SIG }] } },
+  });
+
+  await waitFor(() => expect(refetch).toHaveBeenCalledTimes(1));
+  expect(requested).toContain('WatchDeploymentIndexed');
+  expect(requested.includes('WatchPendingDeploy')).toBe(enabled);
 });
 
 test('subscribes to the pending deploy by the looked-up signature', () => {

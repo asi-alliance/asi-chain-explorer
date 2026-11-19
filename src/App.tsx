@@ -1,5 +1,6 @@
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import { ApolloClient, ApolloProvider } from "@apollo/client";
+import { PendingDeploysStatusProvider } from "./hooks/usePendingDeploysStatus";
 import Layout from "./components/Layout";
 import HomePage from "./pages/HomePage";
 import BlocksPage from "./pages/BlocksPage";
@@ -17,9 +18,17 @@ import PendingPage from "./pages/PendingPage";
 import FeedbackForm from "./components/community/FeedbackForm";
 
 import "./styles/global.css";
-function App({ client }: { client: ApolloClient<unknown> }) {
+function ExplorerProviders({ client, children }: React.PropsWithChildren<{ client: ApolloClient<unknown> }>) {
     return (
         <ApolloProvider client={client}>
+            <PendingDeploysStatusProvider>{children}</PendingDeploysStatusProvider>
+        </ApolloProvider>
+    );
+}
+
+function App({ client }: { client: ApolloClient<unknown> }) {
+    return (
+        <ExplorerProviders client={client}>
             <Router>
                 <Layout>
                     <Routes>
@@ -71,7 +80,7 @@ function App({ client }: { client: ApolloClient<unknown> }) {
                 </Layout>
             </Router>
             <FeedbackForm />
-        </ApolloProvider>
+        </ExplorerProviders>
     );
 }
 

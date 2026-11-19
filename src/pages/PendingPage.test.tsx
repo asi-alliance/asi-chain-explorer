@@ -1,4 +1,5 @@
 import React from 'react';
+import { PendingDeploysStatusProvider } from '../hooks/usePendingDeploysStatus';
 import { render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import PendingPage from './PendingPage';
@@ -25,7 +26,7 @@ beforeEach(() => {
 });
 
 test('shows the pending deploys on their own page (issue #70)', () => {
-  render(<MemoryRouter><PendingPage /></MemoryRouter>);
+  render(<MemoryRouter><PendingDeploysStatusProvider><PendingPage /></PendingDeploysStatusProvider></MemoryRouter>);
   expect(screen.getByRole('region', { name: 'Pending Deploys' })).toBeInTheDocument();
 });
 

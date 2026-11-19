@@ -1,4 +1,5 @@
 import React from 'react';
+import { PendingDeploysStatusProvider } from '../hooks/usePendingDeploysStatus';
 import { render, screen, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import PendingDeploysPanel from './PendingDeploysPanel';
@@ -38,7 +39,7 @@ function renderPanel({ status, list, statusFallback, listFallback }: Results) {
     GetPendingDeploysStatus: () => statusFallback ?? {},
     GetPendingDeploys: () => listFallback ?? {},
   });
-  render(<MemoryRouter><PendingDeploysPanel /></MemoryRouter>);
+  render(<MemoryRouter><PendingDeploysStatusProvider><PendingDeploysPanel /></PendingDeploysStatusProvider></MemoryRouter>);
   return requested;
 }
 
