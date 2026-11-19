@@ -130,6 +130,27 @@ function historySource(rows: HistoryRow[], height: () => string) {
   return { link, boundsRead };
 }
 
+test('a malformed lookahead transfer only fails the page where it is displayed', async () => {
+  fetchMock.mockResolvedValue(balanceResponse('42', 10, hash));
+  const rows = Array.from({ length: 21 }, (_, i) => transfer(i + 1, 10));
+  rows[0].amount_asi = 'invalid'; // The lowest ID sorts last at this height.
+  const { link } = historySource(rows, () => '10');
+  show('/address/' + address, [], null, link);
+
+  const transactions = () => screen.findAllByRole('link', { name: 'View transaction' });
+  expect((await transactions()).map(el => el.getAttribute('href'))).toEqual(
+    Array.from({ length: 20 }, (_, i) => `/transaction/${21 - i}`));
+  const next = screen.getByRole('button', { name: 'Next' });
+  expect(next).toBeEnabled();
+  fireEvent.click(next);
+  expect(await screen.findByRole('alert')).toHaveTextContent('Transfer history unavailable.');
+  expect(screen.getByText('Page 2')).toBeInTheDocument();
+  expect(screen.getByText('42 ASI')).toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: 'Previous' }));
+  expect(await transactions()).toHaveLength(20);
+  expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+});
+
 test('keeps a stable cursor across inserts, back navigation and changes of direction', async () => {
   fetchMock.mockResolvedValue({ ok: false, status: 503 });
   const other = 'another-address';

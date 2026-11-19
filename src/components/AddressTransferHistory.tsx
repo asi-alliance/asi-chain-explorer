@@ -66,7 +66,9 @@ function TransferPages({ address, direction, maxId, indexedHeight }: PageProps) 
     variables: { where, limit: PAGE_SIZE + 1 }, fetchPolicy: 'no-cache', notifyOnNetworkStatusChange: true,
     context: { queryDeduplication: false },
   });
-  const formatted = formatTransferRows(data?.transfers ?? []);
+  const transfers = data?.transfers ?? [];
+  const hasNext = transfers.length > PAGE_SIZE;
+  const formatted = formatTransferRows(transfers.slice(0, PAGE_SIZE));
   const rows = formatted ?? [];
   const last = rows[PAGE_SIZE - 1];
   const invalidCursor = rows.some(row => blockHeight(row.id) === null || blockHeight(row.block_number) === null);
@@ -75,7 +77,7 @@ function TransferPages({ address, direction, maxId, indexedHeight }: PageProps) 
       : error || formatted === null || invalidCursor ? <p role="alert">Transfer history unavailable.</p>
       : rows.length ? <table>
         <thead><tr><th>Block</th><th>From</th><th>To</th><th>Amount</th><th>Transaction</th></tr></thead>
-        <tbody>{rows.slice(0, PAGE_SIZE).map(row => <tr key={row.id}>
+        <tbody>{rows.map(row => <tr key={row.id}>
           <td>{row.block_number}</td>
           <td><WalletAddressLink address={row.from_address} short /></td>
           <td><WalletAddressLink address={row.to_address} short /></td>
@@ -83,10 +85,10 @@ function TransferPages({ address, direction, maxId, indexedHeight }: PageProps) 
           <td><Link to={`/transaction/${encodeURIComponent(row.deploy_id)}`}>View transaction</Link></td>
         </tr>)}</tbody>
       </table> : <p>No indexed transfers found.</p>}
-    {(cursors.length > 0 || rows.length > PAGE_SIZE) && <div className="pagination-controls">
+    {(cursors.length > 0 || hasNext) && <div className="pagination-controls">
       <button disabled={!cursors.length || loading} onClick={() => setCursors(cursors.slice(0, -1))}>Previous</button>
       <span>Page {cursors.length + 1}</span>
-      <button disabled={loading || !!error || invalidCursor || rows.length <= PAGE_SIZE}
+      <button disabled={loading || !!error || invalidCursor || !last || !hasNext}
         onClick={() => setCursors([...cursors, { id: last.id, block_number: last.block_number }])}>Next</button>
     </div>}
   </>;
