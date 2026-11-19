@@ -28,8 +28,18 @@ import { gql } from '@apollo/client';
 import { CURRENT_TOKEN } from '../utils/constants';
 import { toMillis } from '../utils/calculateBlockTime';
 import CopyButton from '../components/CopyButton';
+import NativeTransferLifecycle, {
+  lifecycleCallLabel,
+  useNativeTransferLifecycle,
+} from '../components/NativeTransferLifecycle';
 import { getParentHashes } from '../utils/blockParent';
 import { getBlockPath } from '../utils/blockPath';
+import { GET_PENDING_DEPLOY } from '../graphql/queries';
+import PendingDeployDetails, { PendingDeployLeftBuffer } from '../components/PendingDeployDetails';
+import { transferStatusView } from '../utils/transferStatus';
+
+// The indexer refreshes its pending-deploy snapshot every sync cycle (5 s by default).
+const PENDING_POLL_MS = 5000;
 
 // Helper functions to safely parse timestamps
 const parseTimestamp = (timestamp: any): number => {
@@ -152,6 +162,34 @@ const TransactionDetailPage: React.FC = () => {
   const transaction = data?.deployments?.[0];
   const transfers = transaction?.transfers || [];
   const block = transaction?.block;
+  // Calls started here show up before the ledger has a transfer, so the tab label counts them too.
+  const lifecycle = useNativeTransferLifecycle(transaction?.deploy_id);
+  const lifecycleLabel = lifecycleCallLabel(lifecycle);
+
+  // A deploy that is not in a block yet exists only in the pending-deploy snapshot.
+  const notIndexed = !!transactionId && !loading && !error && !transaction;
+  const { data: pendingData, loading: pendingLoading } = useQuery(GET_PENDING_DEPLOY, {
+    variables: { sig: transactionId },
+    skip: !notIndexed,
+    pollInterval: PENDING_POLL_MS,
+  });
+  const pendingDeploy = notIndexed ? pendingData?.pending_deploys?.[0] : undefined;
+  const isPending = !!pendingDeploy;
+
+  // The node can drop a deploy from its buffer before the indexer stores the
+  // block that includes it. Keep the lookup alive after the deploy was seen.
+  const [pendingSeenFor, setPendingSeenFor] = useState<string | null>(null);
+  useEffect(() => {
+    if (isPending && transactionId) setPendingSeenFor(transactionId);
+  }, [isPending, transactionId]);
+  const leftBuffer = notIndexed && !isPending && pendingSeenFor === transactionId;
+  const awaitingIndexer = isPending || leftBuffer;
+
+  useEffect(() => {
+    if (!awaitingIndexer) return;
+    const timer = setInterval(() => { refetch(); }, PENDING_POLL_MS);
+    return () => clearInterval(timer);
+  }, [awaitingIndexer, refetch]);
 
   useEffect(() => {
     if (!transactionId) {
@@ -214,9 +252,13 @@ Exported at: ${new Date().toLocaleString()}
     }
   };
 
+  const transferStatusColors = (status: unknown) => transferStatusView(status).completed
+    ? { backgroundColor: 'rgba(16, 185, 129, 0.2)', color: '#10b981' }
+    : { backgroundColor: 'rgba(156, 163, 175, 0.2)', color: '#9ca3af' };
+
   const getStatusIcon = (errored: boolean, status?: string) => {
     if (errored) return <XCircle size={20} style={{ color: '#ef4444' }} />;
-    if (status === 'success') return <CheckCircle size={20} style={{ color: '#10b981' }} />;
+    if (status === 'success' || status === 'included') return <CheckCircle size={20} style={{ color: '#10b981' }} />;
     if (status === 'pending') return <Clock size={20} style={{ color: '#f59e0b' }} />;
     return <AlertCircle size={20} style={{ color: '#9ca3af' }} />;
   };
@@ -224,18 +266,19 @@ Exported at: ${new Date().toLocaleString()}
   const getStatusText = (errored: boolean, status?: string) => {
     if (errored) return 'Failed';
     if (status === 'success') return 'Success';
+    if (status === 'included') return 'Included';
     if (status === 'pending') return 'Pending';
     return 'Unknown';
   };
 
   const getStatusColor = (errored: boolean, status?: string) => {
     if (errored) return '#ef4444';
-    if (status === 'success') return '#10b981';
+    if (status === 'success' || status === 'included') return '#10b981';
     if (status === 'pending') return '#f59e0b';
     return '#9ca3af';
   };
 
-  if (loading) {
+  if (loading || (notIndexed && pendingLoading && !pendingData)) {
     return (
       <div style={{
         display: 'flex',
@@ -249,6 +292,14 @@ Exported at: ${new Date().toLocaleString()}
         <p>Loading transaction details...</p>
       </div>
     );
+  }
+
+  if (pendingDeploy) {
+    return <PendingDeployDetails deploy={pendingDeploy} />;
+  }
+
+  if (leftBuffer && transactionId) {
+    return <PendingDeployLeftBuffer sig={transactionId} />;
   }
 
   if (error || !transaction) {
@@ -284,7 +335,7 @@ Exported at: ${new Date().toLocaleString()}
   const tabs = [
     { key: 'overview', label: 'Overview', icon: <Activity size={16} /> },
     { key: 'code', label: 'Code', icon: <Code size={16} /> },
-    { key: 'transfers', label: `Transfers (${transfers.length})`, icon: <TrendingUp size={16} /> },
+    { key: 'transfers', label: `Transfers (${transfers.length})${lifecycleLabel ? ` · ${lifecycleLabel}` : ''}`, icon: <TrendingUp size={16} /> },
     { key: 'block', label: 'Block Info', icon: <Database size={16} /> }
   ];
 
@@ -597,12 +648,11 @@ Exported at: ${new Date().toLocaleString()}
                   <span style={{
                     padding: '0.25rem 0.5rem',
                     borderRadius: '4px',
-                    backgroundColor: transfer.status === 'success' ? 'rgba(16, 185, 129, 0.2)' : 'rgba(239, 68, 68, 0.2)',
-                    color: transfer.status === 'success' ? '#10b981' : '#ef4444',
+                    ...transferStatusColors(transfer.status),
                     fontSize: '0.75rem',
                     fontWeight: '500'
                   }}>
-                    {transfer.status}
+                    {transferStatusView(transfer.status).label}
                   </span>
                 </div>
                 <div style={{ fontSize: '0.875rem', color: '#d1d5db' }}>
@@ -760,12 +810,11 @@ Exported at: ${new Date().toLocaleString()}
                   gap: '0.5rem',
                   padding: '0.5rem 1rem',
                   borderRadius: '6px',
-                  backgroundColor: transfer.status === 'success' ? 'rgba(16, 185, 129, 0.2)' : 'rgba(239, 68, 68, 0.2)',
-                  color: transfer.status === 'success' ? '#10b981' : '#ef4444',
+                  ...transferStatusColors(transfer.status),
                   fontWeight: '500'
                 }}>
-                  {transfer.status === 'success' ? <CheckCircle size={16} /> : <XCircle size={16} />}
-                  {transfer.status}
+                  {transferStatusView(transfer.status).completed ? <CheckCircle size={16} /> : <AlertCircle size={16} />}
+                  {transferStatusView(transfer.status).label}
                 </div>
               </div>
 
@@ -1089,7 +1138,12 @@ Exported at: ${new Date().toLocaleString()}
         >
           {activeTab === 'overview' && renderOverviewTab()}
           {activeTab === 'code' && renderCodeTab()}
-          {activeTab === 'transfers' && renderTransfersTab()}
+          {activeTab === 'transfers' && (
+            <>
+              {renderTransfersTab()}
+              <NativeTransferLifecycle lifecycle={lifecycle} />
+            </>
+          )}
           {activeTab === 'block' && renderBlockTab()}
         </motion.div>
       </AnimatePresence>

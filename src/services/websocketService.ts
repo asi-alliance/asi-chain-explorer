@@ -1,11 +1,9 @@
 import { useSubscription } from '@apollo/client';
 import { useEffect, useState, useCallback, useRef } from 'react';
-import { Block, Transfer, Deployment, NetworkStats } from '../types';
+import { Block, Transfer, Deployment } from '../types';
 import {
   SUBSCRIBE_TO_NEW_BLOCKS,
   SUBSCRIBE_TO_NEW_TRANSFERS,
-  SUBSCRIBE_TO_NETWORK_ACTIVITY,
-  SUBSCRIBE_TO_NETWORK_STATS,
   SUBSCRIBE_TO_NEW_DEPLOYMENTS
 } from '../graphql/queries';
 import { CURRENT_TOKEN } from '../utils/constants';
@@ -210,68 +208,6 @@ export const useRealtimeDeployments = (limit: number = 20) => {
   }, [subscriptionLoading, subscriptionError]);
 
   return { deployments, loading, error };
-};
-
-export const useRealtimeNetworkStats = () => {
-  const [networkStats, setNetworkStats] = useState<NetworkStats | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<Error | null>(null);
-
-  const { data, loading: subscriptionLoading, error: subscriptionError } = useSubscription(
-    SUBSCRIBE_TO_NETWORK_STATS,
-    {
-      onSubscriptionData: ({ subscriptionData }) => {
-        if (subscriptionData.data) {
-          setNetworkStats(subscriptionData.data);
-          setLoading(false);
-          
-          // Emit to websocket service for other components
-          websocketService.emit('network_stats_update', subscriptionData.data);
-        }
-      }
-    }
-  );
-
-  useEffect(() => {
-    setLoading(subscriptionLoading);
-    setError(subscriptionError || null);
-  }, [subscriptionLoading, subscriptionError]);
-
-  return { networkStats, loading, error };
-};
-
-export const useRealtimeNetworkActivity = () => {
-  const [activity, setActivity] = useState<{ blocks: Block[], transfers: Transfer[] }>({
-    blocks: [],
-    transfers: []
-  });
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<Error | null>(null);
-
-  const { data, loading: subscriptionLoading, error: subscriptionError } = useSubscription(
-    SUBSCRIBE_TO_NETWORK_ACTIVITY,
-    {
-      onSubscriptionData: ({ subscriptionData }) => {
-        if (subscriptionData.data) {
-          setActivity({
-            blocks: subscriptionData.data.blocks || [],
-            transfers: subscriptionData.data.transfers || []
-          });
-          setLoading(false);
-          
-          // Emit to websocket service for other components
-          websocketService.emit('network_activity', subscriptionData.data);
-        }
-      }
-    }
-  );
-
-  useEffect(() => {
-    setLoading(subscriptionLoading);
-    setError(subscriptionError || null);
-  }, [subscriptionLoading, subscriptionError]);
-
-  return { activity, loading, error };
 };
 
 // Connection status hook

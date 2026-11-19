@@ -13,12 +13,13 @@ import { calculateAverageBlockTime } from "../utils/calculateBlockTime";
 import RealtimeActivityFeed from "../components/RealtimeActivityFeed";
 import RecentDataExporter, { ExportEntities } from "../components/RecentDataExporter";
 import { getBlockPath } from "../utils/blockPath";
-// import { useRealtimeBlocks, useRealtimeNetworkStats } from '../services/websocketService';
+// import { useRealtimeBlocks } from '../services/websocketService';
 
 // Query to get recent blocks for calculating average block time
 const GET_RECENT_BLOCKS = gql`
     query GetRecentBlocks {
         blocks(limit: 20, order_by: { block_number: desc }) {
+            block_hash
             block_number
             timestamp
         }
@@ -92,13 +93,6 @@ const HomePage: React.FC = () => {
             ? parseInt(latestBlockFromData)
             : latestBlockFromData;
     const totalPages = Math.ceil(totalBlocks / blocksPerPage);
-
-    // Helper function to safely parse numeric values
-    const safeParseFloat = (value: any): number | null => {
-        if (value === null || value === undefined) return null;
-        const parsed = parseFloat(value.toString());
-        return isNaN(parsed) ? null : parsed;
-    };
 
     const formatTimestamp = (timestamp: string | number) => {
         try {

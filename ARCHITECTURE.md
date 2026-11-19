@@ -425,8 +425,7 @@ App
 │   ├── BlocksPage
 │   │   └── BlockCard (list)
 │   ├── BlockDetailPage
-│   │   ├── BlockVisualization
-│   │   └── TransactionTracker
+│   │   └── BlockVisualization
 │   ├── TransactionsPage
 │   │   └── TransactionTrackerImproved
 │   ├── TransactionDetailPage

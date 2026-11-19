@@ -16,6 +16,7 @@ export const BLOCK_FRAGMENT = gql`
     pre_state_hash
     state_root_hash
     bonds_map
+    token_decimals
     fault_tolerance
     finalization_status
     justifications
@@ -61,6 +62,7 @@ export const TRANSFER_FRAGMENT = gql`
     to_address
     amount_asi
     amount_dust
+    token_decimals
     status
     block_number
     created_at
@@ -74,6 +76,7 @@ export const VALIDATOR_FRAGMENT = gql`
     name
     status
     total_stake
+    token_decimals
     first_seen_block
     last_seen_block
     created_at
@@ -253,10 +256,12 @@ export const GET_ACTIVE_VALIDATORS = gql`
     validator_bonds(order_by: { block_number: desc }, limit: 100) {
       validator_public_key
       stake
+      token_decimals
       block_number
     }
     # Get recent blocks to count proposers client-side
     blocks(limit: 1000, order_by: { block_number: desc }) {
+      block_hash
       block_number
       proposer
     }
@@ -274,25 +279,6 @@ export const GET_NETWORK_STATS = gql`
       consensus_status
       block_number
       timestamp
-    }
-  }
-`;
-
-export const GET_DEPLOYMENTS_BY_TYPE = gql`
-  query GetDeploymentsByType {
-    deployments_aggregate(group_by: deployment_type) {
-      aggregate {
-        count
-        avg {
-          phlo_cost
-        }
-        sum {
-          phlo_cost
-        }
-      }
-      nodes {
-        deployment_type
-      }
     }
   }
 `;
@@ -326,79 +312,6 @@ export const SUBSCRIBE_TO_NEW_TRANSFERS = gql`
   }
 `;
 
-export const SUBSCRIBE_TO_NETWORK_ACTIVITY = gql`
-  subscription SubscribeToNetworkActivity {
-    blocks(limit: 1, order_by: { block_number: desc }) {
-      block_number
-      timestamp
-      deployment_count
-    }
-    transfers(limit: 1, order_by: { created_at: desc }) {
-      id
-      amount_asi
-      created_at
-    }
-  }
-`;
-
-export const SUBSCRIBE_TO_NETWORK_STATS = gql`
-  subscription SubscribeToNetworkStats {
-    network_stats {
-      total_blocks
-      avg_block_time_seconds
-      earliest_block_time
-      latest_block_time
-    }
-    blocks_aggregate {
-      aggregate {
-        count
-        max {
-          block_number
-        }
-      }
-    }
-    deployments_aggregate {
-      aggregate {
-        count
-        avg {
-          phlo_cost
-        }
-      }
-    }
-    deployments_aggregate_failed: deployments_aggregate(where: {errored: {_eq: true}}) {
-      aggregate {
-        count
-      }
-    }
-    transfers_aggregate {
-      aggregate {
-        count
-        sum {
-          amount_asi
-        }
-        avg {
-          amount_asi
-        }
-      }
-    }
-    transfers_aggregate_failed: transfers_aggregate(where: {status: {_neq: "success"}}) {
-      aggregate {
-        count
-      }
-    }
-    validators_aggregate {
-      aggregate {
-        count
-      }
-    }
-    validator_bonds_aggregate {
-      aggregate {
-        count
-      }
-    }
-  }
-`;
-
 export const SUBSCRIBE_TO_NEW_DEPLOYMENTS = gql`
   ${DEPLOYMENT_FRAGMENT}
   subscription SubscribeToNewDeployments($limit: Int = 20) {
@@ -425,6 +338,7 @@ export const GET_GENESIS_FUNDING_DEPLOYMENT = gql`
       deployment_type
       created_at
       block_number
+      block { block_hash token_decimals }
     }
   }
 `;
@@ -433,8 +347,60 @@ export const GET_GENESIS_FUNDING_DEPLOYMENT = gql`
 export const GET_INDEXER_STATUS = gql`
   query GetIndexerStatus {
     blocks(order_by: { block_number: desc }, limit: 1) {
+      block_hash
       block_number
       timestamp
+    }
+  }
+`;
+
+// Pending deploys: the indexer snapshot of the node deploy buffers. The sig
+// becomes the deploy_id once the deploy is included in a block.
+export const PENDING_DEPLOY_FRAGMENT = gql`
+  fragment PendingDeployFragment on pending_deploys {
+    sig
+    deployer
+    deployer_address
+    timestamp
+    phlo_price
+    phlo_limit
+    valid_after_block_number
+    shard_id
+    expiration_timestamp
+    is_rejected
+    fetched_at
+    included_deployment {
+      deploy_id
+      block_number
+      block_hash
+    }
+  }
+`;
+
+export const GET_PENDING_DEPLOYS = gql`
+  ${PENDING_DEPLOY_FRAGMENT}
+  query GetPendingDeploys($limit: Int!) {
+    pending_deploys(order_by: [{ timestamp: desc }, { sig: asc }], limit: $limit) {
+      ...PendingDeployFragment
+    }
+    pending_deploys_aggregate {
+      aggregate {
+        count
+      }
+    }
+    indexer_state(where: { key: { _eq: "pending_deploys_total_available" } }) {
+      key
+      value
+    }
+  }
+`;
+
+export const GET_PENDING_DEPLOY = gql`
+  ${PENDING_DEPLOY_FRAGMENT}
+  query GetPendingDeploy($sig: String!) {
+    pending_deploys(where: { sig: { _eq: $sig } }) {
+      ...PendingDeployFragment
+      term
     }
   }
 `;

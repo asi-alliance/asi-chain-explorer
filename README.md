@@ -42,7 +42,7 @@ Part of the [**Artificial Superintelligence Alliance**](https://superintelligenc
 ASI Chain Explorer is a React-based web interface that provides real-time visualization and exploration of ASI Chain blockchain data through GraphQL,
 while the Python indexer backend runs separately to synchronize and store blockchain data in PostgreSQL.
 
-**Indexer** [https://github.com/asi-alliance/asi-chain-explorer](https://github.com/asi-alliance/asi-chain-explorer)
+**Indexer** [https://github.com/asi-alliance/asi-chain-indexer](https://github.com/asi-alliance/asi-chain-indexer)
 
 
 **These services run separately and can be deployed independently.**
@@ -52,7 +52,9 @@ The system indexes blockchain data including blocks, deployments, transfers, val
 ## Core Functionality
 - **Block Explorer**: Real-time block monitoring with detailed information
 - **Transaction Viewer**: Comprehensive transaction details including deployments and transfers
-- **Validator Dashboard**: Active validator monitoring with stake distribution (deduplication fixed)
+- **Pending Deploys**: Deploys in the node deploy buffers that no indexed block includes yet (Pending page)
+- **Native Transfer Calls**: Calls that a deploy started or completed, with pending, completed, rejected or coalesced status (Transfers tab of a deploy)
+- **Validator Dashboard**: Current validators with stake distribution; inactive validators are listed separately and are not counted in totals
 - **Network Statistics**: Simplified Network Dashboard view
 - **Search**: Universal search for blocks, transactions, and addresses
 - **Genesis Funding**: Complete visibility of initial token distribution
@@ -84,7 +86,7 @@ The system indexes blockchain data including blocks, deployments, transfers, val
 
 ### Data Flow
 
-1. **Block Synchronization**: Indexer queries ASI Chain node via Rust CLI to retrieve blocks within configured height ranges
+1. **Block Synchronization**: Indexer reads blocks, deploy reports and the pending-deploy buffers from the ASI Chain node through its gRPC and HTTP APIs
 2. **Data Processing**: Each block is processed to extract deployments, transfers, validator bonds, and network state
 3. **Database Storage**: Processed data is stored in PostgreSQL with proper relationships and indices
 4. **GraphQL Exposure**: Hasura automatically generates GraphQL API from database schema
@@ -99,15 +101,15 @@ The system indexes blockchain data including blocks, deployments, transfers, val
 - **React Router 7.7.1**: Client-side routing
 - **Framer Motion 11.11.17**: UI animations
 - **Recharts 3.1.1**: Data visualization
-- **date-fns 4.1.0**: Date formatting
+- **date-fns 3.6.0**: Date formatting
 - **lucide-react 0.536.0**: Icons
 - **papaparse 5.5.3**: CSV parsing
 - **react-window 1.8.8**: Virtual scrolling
 
 ### Infrastructure
 
-- **PostgreSQL 14**: Primary data store
-- **Hasura GraphQL Engine 2.36.0**: GraphQL API layer
+- **PostgreSQL 18.6**: Primary data store (indexer stack)
+- **Hasura GraphQL Engine v2.51.4**: GraphQL API layer (indexer stack)
 - **Docker**: Containerization
 - **nginx**: Frontend web server
 
@@ -140,20 +142,21 @@ asi-chain-explorer/
 
 - Docker 20.10 or higher
 - Docker Compose 2.0 or higher
-- Node.js 20 (for local frontend development)
+- Node.js 22 (for local frontend development; the Docker build and CI use Node.js 22)
 
 ### Quick Start with Docker Compose
 
 #### Start Explorer Frontend 
 
-The frontend provides the web UI for browsing blockchain data. Before starting the frontend, ensure you've completed Step 3 from the indexer setup (Hasura configuration scripts).
+The frontend provides the web UI for browsing blockchain data. Start the
+[indexer stack](https://github.com/asi-alliance/asi-chain-indexer#readme) first
+and run its `scripts/full-init-hasura.sh`. The script gives the public role read
+access to the tables and views that the explorer queries.
 
 ```bash
-cd ../explorer
-
-# Create and configure .env file in /explorer directory
+# In the repository root
 cp .env.example .env
-# Edit .env with your node configuration
+# Set the GraphQL URLs and INDEXER_STATUS_URL for your indexer stack
 
 # Start frontend
 docker compose -f docker-compose.standalone.yml up -d
@@ -182,23 +185,19 @@ Frontend will be available at http://localhost:3001
 
 #### Explorer
 
-1. Navigate to explorer directory:
+1. Install dependencies (the same commands as the Docker build):
 ```bash
-cd explorer
+npm install --legacy-peer-deps
+npm install --legacy-peer-deps --no-save ajv@^8.12.0 ajv-keywords@^5.1.0
 ```
 
-2. Install dependencies:
-```bash
-npm install
-```
-
-3. Create `.env` file:
+2. Create a `.env` file:
 ```bash
 REACT_APP_GRAPHQL_URL=http://localhost:8080/v1/graphql
-REACT_APP_HASURA_ADMIN_SECRET=myadminsecretkey
+REACT_APP_GRAPHQL_WS_URL=ws://localhost:8080/v1/graphql
 ```
 
-4. Start development server:
+3. Start the development server:
 ```bash
 npm start
 ```
@@ -209,12 +208,43 @@ Application will open at http://localhost:3000
 
 ### Explorer Environment Variables
 
+[.env.example](.env.example) lists every variable that the code, the Dockerfile
+or nginx reads. Every `REACT_APP_*` value is public: every visitor can read it.
+Do not put a credential in one. The explorer sends no Hasura admin secret or
+bearer token: it reads only what the public role exposes.
+
+The four endpoint variables (GraphQL HTTP, GraphQL WebSocket, indexer API, node
+URL) are runtime values in the Docker image. The container writes them to
+`/config.js` at startup, so one image works for every network. Docker build
+arguments with the same names only set defaults. The container exits when
+`REACT_APP_GRAPHQL_URL` or `REACT_APP_GRAPHQL_WS_URL` is missing, uses the wrong
+or an uppercase scheme, has a port outside 1-65535, contains credentials, a query
+or a fragment, or contains characters such as quotes, backslashes, angle brackets
+or spaces. The browser applies the same rules (`scripts/runtime-config-cases.tsv`).
+With `npm start` and `npm run build`, these variables are build-time values. A
+production bundle without them shows a configuration error and never falls back
+to localhost.
+
+A same-origin path such as `/v1/graphql` needs a reverse proxy in front of the
+explorer that routes that path to Hasura, for both HTTP and WebSocket. The nginx
+in the image proxies only `/api/indexer/status`. Without such a proxy, use
+absolute Hasura URLs.
+
+`REACT_APP_NATIVE_TOKEN_DECIMALS` stays a build-time value. It only sets the
+wallet-balance precision for nodes that report no `nativeTokenDecimals`. Indexed
+rows carry their own `token_decimals`, and rows without it use 8. Build a
+separate image only when the wallet lookup must use a different fallback.
+
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `REACT_APP_GRAPHQL_URL` | Hasura GraphQL HTTP endpoint | `http://localhost:8080/v1/graphql` |
-| `REACT_APP_HASURA_ADMIN_SECRET` | Hasura admin secret for authentication | Empty |
-| `REACT_APP_NETWORK_NAME` | Network display name | `ASI Chain` |
-| `REACT_APP_POLLING_INTERVAL` | Polling interval for data updates (ms) | `5000` |
+| `REACT_APP_GRAPHQL_URL` | Hasura GraphQL HTTP endpoint: `http(s)://` URL or same-origin path. Required | `npm start` only: `http://localhost:8080/v1/graphql` |
+| `REACT_APP_GRAPHQL_WS_URL` | Hasura GraphQL WebSocket endpoint: `ws(s)://` URL or same-origin path. Required | `npm start` only: `ws://localhost:8080/v1/graphql` |
+| `REACT_APP_INDEXER_API_URL` | Base path of the indexer status request | `/api/indexer` |
+| `REACT_APP_RCHAIN_NODE_URL` | Node HTTP API for the wallet balance lookup (not mounted in the current UI) | Same origin |
+| `INDEXER_STATUS_URL` | Server-side indexer `/status` URL for nginx (runtime, not in the bundle) | `http://host.docker.internal:9090/status` |
+| `REACT_APP_NATIVE_TOKEN_DECIMALS` | Wallet-balance precision for nodes without `nativeTokenDecimals`. Build time only, also in the Docker image | `8` |
+| `REACT_APP_FEEDBACK_FORM_URL` | URL that receives the feedback form | Empty |
+| `REACT_APP_JSAPI_URL`, `REACT_APP_CAPTCHA_TOKEN` | AWS WAF CAPTCHA for the feedback form | Empty |
 
 ## Documentation
 
@@ -227,8 +257,8 @@ For detailed technical documentation, see:
 ## Support
 
 For issues or questions:
-- GitHub Issues: [asi-chain/explorer](https://github.com/asi-alliance/asi-chain/issues)
-- Documentation: [ASI Chain Docs](../docs/)
+- GitHub Issues: [asi-chain-explorer](https://github.com/asi-alliance/asi-chain-explorer/issues)
+- Documentation: [ASI Chain Docs](https://docs.asichain.io/explorer/usage/)
 
 
 
@@ -236,39 +266,78 @@ For issues or questions:
 
 ### Core Environment Variables
 ```env
-# Production (.env.production.secure)
 REACT_APP_GRAPHQL_URL=http://localhost:8080/v1/graphql
 REACT_APP_GRAPHQL_WS_URL=ws://localhost:8080/v1/graphql
-REACT_APP_INDEXER_API_URL=http://localhost:9090
-REACT_APP_HASURA_ADMIN_SECRET=myadminsecretkey
-REACT_APP_NETWORK_NAME=ASI Chain
-REACT_APP_ENVIRONMENT=production
-
-# Local Development (.env)
-REACT_APP_GRAPHQL_URL=http://localhost:8080/v1/graphql
-REACT_APP_HASURA_ADMIN_SECRET=myadminsecretkey
+REACT_APP_INDEXER_API_URL=/api/indexer
+INDEXER_STATUS_URL=http://host.docker.internal:9090/status
 ```
+
+The explorer needs no Hasura credential and does not send one. Every page uses
+the Hasura `public` role. Before you deploy this image, make sure that the target
+Hasura has:
+
+- `HASURA_GRAPHQL_UNAUTHORIZED_ROLE=public`. Without it, every page fails.
+- The public-role permissions of the indexer's `scripts/full-init-hasura.sh`:
+  `select` on the explorer tables and views with `limit: 5000`, and aggregates
+  on `deployments`, `transfers`, `transaction_history_view` and `pending_deploys`.
+
+The `GraphQL Schema` workflow validates every explorer operation against the
+schema that Hasura gives to an unauthenticated request after that script. It does
+not check the row limit. The CSV export requests 5000 rows, so a lower limit
+shortens the export.
+
+Run the published image with the public endpoints of the target network:
+
+```bash
+docker run -p 3001:80 \
+  -e REACT_APP_GRAPHQL_URL=https://hasura.example.com/v1/graphql \
+  -e REACT_APP_GRAPHQL_WS_URL=wss://hasura.example.com/v1/graphql \
+  -e INDEXER_STATUS_URL=http://asi-indexer:9090/status \
+  asi-explorer:latest
+```
+
+`scripts/test-docker-image.sh` builds the image and checks this startup contract.
 
 ## API Endpoints
 
+The indexer status page polls the current indexer's `/status` response every five
+seconds after the preceding request completes. It displays the stored sync cursor
+against the node's finalized height. Missing data and failed requests show an
+unavailable state; failed refreshes clear the previous status.
+
+Production nginx proxies only `GET /api/indexer/status` to `INDEXER_STATUS_URL`.
+Set that server-side URL to the monitoring endpoint reachable from the explorer
+container. Compose supplies a host-gateway alias for the default host port 9090;
+on a shared Docker network it can instead be `http://asi-indexer:9090/status`.
+Keep `REACT_APP_INDEXER_API_URL=/api/indexer` for this same-origin proxy. For local
+development, use a reverse proxy for the same path, or set the build-time variable
+to a monitoring proxy that permits the development origin. The indexer itself
+does not enable browser CORS. The browser never needs an admin credential.
+Keep the indexer database timezone at UTC: its current monitoring response emits
+timestamps without a timezone suffix. Nginx resolves the monitoring upstream at
+startup; reload it if a named upstream's address changes.
+When using a shared-network container name, start that upstream first so its name
+resolves before nginx starts.
+
 ### Local Development
-- **Explorer UI**: `http://localhost:3001`
+- **Explorer UI**: `http://localhost:3001` (Docker Compose) or `http://localhost:3000` (`npm start`)
 - **GraphQL**: `http://localhost:8080/v1/graphql` (if running locally)
 
 ## Available Pages
 
 - `/` - Home dashboard with network overview
 - `/blocks` - Block explorer with pagination
-- `/block/:number` - Individual block details
-- `/transactions` - Transaction list with improved count display
-- `/transaction/:id` - Transaction details
-- `/validators` - Active validator list (deduplicated)
-- `/validator/:pubkey` - Validator details and history
-- `/deployments` - Smart contract deployments
-- `/transfers` - Token transfer history
+- `/block/:blockNumber`, `/block/hash/:blockHash` - Block details
+- `/transactions` - Transaction list
+- `/pending` - Deploys in the node deploy buffers that no indexed block includes yet
+- `/transaction/:transactionId` - Deploy details: overview, code, transfers with native transfer calls, block. A pending deploy shows its pending state until it is indexed.
+- `/validators` - Current validators; inactive validators in a separate table
+- `/validator-history` - Validator history
 - `/statistics` - Network Dashboard only
 - `/search` - Advanced search interface
 - `/indexer-status` - Indexer health monitoring
+
+The `/transfers` and `/deployments` routes are disabled in `src/App.tsx`.
 
 ## Docker Container Management
 
@@ -298,8 +367,8 @@ docker rmi asi-explorer:latest
 - `Dockerfile` - Container definition
 - `docker-compose.standalone.yml` - Docker Compose config
 - `docker-entrypoint.sh` - Runtime configuration
+- `docker/write-runtime-config.sh` - Writes and validates `/config.js`
 - `nginx.conf` - Web server config
-- `.env.production.secure` - Production environment
 - `deploy-docker.sh` - Deployment automation
 
 
@@ -311,7 +380,6 @@ docker rmi asi-explorer:latest
 - **Bundle Size**: ~533KB gzipped
 - **Docker Image**: ~50MB (Alpine Linux)
 - **Memory Usage**: ~100MB
-- **Network Data**: 322+ blocks indexed
 
 ## Troubleshooting
 
@@ -322,7 +390,7 @@ docker rmi asi-explorer:latest
    - Check port 3001 is available: `lsof -i :3001`
 
 2. **No data showing**
-   - Verify GraphQL endpoint: `curl http://13.251.66.61:8080/v1/graphql`
+   - Verify GraphQL endpoint: `curl -s http://localhost:8080/v1/graphql -H 'content-type: application/json' -d '{"query":"{ blocks(limit: 1) { block_number } }"}'`
    - Check container logs: `docker logs asi-explorer`
 
 3. **Build failures**
@@ -348,3 +416,44 @@ If you encounter a problem that is not listed, please feel free to open a new is
 - Firefox 88+
 - Safari 14+
 - Edge 90+
+
+## Exact token amounts
+
+Raw balances and stake arithmetic use JavaScript `bigint`. Amounts cross JSON and
+GraphQL as decimal strings and stay strings for display; monetary values must not
+be parsed as JavaScript floating-point numbers. Unsafe numeric responses are
+rejected instead of displaying a rounded balance.
+
+Deploy the matching indexer before this explorer: migrations through **006**,
+the documented history repair, and Hasura metadata from
+`scripts/full-init-hasura.sh`. The explorer reads `pending_deploys` and the
+`native_transfer_lifecycle` view, which only that metadata exposes. Keep
+`HASURA_GRAPHQL_STRINGIFY_NUMERIC_TYPES=true`.
+Transfers, bonds and blocks supply their own `token_decimals`, so historical
+8-decimal rows and 18-decimal rows display with their original units. Missing
+historical metadata retains the legacy 8-decimal interpretation.
+
+Wallet balances read `nativeTokenDecimals` from the node's `/api/status` and accept
+both legacy `ExprInt` and BigInt `ExprBigInt` responses. For older nodes without
+metadata, the build-time `REACT_APP_NATIVE_TOKEN_DECIMALS` fallback defaults to 8.
+Docker builds accept the same build argument. Changing a display setting does not
+rescale tokens or upgrade a chain's denomination.
+
+Validation: `CI=true npm test -- --watchAll=false --runInBand`,
+`npx tsc --noEmit`, and `npm run build`.
+The `Tests` workflow runs these checks on pull requests to `dev` and `main` and
+on pushes to `dev`. Its build runs with `CI=true`, so a lint warning fails the
+check. The Docker build does not set `CI`; run `CI=true npm run build` locally
+to see the same result.
+
+### GraphQL schema compatibility
+
+`npm run validate:graphql -- <hasura-graphql-endpoint>` checks every GraphQL
+operation under `src/` against the schema that Hasura exposes to the public role.
+The check reports unknown fields, wrong argument and variable types, and
+aggregates that the public role cannot read. It does not run the queries.
+
+The `GraphQL Schema` workflow runs this check against the indexer stack: the
+indexer `docker-compose.yml` with its migrations and `scripts/full-init-hasura.sh`.
+It runs on pull requests to `dev`, on pushes to `dev` and once a day, against
+indexer `dev`. A manual run can select another indexer branch, tag or commit.

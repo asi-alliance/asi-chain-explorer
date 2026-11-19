@@ -1,3 +1,4 @@
+import { rawInteger, formatRaw, decimalText, LEGACY_DECIMALS } from "./amounts";
 /**
  * Utility to parse genesis wallet funding from AsiGenerator deployment
  */
@@ -6,8 +7,8 @@ import { CURRENT_TOKEN } from "./constants";
 
 export interface GenesisFunding {
   wallet_address: string;
-  amount_dust: number;
-  amount_asi: number;
+  amount_dust: string;
+  amount_asi: string;
   status: 'genesis_funding';
   timestamp: number;
   deploy_id: string;
@@ -16,24 +17,24 @@ export interface GenesisFunding {
 /**
  * Parses the genesis deployment term to extract wallet funding information
  */
-export function parseGenesisFunding(deploymentTerm: string, deployId: string, timestamp: number): GenesisFunding[] {
+export function parseGenesisFunding(deploymentTerm: string, deployId: string, timestamp: number, decimals = LEGACY_DECIMALS): GenesisFunding[] {
   const fundings: GenesisFunding[] = [];
   
   try {
     // Look for the match pattern with wallet addresses and amounts
     // Pattern: match [("address1", amount1), ("address2", amount2), ...]
-    const matchRegex = /match\s*\[\s*(?:\("([^"]+)",\s*(\d+)\)(?:\s*,\s*)?)+\s*\]/g;
+    const matchRegex = /match\s*\[\s*(?:\("([^"]+)",\s*(\d+)n?\)(?:\s*,\s*)?)+\s*\]/g;
     const match = matchRegex.exec(deploymentTerm);
     
     if (match) {
       // Extract individual wallet funding entries
-      const entryRegex = /\("([^"]+)",\s*(\d+)\)/g;
+      const entryRegex = /\("([^"]+)",\s*(\d+)n?\)/g;
       let entryMatch;
       
       while ((entryMatch = entryRegex.exec(deploymentTerm)) !== null) {
         const walletAddress = entryMatch[1];
-        const amountDust = parseInt(entryMatch[2]);
-        const amountAsi = amountDust / 100000000; // Convert from dust to ASI (8 decimal places)
+        const amountDust = rawInteger(entryMatch[2]).toString();
+        const amountAsi = formatRaw(amountDust, decimals);
         
         fundings.push({
           wallet_address: walletAddress,
@@ -55,14 +56,8 @@ export function parseGenesisFunding(deploymentTerm: string, deployId: string, ti
 /**
  * Formats genesis funding amount for display
  */
-export function formatGenesisFunding(amount: number): string {
-  if (amount >= 1000000) {
-    return (amount / 1000000).toFixed(1) + `M ${CURRENT_TOKEN}`;
-  } else if (amount >= 1000) {
-    return (amount / 1000).toFixed(1) + `K ${CURRENT_TOKEN}`;
-  } else {
-    return amount.toFixed(2) + ` ${CURRENT_TOKEN}`;
-  }
+export function formatGenesisFunding(amount: string | number): string {
+  return decimalText(amount) + ` ${CURRENT_TOKEN}`;
 }
 
 /**

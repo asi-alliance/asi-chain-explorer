@@ -1,0 +1,69 @@
+name: Tests
+
+on:
+  pull_request:
+    branches: [dev, main]
+  push:
+    branches: [dev]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: tests-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Check out explorer
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          # Same major version as the Dockerfile build stage.
+          node-version: 22
+
+      - name: Install dependencies
+        # Same commands as the Dockerfile build stage, without changing package.json.
+        run: |
+          npm install --no-audit --no-fund --legacy-peer-deps
+          npm install --no-audit --no-fund --legacy-peer-deps --no-save ajv@^8.12.0 ajv-keywords@^5.1.0
+
+      - name: Runtime config script tests
+        # The docker-image job runs the same script under the image's busybox shell.
+        run: bash scripts/test-runtime-config.sh
+
+      - name: Served JavaScript check tests
+        # Negative controls for the leak check of scripts/test-docker-image.sh.
+        run: bash scripts/test-served-js-check.sh
+
+      - name: Unit tests
+        run: npm test -- --watchAll=false --runInBand
+        env:
+          CI: true
+
+      - name: Type check
+        run: npx tsc --noEmit
+
+      - name: Production build
+        # GitHub sets CI=true, so create-react-app fails the build on any lint warning.
+        run: npm run build
+
+      - name: Check the bundle for credentials and default endpoints
+        run: bash scripts/check-bundle.sh build
+
+  docker-image:
+    # Startup contract of the published image: issue #60.
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Check out explorer
+        uses: actions/checkout@v4
+
+      - name: Build the image and check its endpoint configuration
+        run: bash scripts/test-docker-image.sh

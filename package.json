@@ -39,6 +39,7 @@
         "start": "react-scripts start",
         "build": "PUBLIC_URL=/ react-scripts build",
         "test": "react-scripts test",
+        "validate:graphql": "node scripts/validate-graphql.js",
         "eject": "react-scripts eject"
     },
     "eslintConfig": {

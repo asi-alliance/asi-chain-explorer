@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { AnimatePresence } from './AnimatePresenceWrapper';
-import { Wifi, WifiOff, RotateCcw, AlertTriangle, CheckCircle } from 'lucide-react';
+import { WifiOff, RotateCcw, AlertTriangle, CheckCircle } from 'lucide-react';
 // import { useConnectionStatus } from '../services/websocketService';
 
 interface ConnectionStatusProps {

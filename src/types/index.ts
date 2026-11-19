@@ -16,6 +16,7 @@ export interface Block {
   pre_state_hash?: string;
   state_root_hash?: string;
   bonds_map?: any;
+  token_decimals?: number;
   fault_tolerance?: number;
   finalization_status?: string;
   justifications?: any[];
@@ -36,9 +37,9 @@ export interface Deployment {
   term: string;
   timestamp: number;
   deployment_type?: string;
-  phlo_cost?: number;
-  phlo_price?: number;
-  phlo_limit?: number;
+  phlo_cost?: string | number;
+  phlo_price?: string | number;
+  phlo_limit?: string | number;
   valid_after_block_number?: number;
   status?: string;
   block_number?: number;
@@ -60,7 +61,8 @@ export interface Transfer {
   from_address: string;
   to_address: string;
   amount_asi: number | string;
-  amount_dust?: number;
+  amount_dust?: string;
+  token_decimals?: number;
   status: string;
   block_number?: number | string;
   created_at: string;
@@ -71,21 +73,26 @@ export interface Transfer {
 export interface GenesisFunding {
   id: string;
   wallet_address: string;
-  amount_dust: number;
-  amount_asi: number;
+  amount_dust: string;
+  amount_asi: string;
   status: 'genesis_funding';
   timestamp: number;
   deploy_id: string;
   created_at: string;
 }
 
+// Hasura bigint heights arrive as decimal strings (HASURA_GRAPHQL_STRINGIFY_NUMERIC_TYPES);
+// legacy responses may still use safe integers. Compare them with utils/blockHeight.
+export type BlockHeight = string | number;
+
 export interface Validator {
   public_key: string;
   name?: string;
   status?: string;
-  total_stake?: number;
-  first_seen_block?: number;
-  last_seen_block?: number;
+  token_decimals?: number;
+  total_stake?: string;
+  first_seen_block?: BlockHeight;
+  last_seen_block?: BlockHeight;
   created_at: string;
   updated_at?: string;
   validator_bonds?: ValidatorBond[];
@@ -93,8 +100,9 @@ export interface Validator {
 
 export interface ValidatorBond {
   id?: number;
-  block_number: number;
-  stake: number;
+  block_number: BlockHeight;
+  token_decimals?: number;
+  stake: string;
   block_hash?: string;
   validator_public_key?: string;
   validator?: Validator;
@@ -120,11 +128,11 @@ export interface NetworkStats {
 export interface AggregateData {
   count: number;
   avg?: {
-    phlo_cost?: number;
+    phlo_cost?: string | number;
   };
   sum?: {
-    amount_asi?: number;
-    phlo_cost?: number;
+    amount_asi?: string | number;
+    phlo_cost?: string | number;
   };
 }
 
@@ -213,4 +221,25 @@ export interface GraphQLError {
 export interface ErrorBoundaryState {
   hasError: boolean;
   error?: Error;
+}
+
+// Snapshot of the node deploy buffers (indexer table pending_deploys).
+export interface PendingDeploy {
+  sig: string;
+  deployer: string;
+  deployer_address: string;
+  term?: string;
+  timestamp: string | number;
+  phlo_price?: string | null;
+  phlo_limit?: string | number | null;
+  valid_after_block_number?: string | number | null;
+  shard_id?: string | null;
+  expiration_timestamp?: string | number | null;
+  is_rejected?: boolean | null;
+  fetched_at?: string | null;
+  included_deployment?: {
+    deploy_id: string;
+    block_number: string | number;
+    block_hash: string;
+  } | null;
 }

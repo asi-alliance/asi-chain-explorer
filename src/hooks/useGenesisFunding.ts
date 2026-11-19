@@ -17,7 +17,8 @@ export function useGenesisFunding() {
     const parsedFundings = parseGenesisFunding(
       deployment.term,
       deployment.deploy_id,
-      testnetGenesisTimestamp
+      testnetGenesisTimestamp,
+      deployment.block?.token_decimals
     );
     
     // Convert to GenesisFunding format with proper IDs

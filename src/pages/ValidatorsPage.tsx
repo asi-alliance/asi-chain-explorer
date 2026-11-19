@@ -1,9 +1,10 @@
+import { normalizedRaw, formatRaw, percentage } from "../utils/amounts";
 import React from 'react';
 import { useQuery } from '@apollo/client';
 import { GET_ACTIVE_VALIDATORS } from '../graphql/queries';
 import { Validator } from '../types';
 import { CURRENT_TOKEN } from '../utils/constants';
-import { fromCogs } from '../utils/calculateBlockTime';
+import { heightLabel, isNewerHeight } from '../utils/blockHeight';
 
 const ValidatorsPage: React.FC = () => {
   const { data, loading, error } = useQuery(GET_ACTIVE_VALIDATORS, {
@@ -51,8 +52,8 @@ const ValidatorsPage: React.FC = () => {
       if (validator.public_key.length > existing.public_key.length) {
         validatorMap.set(normalizedKey, validator);
       } else if (validator.public_key.length === existing.public_key.length) {
-        // If both have same key length, keep the one with higher stake or more recent activity
-        if ((validator.last_seen_block || 0) > (existing.last_seen_block || 0)) {
+        // If both have same key length, keep the one with more recent activity
+        if (isNewerHeight(validator.last_seen_block, existing.last_seen_block)) {
           validatorMap.set(normalizedKey, validator);
         }
       }
@@ -68,7 +69,8 @@ const ValidatorsPage: React.FC = () => {
   }
   
   // Create a map of validator public key to their latest bond
-  // Map both full and normalized keys to handle duplicates
+  // Map both full and normalized keys to handle duplicates.
+  // Heights are bigint strings from Hasura: compare them exactly, never as strings ("99" > "100").
   const bondsByValidator: { [key: string]: any } = {};
   const bondsByNormalizedKey: { [key: string]: any } = {};
   
@@ -77,13 +79,13 @@ const ValidatorsPage: React.FC = () => {
     
     // Store by original key
     const existingBond = bondsByValidator[bond.validator_public_key];
-    if (!existingBond || bond.block_number > existingBond.block_number) {
+    if (!existingBond || isNewerHeight(bond.block_number, existingBond.block_number)) {
       bondsByValidator[bond.validator_public_key] = bond;
     }
     
     // Also store by normalized key for lookup
     const existingNormalizedBond = bondsByNormalizedKey[normalizedKey];
-    if (!existingNormalizedBond || bond.block_number > existingNormalizedBond.block_number) {
+    if (!existingNormalizedBond || isNewerHeight(bond.block_number, existingNormalizedBond.block_number)) {
       bondsByNormalizedKey[normalizedKey] = bond;
     }
   });
@@ -96,84 +98,34 @@ const ValidatorsPage: React.FC = () => {
     }
   });
   
-  // Calculate proper stake amounts with better formatting
-  const calculateStake = (stake: number | string): string => {
-    const stakeNum = typeof stake === 'string' ? parseFloat(stake) : stake;
-    if (!stakeNum || stakeNum === 0 || isNaN(stakeNum)) return '0.00';
-    // Stake values from API appear to already be in ASI
-    const revAmount = fromCogs(stakeNum); // convert to the readable format using decimals multiplier
+  const latestBondOf = (validator: Validator) =>
+    bondsByValidator[validator.public_key] || bondsByNormalizedKey[normalizeValidatorKey(validator.public_key)];
     
-    // Format based on size
-    if (revAmount >= 1000000) {
-      return (revAmount / 1000000).toFixed(2) + 'M';
-    } else if (revAmount >= 1000) {
-      return (revAmount / 1000).toFixed(2) + 'K';
-    } else if (revAmount < 0.01) {
-      return revAmount.toExponential(2);
-    } else {
-      return revAmount.toFixed(2);
-    }
-  };
-
-  // Calculate raw stake for display without formatting
-  const calculateRawStake = (stake: number | string): number => {
-    const stakeNum = typeof stake === 'string' ? parseFloat(stake) : stake;
-    if (!stakeNum || stakeNum === 0 || isNaN(stakeNum)) return 0;
-    // Stake values from API appear to already be in ASI
-    return stakeNum;
-  };
-
-  // Calculate total stake using the latest bond stake for each validator
-  const totalStake = validators.reduce((sum: number, validator: Validator) => {
-    // Try to find bond by both original key and normalized key
-    const normalizedKey = normalizeValidatorKey(validator.public_key);
-    const latestBond = bondsByValidator[validator.public_key] || bondsByNormalizedKey[normalizedKey];
-    let stake = 0;
-    
+  // Latest bond stake when known, otherwise the stake recorded on the validator row.
+  const stakeOf = (validator: Validator): bigint => {
+    const latestBond = latestBondOf(validator);
     if (latestBond?.stake !== undefined && latestBond?.stake !== null) {
-      // Handle both string and number types
-      stake = typeof latestBond.stake === 'string' ? parseFloat(latestBond.stake) : latestBond.stake;
-    } else if (validator.total_stake !== undefined && validator.total_stake !== null) {
-      // Handle both string and number types
-      stake = typeof validator.total_stake === 'string' ? parseFloat(validator.total_stake) : validator.total_stake;
+      return normalizedRaw(latestBond.stake, latestBond.token_decimals);
     }
+    if (validator.total_stake !== undefined && validator.total_stake !== null) {
+      return normalizedRaw(validator.total_stake, validator.token_decimals);
+    }
+    return 0n;
+  };
     
-    // console.log(`Validator ${validator.public_key.substring(0,10)}... stake:`, stake, 'type:', typeof stake, 'source:', latestBond ? 'bond' : 'total_stake');
-    return sum + stake;
-  }, 0);
+  const byStakeDesc = (a: Validator, b: Validator) => {
+    const aStake = stakeOf(a);
+    const bStake = stakeOf(b);
+    return bStake > aStake ? 1 : bStake < aStake ? -1 : 0;
+  };
 
-  // Debug logging (commented out for production)
-  // if (validators.length > 0 && !loading) {
-  //   console.log('=== Validator Stake Debug ===');
-  //   console.log('Number of validators:', validators.length);
-  //   console.log('Total stake raw:', totalStake);
-  //   console.log('Total stake ASI:', totalStake / 1e8);
-  //   console.log('Average stake ASI:', totalStake / 1e8 / validators.length);
-  // }
+  // The indexer marks validators outside the finalized bond set 'inactive' and keeps their last stake.
+  const currentValidators = validators.filter((validator: Validator) => validator.status !== 'inactive');
+  const inactiveValidators = validators.filter((validator: Validator) => validator.status === 'inactive');
 
-  // Sort validators by their stake (bond or total_stake)
-  const sortedValidators = [...validators].sort((a, b) => {
-    const aNormalizedKey = normalizeValidatorKey(a.public_key);
-    const bNormalizedKey = normalizeValidatorKey(b.public_key);
-    const aLatestBond = bondsByValidator[a.public_key] || bondsByNormalizedKey[aNormalizedKey];
-    const bLatestBond = bondsByValidator[b.public_key] || bondsByNormalizedKey[bNormalizedKey];
-    
-    let aStake = 0;
-    if (aLatestBond?.stake !== undefined && aLatestBond?.stake !== null) {
-      aStake = typeof aLatestBond.stake === 'string' ? parseFloat(aLatestBond.stake) : aLatestBond.stake;
-    } else if (a.total_stake !== undefined && a.total_stake !== null) {
-      aStake = typeof a.total_stake === 'string' ? parseFloat(a.total_stake) : a.total_stake;
-    }
-    
-    let bStake = 0;
-    if (bLatestBond?.stake !== undefined && bLatestBond?.stake !== null) {
-      bStake = typeof bLatestBond.stake === 'string' ? parseFloat(bLatestBond.stake) : bLatestBond.stake;
-    } else if (b.total_stake !== undefined && b.total_stake !== null) {
-      bStake = typeof b.total_stake === 'string' ? parseFloat(b.total_stake) : b.total_stake;
-    }
-    
-    return bStake - aStake;
-  });
+  const totalStake = currentValidators.reduce((sum: bigint, validator: Validator) => sum + stakeOf(validator), 0n);
+  const sortedValidators = [...currentValidators].sort(byStakeDesc);
+  const sortedInactiveValidators = [...inactiveValidators].sort(byStakeDesc);
 
   const truncateKey = (key: string) => {
     if (!key || key.length < 32) return key;
@@ -216,25 +168,19 @@ const ValidatorsPage: React.FC = () => {
           <div className="summary-grid mb-3">
             <div className="asi-card glass">
               <h5 className="text-muted" style={{ marginBottom: '0.5rem' }}>Total Validators</h5>
-              <h1 style={{ margin: 0 }}>{validators.length}</h1>
+              <h1 style={{ margin: 0 }}>{currentValidators.length}</h1>
             </div>
             <div className="asi-card glass">
               <h5 className="text-muted" style={{ marginBottom: '0.5rem' }}>Total {CURRENT_TOKEN} Staked</h5>
               <h1 style={{ margin: 0 }}>
-                {calculateRawStake(fromCogs(totalStake)).toLocaleString(undefined, { 
-                  minimumFractionDigits: 2,
-                  maximumFractionDigits: 2 
-                })} {CURRENT_TOKEN}
+                {formatRaw(totalStake, 77)} {CURRENT_TOKEN}
               </h1>
             </div>
             <div className="asi-card glass">
               <h5 className="text-muted" style={{ marginBottom: '0.5rem' }}>Avg. Stake</h5>
               <h1 style={{ margin: 0 }}>
-                {validators.length > 0 ? 
-                  calculateRawStake(fromCogs(totalStake) / validators.length).toLocaleString(undefined, { 
-                    minimumFractionDigits: 2,
-                    maximumFractionDigits: 2 
-                  }) : 
+                {currentValidators.length > 0 ?
+                  formatRaw(totalStake / BigInt(currentValidators.length), 77) :
                   '0.00'
                 } {CURRENT_TOKEN}
               </h1>
@@ -250,8 +196,14 @@ const ValidatorsPage: React.FC = () => {
               </p>
             </div>
           ) : (
+            <>
+            {currentValidators.length === 0 ? (
+              <p className="text-muted text-center" style={{ padding: '2rem' }}>
+                No validators are in the current bond set
+              </p>
+            ) : (
             <div style={{ overflowX: 'auto' }}>
-              <table>
+              <table aria-label="Current validators">
                   <thead>
                     <tr>
                       <th className="text-1">Public Key</th>
@@ -266,19 +218,10 @@ const ValidatorsPage: React.FC = () => {
                   </thead>
                 <tbody>
                   {sortedValidators.map((validator: Validator) => {
-                    const normalizedKey = normalizeValidatorKey(validator.public_key);
-                    const latestBond = bondsByValidator[validator.public_key] || bondsByNormalizedKey[normalizedKey];
+                    const latestBond = latestBondOf(validator);
                     const blocksProposed = blockProposedCounts[validator.public_key] || 0;
-                    
-                    // Use the same logic as total calculation
-                    let stake = 0;
-                    if (latestBond?.stake !== undefined && latestBond?.stake !== null) {
-                      stake = typeof latestBond.stake === 'string' ? parseFloat(latestBond.stake) : latestBond.stake;
-                    } else if (validator.total_stake !== undefined && validator.total_stake !== null) {
-                      stake = typeof validator.total_stake === 'string' ? parseFloat(validator.total_stake) : validator.total_stake;
-                    }
-                    
-                    const stakePercentage = totalStake > 0 ? (stake / totalStake * 100).toFixed(2) : '0.00';
+                    const stake = stakeOf(validator);
+                    const stakePercentage = percentage(stake, totalStake);
                     
                     return (
                       <tr key={validator.public_key} className="fade-in">
@@ -288,7 +231,7 @@ const ValidatorsPage: React.FC = () => {
                           </span>
                         </td>
                         <td className="text-3" style={{ fontWeight: 600 }}>
-                          {calculateStake(stake)}
+                          {formatRaw(stake, 77)}
                         </td>
                         <td className="text-3">
                           <span style={{ color: 'var(--text-tertiary)' }}>
@@ -299,14 +242,14 @@ const ValidatorsPage: React.FC = () => {
                           {blocksProposed.toLocaleString()}
                         </td>
                         <td className="text-3">
-                          {validator.first_seen_block ? `#${validator.first_seen_block}` : '--'}
+                          {heightLabel(validator.first_seen_block)}
                         </td>
                         <td className="text-3">
-                          {validator.last_seen_block ? `#${validator.last_seen_block}` : '--'}
+                          {heightLabel(validator.last_seen_block)}
                         </td>
                         <td className="text-3">
                           {latestBond ? (
-                            <span>#{latestBond.block_number.toLocaleString()}</span>
+                            <span>{heightLabel(latestBond.block_number)}</span>
                           ) : (
                             <span className="text-muted">Never bonded</span>
                           )}
@@ -322,6 +265,49 @@ const ValidatorsPage: React.FC = () => {
                 </tbody>
               </table>
             </div>
+            )}
+
+            {sortedInactiveValidators.length > 0 && (
+              <section className="mt-3" aria-labelledby="inactive-validators-heading">
+                <h3 id="inactive-validators-heading">Inactive Validators</h3>
+                <p className="text-muted" style={{ fontSize: '14px' }}>
+                  Not in the current bond set. Their last recorded stake is not counted in the totals above.
+                </p>
+                <div style={{ overflowX: 'auto' }}>
+                  <table aria-labelledby="inactive-validators-heading">
+                    <thead>
+                      <tr>
+                        <th className="text-1">Public Key</th>
+                        <th className="text-1">Last Recorded Stake ({CURRENT_TOKEN})</th>
+                        <th className="text-1">Blocks Proposed</th>
+                        <th className="text-1">First Seen</th>
+                        <th className="text-1">Last Seen</th>
+                        <th className="text-1">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {sortedInactiveValidators.map((validator: Validator) => (
+                        <tr key={validator.public_key}>
+                          <td className="hash-cell">
+                            <span className="text-3 mono" title={validator.public_key}>
+                              {truncateKey(validator.public_key)}
+                            </span>
+                          </td>
+                          <td className="text-3 text-muted">{formatRaw(stakeOf(validator), 77)}</td>
+                          <td className="text-3 text-center">
+                            {(blockProposedCounts[validator.public_key] || 0).toLocaleString()}
+                          </td>
+                          <td className="text-3">{heightLabel(validator.first_seen_block)}</td>
+                          <td className="text-3">{heightLabel(validator.last_seen_block)}</td>
+                          <td className="text-3"><span className="text-muted">{validator.status}</span></td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </section>
+            )}
+            </>
           )}
         </>
       )}
