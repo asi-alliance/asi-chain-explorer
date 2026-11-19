@@ -54,6 +54,7 @@ export interface PendingDeploysStatus {
   totalAvailable: number;
   /** Last write of the status row; the indexer rewrites it at least every 10 s. */
   updatedAt: Date | null;
+  intervalMs: number | null;
 }
 
 interface StateRow {
@@ -87,7 +88,7 @@ export function parsePendingDeploysStatus(rows: unknown): PendingDeploysStatus |
   const count = counter(fields.count);
   const totalAvailable = counter(fields.total_available);
   if (!nodes || reachable === null || count === null || totalAvailable === null) return null;
-  return { nodes, reachable, count, totalAvailable, updatedAt: snapshotTime(row.updated_at) };
+  return { nodes, reachable, count, totalAvailable, intervalMs: counter(fields.interval_ms), updatedAt: snapshotTime(row.updated_at) };
 }
 
 // Each node caps its pending-deploy response; the indexer records the total before the caps.

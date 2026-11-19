@@ -1,4 +1,4 @@
-import { renderHook } from '@testing-library/react';
+import { act, renderHook } from '@testing-library/react';
 import { gql, useQuery, useSubscription } from '@apollo/client';
 import { LIVE_FALLBACK_POLL_MS, useLiveQuery } from './useLiveQuery';
 
@@ -18,7 +18,46 @@ function run(subscription: object, query: object = {}, skip = false) {
   return renderHook(() => useLiveQuery(WATCH, GET, { variables, skip })).result.current;
 }
 
-afterEach(() => jest.clearAllMocks());
+afterEach(() => {
+  jest.clearAllMocks();
+  jest.useRealTimers();
+});
+
+test('continues polling during a reconnect and stops after a new live result', () => {
+  jest.useFakeTimers();
+  const restart = jest.fn();
+  const subscription = useSubscription as jest.Mock;
+  subscription.mockReturnValue({ error: new Error('closed'), restart });
+  (useQuery as jest.Mock).mockReturnValue({ data: { things: [] } });
+  const hook = renderHook(() => useLiveQuery(WATCH, GET));
+  act(() => { jest.advanceTimersByTime(30_000); });
+  expect(restart).toHaveBeenCalledTimes(1);
+  subscription.mockReturnValue({ loading: true, restart });
+  hook.rerender();
+  expect(hook.result.current.live).toBe(false);
+  subscription.mockReturnValue({ data: { things: ['fresh'] }, restart });
+  hook.rerender();
+  expect(hook.result.current.live).toBe(true);
+  expect(useQuery).toHaveBeenLastCalledWith(GET, expect.objectContaining({ skip: true, pollInterval: 0 }));
+  act(() => { jest.advanceTimersByTime(30_000); });
+  expect(restart).toHaveBeenCalledTimes(1);
+});
+
+test('pauses a hidden page and subscribes again when visible', () => {
+  const visibility = jest.spyOn(document, 'visibilityState', 'get');
+  try {
+    run({});
+    visibility.mockReturnValue('hidden');
+    act(() => { document.dispatchEvent(new Event('visibilitychange')); });
+    expect(useSubscription).toHaveBeenLastCalledWith(WATCH, { variables, skip: true });
+    expect(useQuery).toHaveBeenLastCalledWith(GET, expect.objectContaining({ skip: true }));
+    visibility.mockReturnValue('visible');
+    act(() => { document.dispatchEvent(new Event('visibilitychange')); });
+    expect(useSubscription).toHaveBeenLastCalledWith(WATCH, { variables, skip: false });
+  } finally {
+    visibility.mockRestore();
+  }
+});
 
 test('reads over the WebSocket and does not poll while the subscription works', () => {
   const result = run({ data: { things: [{ id: 'a' }] } });

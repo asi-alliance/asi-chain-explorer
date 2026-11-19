@@ -43,8 +43,8 @@ export const PendingSourceNotes: React.FC<{ status: PendingDeploysStatus }> = ({
       )}
       {age === null && unreachable > 0 && (
         <p className="text-warning" role="note" aria-label="Unreachable validators" style={{ fontSize: '14px' }}>
-          The indexer cannot reach {unreachable} of {status.nodes} validators. Their deploys are shown as of the
-          last successful read.
+          The indexer cannot reach {unreachable} of {status.nodes} validators. This view is partial. The indexer drops
+          snapshots aged 30 seconds or more from unreachable validators on each refresh.
         </p>
       )}
     </>
@@ -65,7 +65,7 @@ export const PendingDeployLeftBuffer: React.FC<{ sig: string }> = ({ sig }) => (
       </h2>
     </div>
     <p className="text-muted" role="status">
-      This deploy left the node deploy buffer, but the indexer did not record it in a block yet.
+      This deploy is no longer visible in the pending snapshot. The indexer has not recorded it in a block yet.
       The indexer can be behind the node. If the node dropped the deploy, for example after it expired, it does not appear.
       This page updates when the deploy is indexed.
     </p>

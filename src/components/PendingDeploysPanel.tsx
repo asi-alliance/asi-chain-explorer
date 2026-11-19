@@ -46,17 +46,20 @@ const PendingDeploysPanel: React.FC = () => {
         <p className="text-muted" style={{ fontSize: '14px' }}>
           Deploys in the deploy buffers of {status.status.nodes === 1 ? '1 validator' : `${status.status.nodes} validators`} that
           are not in a block yet. A deploy usually stays here only until its validator proposes the next block.
+          {status.status.intervalMs !== null && ` The indexer checks every ${status.status.intervalMs} ms.`}
           {' '}{live ? 'Updates live.' : 'Live updates are not available; the list refreshes every 5 seconds.'}
           {count !== undefined && count > deploys.length && ` Showing the latest ${deploys.length} of ${count}.`}
         </p>
         <PendingSourceNotes status={status.status} />
         {total !== null && (
           <p className="text-warning" role="note" style={{ fontSize: '14px' }}>
-            The validators report {total} pending deploys, but their responses are limited to {count}.
+            The indexer tracks {count} distinct deploys. Each validator returns at most 1000 entries.
+            Including entries beyond those limits, the reported total is {total}.
           </p>
         )}
         {deploys.length === 0 ? (
-          <p className="text-muted">No deploys are waiting for a block.</p>
+          <p className="text-muted">{status.status.reachable === status.status.nodes ?
+              'No deploys are waiting for a block.' : 'No pending deploys are visible in the available snapshots.'}</p>
         ) : (
           <div style={{ overflowX: 'auto' }}>
             <table aria-labelledby="pending-deploys-heading">

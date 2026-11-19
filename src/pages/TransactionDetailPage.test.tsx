@@ -1,5 +1,5 @@
 import React from 'react';
-import { act, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { useSubscription } from '@apollo/client';
 import TransactionDetailPage from './TransactionDetailPage';
@@ -38,7 +38,7 @@ let state: Lookup = {};
 
 function renderLookup(initial: Lookup) {
   state = initial;
-  const refetch = jest.fn();
+  const refetch = jest.fn().mockResolvedValue({ data: { deployments: [] } });
   const statusData = () => (state.status ?? { data: { indexer_state: pendingStatusRows() } });
   const requested = mockOperations({
     GetTransactionDetails: () => ({ data: { deployments: [] }, refetch }),
@@ -63,7 +63,7 @@ function renderLookup(initial: Lookup) {
 
 afterEach(() => jest.useRealTimers());
 
-test('shows a pending deploy instead of "not found" and reloads when the deploy is indexed (issue #70)', () => {
+test('shows a pending deploy instead of "not found" and reloads when the deploy is indexed (issue #70)', async () => {
   const { refetch, update } = renderLookup({ pending: { data: { pending_deploys: [pending] } } });
 
   expect(screen.getByRole('heading', { name: 'Deploy Pending' })).toBeInTheDocument();
@@ -74,7 +74,20 @@ test('shows a pending deploy instead of "not found" and reloads when the deploy 
   expect(refetch).not.toHaveBeenCalled();
 
   update({ indexed: { data: { deployments: [{ __typename: 'deployments', deploy_id: SIG }] } } });
+  await waitFor(() => expect(screen.getByRole('button', { name: 'Check again' })).toBeInTheDocument());
   expect(refetch).toHaveBeenCalledTimes(1);
+});
+
+test('releases per-deploy subscriptions when the wait expires and resumes on request', async () => {
+  jest.useFakeTimers();
+  const { requested } = renderLookup({ pending: { data: { pending_deploys: [pending] } } });
+  requested.length = 0;
+  act(() => { jest.advanceTimersByTime(180_000); });
+  expect(screen.getByRole('status')).toHaveTextContent('Automatic updates stopped');
+  expect(requested).not.toContain('WatchDeploymentIndexed');
+  expect(requested).not.toContain('WatchPendingDeploy');
+  await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Check again' })); });
+  expect(requested).toContain('WatchPendingDeploy');
 });
 
 test('subscribes to the pending deploy by the looked-up signature', () => {
@@ -104,7 +117,7 @@ test('keeps "not found" when the pending lookup fails', () => {
   expect(screen.queryByRole('heading', { name: 'Deploy Pending' })).not.toBeInTheDocument();
 });
 
-test('keeps waiting for the deploy after it leaves the buffer before the indexer stores its block', () => {
+test('keeps waiting for the deploy after it leaves the buffer before the indexer stores its block', async () => {
   const { refetch, update, requested } = renderLookup({ pending: { data: { pending_deploys: [pending] } } });
   expect(screen.getByRole('heading', { name: 'Deploy Pending' })).toBeInTheDocument();
 
@@ -115,6 +128,7 @@ test('keeps waiting for the deploy after it leaves the buffer before the indexer
   expect(requested).toContain('WatchDeploymentIndexed');
 
   update({ indexed: { data: { deployments: [{ __typename: 'deployments', deploy_id: SIG }] } } });
+  await waitFor(() => expect(screen.getByRole('button', { name: 'Check again' })).toBeInTheDocument());
   expect(refetch).toHaveBeenCalledTimes(1);
 });
 

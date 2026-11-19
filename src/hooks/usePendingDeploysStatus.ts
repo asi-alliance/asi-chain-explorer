@@ -1,12 +1,22 @@
+import { useEffect } from 'react';
 import { useQuery } from '@apollo/client';
 import type { ApolloError } from '@apollo/client';
 import { GET_PENDING_DEPLOYS_STATUS, WATCH_PENDING_DEPLOYS_STATUS } from '../graphql/queries';
-import { parsePendingDeploysStatus } from '../utils/pendingDeploys';
+import { parsePendingDeploysStatus, PENDING_STATUS_KEY } from '../utils/pendingDeploys';
 import type { PendingDeploysStatus } from '../utils/pendingDeploys';
 import { useLiveQuery } from './useLiveQuery';
 
 interface StatusData {
   indexer_state?: unknown;
+}
+
+function useParsedStatus(rows: unknown) {
+  const status = parsePendingDeploysStatus(rows);
+  const malformed = !status && Array.isArray(rows) && rows.some(row => row?.key === PENDING_STATUS_KEY);
+  useEffect(() => {
+    if (malformed) console.warn('Unreadable pending_deploys_status row from the indexer.');
+  }, [malformed]);
+  return status;
 }
 
 /**
@@ -18,8 +28,9 @@ export function usePendingDeploysEnabled(): { enabled: boolean; loading: boolean
   const { data, loading, error } = useQuery<StatusData>(GET_PENDING_DEPLOYS_STATUS, {
     fetchPolicy: 'cache-first',
   });
+  const status = useParsedStatus(data?.indexer_state);
   return {
-    enabled: !error && parsePendingDeploysStatus(data?.indexer_state) !== null,
+    enabled: !error && status !== null,
     loading,
   };
 }
@@ -38,5 +49,5 @@ export function useLivePendingDeploysStatus(skip = false): LivePendingDeploysSta
     GET_PENDING_DEPLOYS_STATUS,
     { skip },
   );
-  return { status: parsePendingDeploysStatus(data?.indexer_state), loading, error, live };
+  return { status: useParsedStatus(data?.indexer_state), loading, error, live };
 }

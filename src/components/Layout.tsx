@@ -26,7 +26,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     const navigation = [
         { name: "Blocks", href: "/" },
         { name: "Transactions", href: "/transactions" },
-        ...(pendingDeploys.enabled ? [{ name: "Pending", href: "/pending" }] : []),
+        ...(pendingDeploys.enabled || pendingDeploys.loading ? [{ name: "Pending", href: "/pending" }] : []),
         // { name: "ASI Transfers", href: "/transfers" },
         // { name: "Deployments", href: "/deployments" },
         { name: "Validators", href: "/validators" },

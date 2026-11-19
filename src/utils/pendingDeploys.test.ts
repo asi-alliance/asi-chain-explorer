@@ -33,7 +33,7 @@ test('reads the indexer pending-deploy status row', () => {
     { key: 'pending_deploys_total_available', value: '4', updated_at: '2026-11-15T00:00:00' },
     statusRow({ nodes: 3, reachable: 2, count: 4, total_available: 4, interval_ms: 1000 }),
   ])).toEqual({
-    nodes: 3, reachable: 2, count: 4, totalAvailable: 4, updatedAt: new Date('2026-11-15T00:00:00.500Z'),
+    nodes: 3, reachable: 2, count: 4, totalAvailable: 4, intervalMs: 1000, updatedAt: new Date('2026-11-15T00:00:00.500Z'),
   });
 });
 

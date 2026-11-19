@@ -435,11 +435,13 @@ that received it: nodes do not gossip deploys, and an observer rejects them. The
 explorer shows the Pending tab only when the indexer reports the
 `pending_deploys_status` row in `indexer_state`, which it writes only while its
 `PENDING_DEPLOYS_NODES` lists the validators. The page reads the list and that status
-through GraphQL subscriptions on `REACT_APP_GRAPHQL_WS_URL`. Hasura runs one query
-per refetch interval for all subscribers of the same query, so open pages do not
-multiply database reads as 5-second HTTP polling did. If the WebSocket fails, the
-page falls back to HTTP polling every 5 seconds and says so. A deploy detail page
-waits for indexing through a subscription too, instead of polling the details.
+through GraphQL subscriptions on `REACT_APP_GRAPHQL_WS_URL`.
+Hasura can batch subscribers to each query shape. With a 500 ms refetch interval,
+even one visible Pending page refreshes both the list and status twice per second.
+Hidden tabs pause their subscriptions and fallback polling. If the WebSocket
+fails, visible pages poll over HTTP every 5 seconds and retry the subscription
+every 30 seconds until live data arrives. A deploy detail page watches its
+signature for up to three minutes. Select **Check again** to resume.
 Transfers, bonds and blocks supply their own `token_decimals`, so historical
 8-decimal rows and 18-decimal rows display with their original units. Missing
 historical metadata retains the legacy 8-decimal interpretation.

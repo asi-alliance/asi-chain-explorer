@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useQuery } from '@apollo/client';
 import { motion } from 'framer-motion';
@@ -45,7 +45,7 @@ import { usePendingDeploysEnabled } from '../hooks/usePendingDeploysStatus';
 import PendingDeployDetails, { PendingDeployLeftBuffer } from '../components/PendingDeployDetails';
 import { transferStatusView } from '../utils/transferStatus';
 
-// The indexer refreshes its pending-deploy snapshot every sync cycle (5 s by default).
+const PENDING_WATCH_MS = 3 * 60_000;
 
 // Helper functions to safely parse timestamps
 const parseTimestamp = (timestamp: any): number => {
@@ -176,9 +176,18 @@ const TransactionDetailPage: React.FC = () => {
   // snapshot, which the indexer keeps only when it reads validator buffers.
   const notIndexed = !!transactionId && !loading && !error && !transaction;
   const pendingFeature = usePendingDeploysEnabled();
+  const [expiredFor, setExpiredFor] = useState<string>();
+  const watchExpired = !!transactionId && expiredFor === transactionId;
+  const watchPending = notIndexed && pendingFeature.enabled && !watchExpired;
+  useEffect(() => {
+    if (!watchPending) return;
+    const timer = window.setTimeout(() => setExpiredFor(transactionId), PENDING_WATCH_MS);
+    return () => window.clearTimeout(timer);
+  }, [transactionId, watchPending]);
+
   const { data: pendingData, loading: pendingLoading } = useLiveQuery(WATCH_PENDING_DEPLOY, GET_PENDING_DEPLOY, {
     variables: { sig: transactionId },
-    skip: !notIndexed || !pendingFeature.enabled,
+    skip: !watchPending,
   });
   const pendingDeploy = notIndexed ? pendingData?.pending_deploys?.[0] : undefined;
   const isPending = !!pendingDeploy;
@@ -190,7 +199,7 @@ const TransactionDetailPage: React.FC = () => {
     if (isPending && transactionId) setPendingSeenFor(transactionId);
   }, [isPending, transactionId]);
   const leftBuffer = notIndexed && !isPending && pendingSeenFor === transactionId;
-  const awaitingIndexer = isPending || leftBuffer;
+  const awaitingIndexer = watchPending && (isPending || leftBuffer);
 
   // Reload the details once the indexer stores the deploy, instead of polling them.
   const { data: indexedData } = useLiveQuery(WATCH_DEPLOYMENT_INDEXED, GET_DEPLOYMENT_INDEXED, {
@@ -198,9 +207,15 @@ const TransactionDetailPage: React.FC = () => {
     skip: !awaitingIndexer,
   });
   const indexedNow = awaitingIndexer && (indexedData?.deployments?.length ?? 0) > 0;
+  const [checkedFor, setCheckedFor] = useState<string>();
+  const reloadedFor = useRef<string | undefined>(undefined);
   useEffect(() => {
-    if (indexedNow) refetch();
-  }, [indexedNow, refetch]);
+    if (indexedNow && reloadedFor.current !== transactionId) {
+      reloadedFor.current = transactionId;
+      // Keep a manual retry available if the detail row is still absent or the request fails.
+      void refetch().then(() => setCheckedFor(transactionId), () => setCheckedFor(transactionId));
+    }
+  }, [indexedNow, transactionId, refetch]);
 
   useEffect(() => {
     if (!transactionId) {
@@ -302,6 +317,22 @@ Exported at: ${new Date().toLocaleString()}
         <div className="loading" />
         <p>Loading transaction details...</p>
       </div>
+    );
+  }
+
+  if (!transaction && (watchExpired || (transactionId && checkedFor === transactionId))) {
+    return (
+      <section className="asi-card">
+        <p role="status">{watchExpired ? 'Automatic updates stopped after three minutes.' :
+          'The indexer has recorded this deploy. Its details are currently unavailable.'}</p>
+        <button className="btn btn-secondary" onClick={() => {
+          setExpiredFor(undefined);
+          setCheckedFor(undefined);
+          void refetch().then(result => {
+            if (!result.data?.deployments?.length && checkedFor === transactionId) setCheckedFor(transactionId);
+          }, () => setCheckedFor(transactionId));
+        }}>Check again</button>
+      </section>
     );
   }
 

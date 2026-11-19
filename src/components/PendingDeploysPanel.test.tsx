@@ -72,6 +72,7 @@ test('states when the node responses truncated the pending list', () => {
     list: { data: { pending_deploys: [deploy()] } },
   });
 
+  expect(screen.getByRole('note')).toHaveTextContent('Each validator returns at most 1000 entries');
   expect(screen.getByRole('note')).toHaveTextContent('1500');
   expect(screen.getByText(/Showing the latest 1 of 1000/)).toBeInTheDocument();
   expect(rows()).toHaveLength(1);

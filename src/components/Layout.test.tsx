@@ -34,6 +34,11 @@ test('marks only the Pending tab active on the pending page', () => {
   expect(tabs.filter((tab) => tab.classList.contains('active')).map((tab) => tab.textContent)).toEqual(['Pending']);
 });
 
+test('keeps the Pending tab available while checking indexer support', () => {
+  (usePendingDeploysEnabled as jest.Mock).mockReturnValue({ enabled: false, loading: true });
+  expect(renderAt('/pending').map(tab => tab.textContent)).toContain('Pending');
+});
+
 test('hides the Pending tab when the indexer does not track pending deploys', () => {
   (usePendingDeploysEnabled as jest.Mock).mockReturnValue({ enabled: false, loading: false });
   const names = renderAt('/').map((tab) => tab.textContent);
