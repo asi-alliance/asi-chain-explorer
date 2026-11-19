@@ -12,6 +12,7 @@ import StatisticsPage from "./pages/StatisticsPage";
 import IndexerStatusPage from "./pages/IndexerStatusPage";
 import ValidatorHistoryPage from "./pages/ValidatorHistoryPage";
 import SearchResultsPage from "./pages/SearchResultsPage";
+import AddressPage from "./pages/AddressPage";
 import TransactionDetailPage from "./pages/TransactionDetailPage";
 import TransactionsPage from "./pages/TransactionsPage";
 import PendingPage from "./pages/PendingPage";
@@ -67,6 +68,7 @@ function App({ client }: { client: ApolloClient<unknown> }) {
                             element={<IndexerStatusPage />}
                         />
                         <Route path="/search" element={<SearchResultsPage />} />
+                        <Route path="/address/:address" element={<AddressPage />} />
                         <Route
                             path="/transactions"
                             element={<TransactionsPage />}
