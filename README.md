@@ -309,9 +309,12 @@ Production nginx proxies `GET /api/indexer/status` to `INDEXER_STATUS_URL`.
 For `GET /api/indexer/address/{address}` it replaces the upstream `/status`
 suffix with `/api/address/{address}`. Static hosting requires an equivalent
 ingress route with caching disabled and an indexer that implements address lookup.
-The address page reads transfers and the indexer's `last_indexed_block` checkpoint
-together through the public GraphQL role. Each history page shows the checkpoint
-and warns when it trails the finalized block used for the displayed balance.
+The address page captures the indexer's `last_indexed_block` and highest transfer ID
+when opened. It shows the captured height and warns when it trails the balance.
+All, Incoming and Outgoing share these bounds. Self-transfers appear once in All
+and in both directional views. Pages continue after the last displayed block
+number and transfer ID in descending order. Reload the page to include newly
+indexed transfers.
 Set that server-side URL to the monitoring endpoint reachable from the explorer
 container. Compose supplies a host-gateway alias for the default host port 9090;
 on a shared Docker network it can instead be `http://asi-indexer:9090/status`.

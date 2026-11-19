@@ -17,12 +17,13 @@ const originalFetch = global.fetch;
 beforeEach(() => { global.fetch = fetchMock; fetchMock.mockReset(); });
 afterEach(() => { global.fetch = originalFetch; });
 
-function show(path: string, transfers: object[] = [], cursor: string | null = '7294') {
+function show(path: string, transfers: { id: string; [key: string]: unknown }[] = [],
+  cursor: string | null = '7294', link?: ApolloLink) {
   const client = new ApolloClient({
     cache: new InMemoryCache(),
-    link: new ApolloLink(() => Observable.of({ data: {
-      transfers, indexer_state: cursor === null ? [] : [{ value: cursor }],
-    } })),
+    link: link ?? new ApolloLink(({ operationName }) => Observable.of({ data: operationName === 'AddressHistoryBounds'
+      ? { newest: transfers.slice(0, 1).map(({ id }) => ({ id })), indexer_state: cursor === null ? [] : [{ value: cursor }] }
+      : { transfers } })),
   });
   return render(<ApolloProvider client={client}><MemoryRouter initialEntries={[path]}>
     <Routes><Route path="/" element={<AdvancedSearch />} />
@@ -75,4 +76,76 @@ test.each([
   expect(await screen.findByText(label!)).toBeInTheDocument();
   if (warning) expect(await screen.findByText(warning, { exact: false })).toBeInTheDocument();
   else expect(screen.queryByText(/behind the balance/)).not.toBeInTheDocument();
+});
+
+type HistoryRow = ReturnType<typeof transfer>;
+function transfer(n: number, height: number, from = address, to = address) {
+  return { id: String(9007199254740992n + BigInt(n)), deploy_id: String(n),
+    block_number: String(height), from_address: from, to_address: to, amount_asi: '1' };
+}
+
+type Predicate = {
+  _and?: Predicate[];
+  _or?: Predicate[];
+  id?: { _lt?: string; _lte?: string };
+  block_number?: { _eq?: string; _lt?: string; _lte?: string };
+  from_address?: { _eq: string };
+  to_address?: { _eq: string };
+};
+
+function matches(row: HistoryRow, clause: Predicate): boolean {
+  if (clause._and) return clause._and.every(item => matches(row, item));
+  if (clause._or) return clause._or.some(item => matches(row, item));
+  if (clause.from_address && row.from_address !== clause.from_address._eq) return false;
+  if (clause.to_address && row.to_address !== clause.to_address._eq) return false;
+  for (const column of ['id', 'block_number'] as const) {
+    for (const [operator, value] of Object.entries(clause[column] ?? {})) {
+      const actual = BigInt(row[column]);
+      const limit = BigInt(value as string);
+      if (operator === '_lt' && actual >= limit) return false;
+      if (operator === '_lte' && actual > limit) return false;
+      if (operator === '_eq' && actual !== limit) return false;
+    }
+  }
+  return true;
+}
+
+test('keeps a stable cursor across inserts, back navigation and changes of direction', async () => {
+  fetchMock.mockResolvedValue({ ok: false, status: 503 });
+  const other = 'another-address';
+  const rows = Array.from({ length: 23 }, (_, i) => transfer(i + 1, i === 0 ? 9 : 10,
+    i % 2 === 0 ? address : other, i % 2 === 0 && i !== 0 ? other : address));
+  rows.push(transfer(24, 11), transfer(25, 9, other, other));
+  const boundsRead = jest.fn(() => ({ newest: [{ id: rows[rows.length - 1].id }], indexer_state: [{ value: '10' }] }));
+  const link = new ApolloLink(({ operationName, variables }) => {
+    if (operationName === 'AddressHistoryBounds') return Observable.of({ data: boundsRead() });
+    const visible = rows.filter(row => matches(row, variables.where)).sort((a, b) =>
+      Number(b.block_number) - Number(a.block_number) || Number(BigInt(b.id) - BigInt(a.id)));
+    return Observable.of({ data: { transfers: visible.slice(0, variables.limit) } });
+  });
+  show('/address/' + address, [], null, link);
+  const ids = async () => (await screen.findAllByRole('link', { name: 'View transaction' }))
+    .map(el => Number(el.getAttribute('href')!.split('/').pop()));
+  const first = Array.from({ length: 20 }, (_, i) => 23 - i);
+  expect(await ids()).toEqual(first);
+  // Inserts above, at, and below the current page boundary.
+  rows.push(transfer(26, 11), transfer(27, 10), transfer(28, 9));
+  fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+  expect(await ids()).toEqual([3, 2, 1]);
+  expect(screen.getByRole('button', { name: 'Next' })).toBeDisabled();
+  fireEvent.click(screen.getByRole('button', { name: 'Previous' }));
+  expect(await ids()).toEqual(first);
+  fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+  expect(await ids()).toEqual([3, 2, 1]);
+
+  const direction = screen.getByRole('combobox', { name: 'Direction' });
+  fireEvent.change(direction, { target: { value: 'incoming' } });
+  expect(await ids()).toEqual([22, 20, 18, 16, 14, 12, 10, 8, 6, 4, 2, 1]);
+  fireEvent.change(direction, { target: { value: 'outgoing' } });
+  expect(await ids()).toEqual([23, 21, 19, 17, 15, 13, 11, 9, 7, 5, 3, 1]);
+  fireEvent.change(direction, { target: { value: 'all' } });
+  expect(await ids()).toEqual(first);
+  expect(screen.getByRole('button', { name: 'Previous' })).toBeDisabled();
+  expect(boundsRead).toHaveBeenCalledTimes(1);
+  expect(fetchMock).toHaveBeenCalledTimes(1);
 });
