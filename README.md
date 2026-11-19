@@ -313,8 +313,9 @@ The address page captures the indexer's `last_indexed_block` and highest transfe
 when opened. It shows the captured height and warns when it trails the balance.
 All, Incoming and Outgoing share these bounds. Self-transfers appear once in All
 and in both directional views. Pages continue after the last displayed block
-number and transfer ID in descending order. Reload the page to include newly
-indexed transfers.
+number and transfer ID in descending order. Select **Refresh** to fetch the latest
+finalized balance and return to the first page of newly indexed history with the
+same direction filter.
 Set that server-side URL to the monitoring endpoint reachable from the explorer
 container. Compose supplies a host-gateway alias for the default host port 9090;
 on a shared Docker network it can instead be `http://asi-indexer:9090/status`.

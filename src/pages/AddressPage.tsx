@@ -5,9 +5,27 @@ import { formatRaw, validateDecimals } from '../utils/amounts';
 import { isVaultAddress } from '../utils/addressPath';
 import { getBlockPath } from '../utils/blockPath';
 import { CURRENT_TOKEN } from '../utils/constants';
-import AddressTransferHistory from '../components/AddressTransferHistory';
+import AddressTransferHistory, { Direction } from '../components/AddressTransferHistory';
 
 function AddressDetails({ address }: { address: string }) {
+  const [direction, setDirection] = useState<Direction>('all');
+  const [revision, setRevision] = useState(0);
+  return <section className="asi-card" style={{ overflowWrap: 'anywhere' }}>
+    <h1>Wallet address</h1><code>{address}</code>
+    <div><button type="button" className="btn btn-secondary" onClick={() => setRevision(value => value + 1)}>
+      Refresh
+    </button></div>
+    <AddressSnapshot key={revision} address={address} direction={direction} onDirectionChange={setDirection} />
+  </section>;
+}
+
+interface AddressSnapshotProps {
+  address: string;
+  direction: Direction;
+  onDirectionChange: (direction: Direction) => void;
+}
+
+function AddressSnapshot({ address, direction, onDirectionChange }: AddressSnapshotProps) {
   const [balance, setBalance] = useState<{ amount: string; hash: string; height: number }>();
   const [error, setError] = useState('');
   useEffect(() => {
@@ -40,15 +58,15 @@ function AddressDetails({ address }: { address: string }) {
     return () => { active = false; clearTimeout(timeout); controller.abort(); };
   }, [address]);
 
-  return <section className="asi-card" style={{ overflowWrap: 'anywhere' }}>
-    <h1>Wallet address</h1><code>{address}</code>
+  return <>
     <h2>Spendable balance</h2>
     {error ? <p role="alert">{error}</p> : balance ? <>
       <strong>{balance.amount} {CURRENT_TOKEN}</strong>
       <p>Finalized block <Link to={getBlockPath(balance.hash)}>#{balance.height}</Link></p>
     </> : <p role="status">Loading balance…</p>}
-    <AddressTransferHistory address={address} balanceHeight={balance?.height} />
-  </section>;
+    <AddressTransferHistory address={address} balanceHeight={balance?.height}
+      direction={direction} onDirectionChange={onDirectionChange} />
+  </>;
 }
 
 export default function AddressPage() {

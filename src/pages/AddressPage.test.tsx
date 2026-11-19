@@ -1,6 +1,6 @@
 import React from 'react';
 import { ApolloClient, ApolloLink, ApolloProvider, InMemoryCache, Observable } from '@apollo/client';
-import { render, fireEvent, screen } from '@testing-library/react';
+import { act, render, fireEvent, screen } from '@testing-library/react';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import AdvancedSearch from '../components/AdvancedSearch';
 import AddressPage from './AddressPage';
@@ -110,19 +110,24 @@ function matches(row: HistoryRow, clause: Predicate): boolean {
   return true;
 }
 
-test('keeps a stable cursor across inserts, back navigation and changes of direction', async () => {
-  fetchMock.mockResolvedValue({ ok: false, status: 503 });
-  const other = 'another-address';
-  const rows = Array.from({ length: 23 }, (_, i) => transfer(i + 1, i === 0 ? 9 : 10,
-    i % 2 === 0 ? address : other, i % 2 === 0 && i !== 0 ? other : address));
-  rows.push(transfer(24, 11), transfer(25, 9, other, other));
-  const boundsRead = jest.fn(() => ({ newest: [{ id: rows[rows.length - 1].id }], indexer_state: [{ value: '10' }] }));
+function historySource(rows: HistoryRow[], height: () => string) {
+  const boundsRead = jest.fn(() => ({ newest: [{ id: rows[rows.length - 1].id }], indexer_state: [{ value: height() }] }));
   const link = new ApolloLink(({ operationName, variables }) => {
     if (operationName === 'AddressHistoryBounds') return Observable.of({ data: boundsRead() });
     const visible = rows.filter(row => matches(row, variables.where)).sort((a, b) =>
       Number(b.block_number) - Number(a.block_number) || Number(BigInt(b.id) - BigInt(a.id)));
     return Observable.of({ data: { transfers: visible.slice(0, variables.limit) } });
   });
+  return { link, boundsRead };
+}
+
+test('keeps a stable cursor across inserts, back navigation and changes of direction', async () => {
+  fetchMock.mockResolvedValue({ ok: false, status: 503 });
+  const other = 'another-address';
+  const rows = Array.from({ length: 23 }, (_, i) => transfer(i + 1, i === 0 ? 9 : 10,
+    i % 2 === 0 ? address : other, i % 2 === 0 && i !== 0 ? other : address));
+  rows.push(transfer(24, 11), transfer(25, 9, other, other));
+  const { link, boundsRead } = historySource(rows, () => '10');
   show('/address/' + address, [], null, link);
   const ids = async () => (await screen.findAllByRole('link', { name: 'View transaction' }))
     .map(el => Number(el.getAttribute('href')!.split('/').pop()));
@@ -148,4 +153,69 @@ test('keeps a stable cursor across inserts, back navigation and changes of direc
   expect(screen.getByRole('button', { name: 'Previous' })).toBeDisabled();
   expect(boundsRead).toHaveBeenCalledTimes(1);
   expect(fetchMock).toHaveBeenCalledTimes(1);
+});
+
+function balanceResponse(balance: string, height: number, blockHash: string) {
+  return { ok: true, json: async () => ({
+    address, balance, token_decimals: 0, block_hash: blockHash, block_number: height,
+  }) };
+}
+
+test('refresh loads the new balance and first page with the selected direction', async () => {
+  const other = 'another-address';
+  const newHash = 'cd'.repeat(32);
+  fetchMock.mockResolvedValueOnce(balanceResponse('100', 10, hash))
+    .mockResolvedValueOnce(balanceResponse('110', 12, newHash));
+  let height = '10';
+  const rows = Array.from({ length: 21 }, (_, i) => transfer(i + 1, 10, other, address));
+  const { link, boundsRead } = historySource(rows, () => height);
+  show('/address/' + address, [], null, link);
+  expect(await screen.findByText('100 ASI')).toBeInTheDocument();
+  fireEvent.change(screen.getByRole('combobox', { name: 'Direction' }), { target: { value: 'incoming' } });
+  fireEvent.click(await screen.findByRole('button', { name: 'Next' }));
+  expect(await screen.findByText('Page 2')).toBeInTheDocument();
+  expect(await screen.findByRole('link', { name: 'View transaction' })).toHaveAttribute('href', '/transaction/1');
+
+  height = '11';
+  rows.push(transfer(22, 11, other, address), transfer(23, 11, address, other));
+  fireEvent.click(screen.getByRole('button', { name: 'Refresh' }));
+  expect(await screen.findByText('110 ASI')).toBeInTheDocument();
+  expect(screen.getByRole('link', { name: '#12' })).toHaveAttribute('href', '/block/hash/' + newHash);
+  expect(await screen.findByText('Indexed through block #11.')).toBeInTheDocument();
+  expect(screen.getByText(/1 block behind the balance/)).toBeInTheDocument();
+  expect(await screen.findByText('Page 1')).toBeInTheDocument();
+  expect(screen.getByRole('combobox', { name: 'Direction' })).toHaveValue('incoming');
+  expect(screen.getByRole('button', { name: 'Previous' })).toBeDisabled();
+  const links = screen.getAllByRole('link', { name: 'View transaction' });
+  expect(links[0]).toHaveAttribute('href', '/transaction/22');
+  expect(links.map(el => el.getAttribute('href'))).not.toContain('/transaction/23');
+  expect(boundsRead).toHaveBeenCalledTimes(2);
+  expect(fetchMock).toHaveBeenCalledTimes(2);
+});
+
+test('refresh supersedes in-flight balance and history reads', async () => {
+  let finishBalance!: (response: ReturnType<typeof balanceResponse>) => void;
+  fetchMock.mockReturnValueOnce(new Promise(resolve => { finishBalance = resolve; }))
+    .mockResolvedValueOnce(balanceResponse('110', 12, hash));
+  let finishHistory!: () => void;
+  let requests = 0;
+  const link = new ApolloLink(() => new Observable(observer => {
+    const finish = (value: string) => {
+      observer.next({ data: { newest: [], indexer_state: [{ value }] } });
+      observer.complete();
+    };
+    if (++requests === 1) finishHistory = () => finish('10');
+    else finish('12');
+  }));
+  show('/address/' + address, [], null, link);
+  fireEvent.click(screen.getByRole('button', { name: 'Refresh' }));
+  expect(await screen.findByText('110 ASI')).toBeInTheDocument();
+  expect(await screen.findByText('Indexed through block #12.')).toBeInTheDocument();
+  await act(async () => {
+    finishBalance(balanceResponse('100', 10, hash));
+    finishHistory();
+  });
+  expect(screen.getByText('110 ASI')).toBeInTheDocument();
+  expect(screen.getByText('Indexed through block #12.')).toBeInTheDocument();
+  expect(fetchMock.mock.calls[0][1].signal.aborted).toBe(true);
 });

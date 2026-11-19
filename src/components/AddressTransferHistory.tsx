@@ -23,7 +23,7 @@ const ADDRESS_TRANSFERS = gql`
   }
 `;
 
-type Direction = 'all' | 'incoming' | 'outgoing';
+export type Direction = 'all' | 'incoming' | 'outgoing';
 type Cursor = { block_number: string | number; id: string | number };
 interface Transfer extends Cursor {
   deploy_id: string;
@@ -56,6 +56,7 @@ function TransferPages({ address, direction, maxId, indexedHeight }: PageProps) 
   ] };
   const { data, loading, error } = useQuery<{ transfers: Transfer[] }>(ADDRESS_TRANSFERS, {
     variables: { where, limit: PAGE_SIZE + 1 }, fetchPolicy: 'no-cache', notifyOnNetworkStatusChange: true,
+    context: { queryDeduplication: false },
   });
   const rows = data?.transfers ?? [];
   const last = rows[PAGE_SIZE - 1];
@@ -82,17 +83,23 @@ function TransferPages({ address, direction, maxId, indexedHeight }: PageProps) 
   </>;
 }
 
-export default function AddressTransferHistory({ address, balanceHeight }: { address: string; balanceHeight?: number }) {
-  const [direction, setDirection] = useState<Direction>('all');
+interface HistoryProps {
+  address: string;
+  balanceHeight?: number;
+  direction: Direction;
+  onDirectionChange: (direction: Direction) => void;
+}
+
+export default function AddressTransferHistory({ address, balanceHeight, direction, onDirectionChange }: HistoryProps) {
   const bounds = useQuery<{ indexer_state: { value: string }[]; newest: { id: string | number }[] }>(
-    HISTORY_BOUNDS, { fetchPolicy: 'no-cache' },
+    HISTORY_BOUNDS, { fetchPolicy: 'no-cache', context: { queryDeduplication: false } },
   );
   const indexedHeight = blockHeight(bounds.data?.indexer_state[0]?.value);
   const maxId = blockHeight(bounds.data?.newest[0]?.id);
   const lag = balanceHeight !== undefined && indexedHeight !== null ? BigInt(balanceHeight) - indexedHeight : null;
   return <>
     <h2>Transfer history</h2>
-    <label>Direction <select value={direction} onChange={event => setDirection(event.target.value as Direction)}>
+    <label>Direction <select value={direction} onChange={event => onDirectionChange(event.target.value as Direction)}>
       <option value="all">All transfers</option><option value="incoming">Incoming</option><option value="outgoing">Outgoing</option>
     </select></label>
     {bounds.loading ? <p role="status">Loading transfers…</p>
