@@ -48,6 +48,15 @@ test.each(['Enter', 'click'])('full address opens its balance without indexed tr
   expect(fetchMock).toHaveBeenCalledWith('/api/indexer/address/' + address, expect.anything());
 });
 
+test('a malformed transfer amount preserves the finalized balance', async () => {
+  fetchMock.mockResolvedValue(balanceResponse('42', 7294, hash));
+  show('/address/' + address, [{ ...transfer(1, 7294), amount_asi: 0.5 }]);
+  expect(await screen.findByRole('alert')).toHaveTextContent('Transfer history unavailable.');
+  expect(await screen.findByText('42 ASI')).toBeInTheDocument();
+  expect(screen.getByRole('link', { name: '#7294' })).toHaveAttribute('href', '/block/hash/' + hash);
+  expect(screen.queryByRole('table')).not.toBeInTheDocument();
+});
+
 test('a failed balance read preserves indexed history', async () => {
   fetchMock.mockResolvedValue({ ok: false, status: 503 });
   show('/address/' + address, [{ id: '1', deploy_id: 'aa', from_address: address, to_address: address,

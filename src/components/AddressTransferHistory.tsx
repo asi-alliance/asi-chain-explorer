@@ -29,7 +29,15 @@ interface Transfer extends Cursor {
   deploy_id: string;
   from_address: string;
   to_address: string;
-  amount_asi: string;
+  amount_asi: unknown;
+}
+
+function formatTransferRows(rows: Transfer[]) {
+  try {
+    return rows.map(row => ({ ...row, amount_asi: decimalText(row.amount_asi) }));
+  } catch {
+    return null;
+  }
 }
 
 interface PageProps {
@@ -58,19 +66,20 @@ function TransferPages({ address, direction, maxId, indexedHeight }: PageProps) 
     variables: { where, limit: PAGE_SIZE + 1 }, fetchPolicy: 'no-cache', notifyOnNetworkStatusChange: true,
     context: { queryDeduplication: false },
   });
-  const rows = data?.transfers ?? [];
+  const formatted = formatTransferRows(data?.transfers ?? []);
+  const rows = formatted ?? [];
   const last = rows[PAGE_SIZE - 1];
   const invalidCursor = rows.some(row => blockHeight(row.id) === null || blockHeight(row.block_number) === null);
   return <>
     {loading ? <p role="status">Loading transfers…</p>
-      : error || invalidCursor ? <p role="alert">Transfer history unavailable.</p>
+      : error || formatted === null || invalidCursor ? <p role="alert">Transfer history unavailable.</p>
       : rows.length ? <table>
         <thead><tr><th>Block</th><th>From</th><th>To</th><th>Amount</th><th>Transaction</th></tr></thead>
         <tbody>{rows.slice(0, PAGE_SIZE).map(row => <tr key={row.id}>
           <td>{row.block_number}</td>
           <td><WalletAddressLink address={row.from_address} short /></td>
           <td><WalletAddressLink address={row.to_address} short /></td>
-          <td>{decimalText(row.amount_asi)} {CURRENT_TOKEN}</td>
+          <td>{row.amount_asi} {CURRENT_TOKEN}</td>
           <td><Link to={`/transaction/${encodeURIComponent(row.deploy_id)}`}>View transaction</Link></td>
         </tr>)}</tbody>
       </table> : <p>No indexed transfers found.</p>}

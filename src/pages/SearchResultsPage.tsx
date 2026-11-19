@@ -24,9 +24,9 @@ const SearchResultsPage: React.FC = () => {
     <h1>Search Results</h1>
     <form onSubmit={event => {
       event.preventDefault();
-      const value = new FormData(event.currentTarget).get('query')?.toString() || '';
-      if (isVaultAddress(value.trim())) navigate(addressPath(value.trim()));
-      else update('q', value.trim());
+      const value = new FormData(event.currentTarget).get('query')?.toString().trim() || '';
+      if (type === 'all' && isVaultAddress(value)) navigate(addressPath(value));
+      else update('q', value);
     }}>
       <label htmlFor="search-query">Block height or hash, deploy ID, or address</label>
       <input id="search-query" name="query" key={query} defaultValue={query} />
