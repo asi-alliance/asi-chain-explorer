@@ -17,6 +17,7 @@ import { getBlockPath } from "../utils/blockPath";
 import { gql } from "@apollo/client";
 import { CURRENT_TOKEN } from "../utils/constants";
 import { heightInput } from "../utils/blockHeight";
+import { addressPath, isVaultAddress } from "../utils/addressPath";
 
 const QUICK_SEARCH = gql`
     query QuickSearch(
@@ -299,6 +300,7 @@ const AdvancedSearch: React.FC<AdvancedSearchProps> = ({
         searchQuery: string,
         searchFilters: SearchFilters
     ) => {
+        if (isVaultAddress(searchQuery.trim()) && searchFilters.searchType === "all" && !hasActiveFilters(searchFilters)) return;
         if (!searchQuery.trim() && !hasActiveFilters(searchFilters)) {
             setSearchResults([]);
             return;
@@ -427,7 +429,18 @@ const AdvancedSearch: React.FC<AdvancedSearchProps> = ({
         }
     };
 
+    const wallet = filters.query.trim();
+    const showWallet = isVaultAddress(wallet) && filters.searchType === "all" && !hasActiveFilters(filters);
+    const openWallet = () => {
+        setIsOpen(false);
+        navigate(addressPath(wallet));
+    };
     const handleKeyDown = (e: React.KeyboardEvent) => {
+        if (isOpen && showWallet) {
+            if (e.key === "Enter") { e.preventDefault(); openWallet(); }
+            if (e.key === "Escape") setIsOpen(false);
+            return;
+        }
         if (!isOpen || searchResults.length === 0) return;
 
         switch (e.key) {
@@ -1106,7 +1119,10 @@ const AdvancedSearch: React.FC<AdvancedSearchProps> = ({
 
             {/* Search Results Dropdown */}
             <AnimatePresence>
-                {isOpen && (searchResults.length > 0 || isSearching || quickSearchError) && (
+                {isOpen && showWallet && <button type="button" className="asi-card"
+                    style={{ position: "absolute", width: "100%", zIndex: 1000 }}
+                    onClick={openWallet}>View wallet address</button>}
+                {isOpen && !showWallet && (searchResults.length > 0 || isSearching || quickSearchError) && (
                     <motion.div
                         initial={{ opacity: 0, y: -10 }}
                         animate={{ opacity: 1, y: 0 }}

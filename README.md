@@ -227,7 +227,7 @@ to localhost.
 
 A same-origin path such as `/v1/graphql` needs a reverse proxy in front of the
 explorer that routes that path to Hasura, for both HTTP and WebSocket. The nginx
-in the image proxies only `/api/indexer/status`. Without such a proxy, use
+in the image proxies indexer status and address balances. Without a GraphQL proxy, use
 absolute Hasura URLs.
 
 `REACT_APP_NATIVE_TOKEN_DECIMALS` stays a build-time value. It only sets the
@@ -239,7 +239,7 @@ separate image only when the wallet lookup must use a different fallback.
 |----------|-------------|---------|
 | `REACT_APP_GRAPHQL_URL` | Hasura GraphQL HTTP endpoint: `http(s)://` URL or same-origin path. Required | `npm start` only: `http://localhost:8080/v1/graphql` |
 | `REACT_APP_GRAPHQL_WS_URL` | Hasura GraphQL WebSocket endpoint: `ws(s)://` URL or same-origin path. Required | `npm start` only: `ws://localhost:8080/v1/graphql` |
-| `REACT_APP_INDEXER_API_URL` | Base path of the indexer status request | `/api/indexer` |
+| `REACT_APP_INDEXER_API_URL` | Public base path for indexer status and address balances | `/api/indexer` |
 | `REACT_APP_RCHAIN_NODE_URL` | Node HTTP API for the wallet balance lookup (not mounted in the current UI) | Same origin |
 | `INDEXER_STATUS_URL` | Server-side indexer `/status` URL for nginx (runtime, not in the bundle) | `http://host.docker.internal:9090/status` |
 | `REACT_APP_NATIVE_TOKEN_DECIMALS` | Wallet-balance precision for nodes without `nativeTokenDecimals`. Build time only, also in the Docker image | `8` |
@@ -305,7 +305,11 @@ seconds after the preceding request completes. It displays the stored sync curso
 against the node's finalized height. Missing data and failed requests show an
 unavailable state; failed refreshes clear the previous status.
 
-Production nginx proxies only `GET /api/indexer/status` to `INDEXER_STATUS_URL`.
+Production nginx proxies `GET /api/indexer/status` to `INDEXER_STATUS_URL`.
+For `GET /api/indexer/address/{address}` it replaces the upstream `/status`
+suffix with `/api/address/{address}`. Static hosting requires an equivalent
+ingress route with caching disabled and an indexer that implements address lookup.
+The address page reads transfer history separately through the public GraphQL role.
 Set that server-side URL to the monitoring endpoint reachable from the explorer
 container. Compose supplies a host-gateway alias for the default host port 9090;
 on a shared Docker network it can instead be `http://asi-indexer:9090/status`.
@@ -335,6 +339,7 @@ resolves before nginx starts.
 - `/validator-history` - Validator history
 - `/statistics` - Network Dashboard only
 - `/search` - Advanced search interface
+- `/address/:address` - Spendable balance at the latest finalized block and indexed transfer history
 - `/indexer-status` - Indexer health monitoring
 
 The `/transfers` and `/deployments` routes are disabled in `src/App.tsx`.

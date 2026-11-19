@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
+import WalletAddressLink from '../components/WalletAddressLink';
 import { useQuery } from '@apollo/client';
 import { motion } from 'framer-motion';
 import { AnimatePresence } from '../components/AnimatePresenceWrapper';
@@ -702,10 +703,10 @@ Exported at: ${new Date().toLocaleString()}
                 </div>
                 <div style={{ fontSize: '0.875rem', color: '#d1d5db' }}>
                   <div style={{ marginBottom: '0.25rem' }}>
-                    <strong>From:</strong> {transfer.from_address.slice(0, 12)}...
+                    <strong>From:</strong> <WalletAddressLink address={transfer.from_address} short />
                   </div>
                   <div>
-                    <strong>To:</strong> {transfer.to_address.slice(0, 12)}...
+                    <strong>To:</strong> <WalletAddressLink address={transfer.to_address} short />
                   </div>
                 </div>
               </div>
@@ -877,7 +878,7 @@ Exported at: ${new Date().toLocaleString()}
                     fontSize: '0.875rem',
                     wordBreak: 'break-all'
                   }}>
-                    {transfer.from_address}
+                    <WalletAddressLink address={transfer.from_address} />
                   </div>
                 </div>
 
@@ -898,7 +899,7 @@ Exported at: ${new Date().toLocaleString()}
                     fontSize: '0.875rem',
                     wordBreak: 'break-all'
                   }}>
-                    {transfer.to_address}
+                    <WalletAddressLink address={transfer.to_address} />
                   </div>
                 </div>
               </div>
