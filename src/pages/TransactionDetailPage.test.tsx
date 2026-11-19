@@ -31,6 +31,9 @@ const pending = {
 interface Lookup {
   pending?: OperationResult;
   indexed?: OperationResult;
+  pendingHttp?: OperationResult;
+  indexedHttp?: OperationResult;
+  statusHttp?: OperationResult;
   status?: OperationResult;
   enabled?: boolean;
 }
@@ -45,6 +48,9 @@ function renderLookup(initial: Lookup) {
     GetTransactionDetails: () => ({ data: { deployments: [] }, refetch }),
     WatchPendingDeploysStatus: () =>
       state.enabled === false ? { data: { indexer_state: [] } } : statusData(),
+    GetPendingDeploy: () => state.pendingHttp ?? {},
+    GetDeploymentIndexed: () => state.indexedHttp ?? {},
+    GetPendingDeploysStatus: () => state.statusHttp ?? {},
     WatchPendingDeploy: () => state.pending ?? { data: { pending_deploys: [] } },
     WatchDeploymentIndexed: () => state.indexed ?? { data: { deployments: [] } },
   });
@@ -124,10 +130,30 @@ test('keeps "not found" for a deploy that is neither indexed nor pending', () =>
   expect(screen.getByRole('heading', { name: 'Transaction Not Found' })).toBeInTheDocument();
 });
 
-test('keeps "not found" when the pending lookup fails', () => {
-  renderLookup({ pending: { data: undefined, error: new Error('field "pending_deploys" not found') } });
-  expect(screen.getByRole('heading', { name: 'Transaction Not Found' })).toBeInTheDocument();
-  expect(screen.queryByRole('heading', { name: 'Deploy Pending' })).not.toBeInTheDocument();
+const socketFailure = { error: new Error('WebSocket unavailable') };
+const httpFailure = { error: new Error('HTTP unavailable') };
+
+test.each([true, false])('reports an unavailable status after both pending reads fail (seen %s)', seen => {
+  const { update, requested } = renderLookup({ pending: { data: { pending_deploys: seen ? [pending] : [] } } });
+  update({ pending: socketFailure, pendingHttp: httpFailure });
+
+  expect(requested).toContain('GetPendingDeploy');
+  expect(screen.getByRole('heading', { name: 'Unable to verify deploy status' })).toBeInTheDocument();
+  expect(screen.queryByText(/no longer visible in the pending snapshot/)).not.toBeInTheDocument();
+  expect(screen.queryByRole('heading', { name: 'Transaction Not Found' })).not.toBeInTheDocument();
+
+  // The HTTP fallback confirms an empty buffer on the next successful poll.
+  update({ pendingHttp: { data: { pending_deploys: [] } } });
+  expect(screen.getByRole('heading', { name: seen ? 'Waiting for the Indexer' : 'Transaction Not Found' }))
+    .toBeInTheDocument();
+});
+
+test.each([
+  { indexed: socketFailure, indexedHttp: httpFailure },
+  { status: socketFailure, statusHttp: httpFailure },
+])('reports an unavailable status if inclusion or indexer status cannot be checked', failure => {
+  renderLookup(failure);
+  expect(screen.getByRole('heading', { name: 'Unable to verify deploy status' })).toBeInTheDocument();
 });
 
 test('keeps waiting for the deploy after it leaves the buffer before the indexer stores its block', async () => {

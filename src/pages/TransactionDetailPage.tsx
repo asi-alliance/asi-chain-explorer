@@ -190,7 +190,7 @@ const TransactionDetail: React.FC<{ transactionId?: string }> = ({ transactionId
     return () => window.clearTimeout(timer);
   }, [awaitingIndexer]);
 
-  const { data: pendingData, loading: pendingLoading } = useLiveQuery(WATCH_PENDING_DEPLOY, GET_PENDING_DEPLOY, {
+  const { data: pendingData, loading: pendingLoading, error: pendingError } = useLiveQuery(WATCH_PENDING_DEPLOY, GET_PENDING_DEPLOY, {
     variables: { sig: transactionId },
     skip: !watchPending,
   });
@@ -202,10 +202,10 @@ const TransactionDetail: React.FC<{ transactionId?: string }> = ({ transactionId
   useEffect(() => {
     if (isPending) setSeenInBuffer(true);
   }, [isPending]);
-  const leftBuffer = notIndexed && !isPending && seenInBuffer;
+  const leftBuffer = watchPending && seenInBuffer && pendingData?.pending_deploys?.length === 0;
 
   // Reload the details once the indexer stores the deploy, instead of polling them.
-  const { data: indexedData, loading: indexedLoading } = useLiveQuery(WATCH_DEPLOYMENT_INDEXED, GET_DEPLOYMENT_INDEXED, {
+  const { data: indexedData, loading: indexedLoading, error: indexedError } = useLiveQuery(WATCH_DEPLOYMENT_INDEXED, GET_DEPLOYMENT_INDEXED, {
     variables: { deployId: transactionId },
     skip: !awaitingIndexer,
   });
@@ -306,9 +306,11 @@ Exported at: ${new Date().toLocaleString()}
     return '#9ca3af';
   };
 
-  if (loading || (awaitingIndexer && !isPending && (
-    indexedNow || indexedLoading || pendingFeature.loading || (pendingLoading && !pendingData)
-  ))) {
+  const statusError = error ?? (awaitingIndexer
+    ? indexedError ?? pendingFeature.error ?? (watchPending ? pendingError : undefined)
+    : undefined);
+  const checkingStatus = indexedLoading || pendingFeature.loading || (pendingLoading && !pendingData);
+  if (loading || (awaitingIndexer && !isPending && (indexedNow || (!statusError && checkingStatus)))) {
     return (
       <div style={{
         display: 'flex',
@@ -337,11 +339,11 @@ Exported at: ${new Date().toLocaleString()}
     );
   }
 
-  if (pendingDeploy) {
+  if (pendingDeploy && !statusError) {
     return <PendingDeployDetails deploy={pendingDeploy} />;
   }
 
-  if (leftBuffer && transactionId) {
+  if (leftBuffer && !statusError && transactionId) {
     return <PendingDeployLeftBuffer sig={transactionId} />;
   }
 
@@ -350,10 +352,10 @@ Exported at: ${new Date().toLocaleString()}
       <div className="asi-card" style={{ textAlign: 'center', padding: '3rem' }}>
         <div style={{ color: '#ef4444', marginBottom: '1rem' }}>
           <AlertCircle size={48} style={{ marginBottom: '1rem' }} />
-          <h2>Transaction Not Found</h2>
+          <h2>{statusError ? 'Unable to verify deploy status' : 'Transaction Not Found'}</h2>
         </div>
         <p style={{ color: '#9ca3af', marginBottom: '2rem' }}>
-          {error ? error.message : `Transaction ${transactionId} could not be found.`}
+          {statusError ? statusError.message : `Transaction ${transactionId} could not be found.`}
         </p>
         <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center' }}>
           <button
@@ -364,7 +366,7 @@ Exported at: ${new Date().toLocaleString()}
             Go Back
           </button>
           <button
-            onClick={() => refetch()}
+            onClick={() => { void refetch().catch(() => { /* useQuery reports the failure. */ }); }}
             className="btn btn-primary"
           >
             <Activity size={16} style={{ marginRight: '0.5rem' }} />

@@ -440,9 +440,13 @@ through GraphQL subscriptions on `REACT_APP_GRAPHQL_WS_URL`.
 Hasura can batch subscribers to each query shape. With a 500 ms refetch interval,
 even one visible Pending page refreshes both the list and status twice per second.
 Hidden tabs pause their subscriptions and fallback polling. If the WebSocket
-fails, visible pages poll over HTTP every 5 seconds and retry the subscription
-every 30 seconds until live data arrives. An empty deploy detail lookup starts an inclusion watch for up to three minutes,
-even when pending tracking is off or the deploy has already left the buffer. Select **Check again** to resume.
+fails, or the server does not acknowledge the connection within 5 seconds,
+visible pages poll over HTTP every 5 seconds and retry the subscription
+every 30 seconds until live data arrives. If both transports fail, the deploy
+detail page reports that it cannot verify the status.
+An empty detail lookup starts an inclusion watch even when pending tracking is
+off or the deploy has already left the buffer. The watch stops after three
+minutes. Select **Check again** to resume.
 Transfers, bonds and blocks supply their own `token_decimals`, so historical
 8-decimal rows and 18-decimal rows display with their original units. Missing
 historical metadata retains the legacy 8-decimal interpretation.
