@@ -1,6 +1,6 @@
 import React from 'react';
 import { PendingDeploysStatusProvider } from '../hooks/usePendingDeploysStatus';
-import { render, screen, within } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import PendingDeploysPanel from './PendingDeploysPanel';
 import { mockOperations, pendingStatusRows } from '../testing/apolloOperations';
@@ -39,15 +39,16 @@ function renderPanel({ status, list, statusFallback, listFallback }: Results) {
     GetPendingDeploysStatus: () => statusFallback ?? {},
     GetPendingDeploys: () => listFallback ?? {},
   });
-  render(<MemoryRouter><PendingDeploysStatusProvider><PendingDeploysPanel /></PendingDeploysStatusProvider></MemoryRouter>);
-  return requested;
+  const panel = () => <MemoryRouter><PendingDeploysStatusProvider><PendingDeploysPanel /></PendingDeploysStatusProvider></MemoryRouter>;
+  const { rerender } = render(panel());
+  return { requested, refresh: () => rerender(panel()) };
 }
 
 const rows = () => within(screen.getByRole('table', { name: 'Pending Deploys' }))
   .getAllByRole('row').slice(1).map((row) => within(row).getAllByRole('cell'));
 
 test('lists pending deploys with links and their buffer status (issue #70)', () => {
-  const requested = renderPanel({
+  const { requested } = renderPanel({
     status: { data: { indexer_state: pendingStatusRows({ count: 3, total_available: 3 }) } },
     list: { data: { pending_deploys: [
       deploy(),
@@ -79,6 +80,24 @@ test('states when the node responses truncated the pending list', () => {
   expect(rows()).toHaveLength(1);
 });
 
+test('fades a removed row and finishes the last exit before showing the empty queue', async () => {
+  const remaining = deploy({ sig: SIG + '01' });
+  const list = { data: { pending_deploys: [deploy(), remaining] } };
+  const { refresh } = renderPanel({ list });
+  list.data = { pending_deploys: [remaining] };
+  refresh();
+  expect(screen.getByTitle(SIG)).toBeInTheDocument();
+  await waitFor(() => expect(screen.queryByTitle(SIG)).not.toBeInTheDocument());
+  expect(screen.getByTitle(remaining.sig)).toBeInTheDocument();
+
+  list.data = { pending_deploys: [] };
+  refresh();
+  expect(screen.getByRole('table')).toBeInTheDocument();
+  expect(screen.queryByText('No deploys are waiting for a block.')).not.toBeInTheDocument();
+  expect(await screen.findByText('No deploys are waiting for a block.')).toBeInTheDocument();
+  expect(screen.queryByRole('table')).not.toBeInTheDocument();
+});
+
 test('shows an empty state without a table', () => {
   renderPanel({});
 
@@ -87,8 +106,21 @@ test('shows an empty state without a table', () => {
   expect(screen.getByLabelText('Pending deploy count')).toHaveTextContent('0');
 });
 
+test('keeps the latest snapshot when the queue refills during its exit', async () => {
+  const list = { data: { pending_deploys: [deploy()] } };
+  const { refresh } = renderPanel({ list });
+  list.data = { pending_deploys: [] };
+  refresh();
+  const next = deploy({ sig: SIG + '01' });
+  list.data = { pending_deploys: [next] };
+  refresh();
+  await waitFor(() => expect(screen.queryByTitle(SIG)).not.toBeInTheDocument());
+  expect(screen.getByTitle(next.sig)).toBeInTheDocument();
+  expect(screen.queryByText('No deploys are waiting for a block.')).not.toBeInTheDocument();
+});
+
 test('says that the indexer does not track pending deploys instead of showing an empty queue', () => {
-  const requested = renderPanel({ status: { data: { indexer_state: [] } } });
+  const { requested } = renderPanel({ status: { data: { indexer_state: [] } } });
 
   expect(screen.getByRole('status')).toHaveTextContent('does not track pending deploys');
   expect(screen.queryByText('No deploys are waiting for a block.')).not.toBeInTheDocument();
@@ -108,7 +140,7 @@ test('reports a failed query instead of an empty list', () => {
 });
 
 test('polls over HTTP when live updates fail', () => {
-  const requested = renderPanel({
+  const { requested } = renderPanel({
     list: { error: new Error('WebSocket closed') },
     listFallback: { data: { pending_deploys: [deploy()] } },
   });

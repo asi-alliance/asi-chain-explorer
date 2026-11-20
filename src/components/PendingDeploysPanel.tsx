@@ -1,6 +1,8 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { formatDistanceToNow } from 'date-fns';
+import { motion, useReducedMotion } from 'framer-motion';
+import { AnimatePresence } from './AnimatePresenceWrapper';
 import { GET_PENDING_DEPLOYS, WATCH_PENDING_DEPLOYS } from '../graphql/queries';
 import { useLiveQuery } from '../hooks/useLiveQuery';
 import { usePendingDeploysStatus } from '../hooks/usePendingDeploysStatus';
@@ -14,6 +16,8 @@ export const PENDING_LIST_LIMIT = 20;
 const shortKey = (value: string) => (value.length > 20 ? `${value.slice(0, 10)}...${value.slice(-8)}` : value);
 
 const PendingDeploysPanel: React.FC = () => {
+  const reducedMotion = useReducedMotion();
+  const fade = { duration: reducedMotion ? 0 : 0.35, ease: 'easeOut' };
   const status = usePendingDeploysStatus();
   const configured = status.status !== null;
   const list = useLiveQuery<{ pending_deploys: PendingDeploy[] }>(WATCH_PENDING_DEPLOYS, GET_PENDING_DEPLOYS, {
@@ -57,54 +61,59 @@ const PendingDeploysPanel: React.FC = () => {
             Including entries beyond those limits, the reported total is {total}.
           </p>
         )}
-        {deploys.length === 0 ? (
-          <p className="text-muted">{status.status.reachable === status.status.nodes ?
-              'No deploys are waiting for a block.' : 'No pending deploys are visible in the available snapshots.'}</p>
-        ) : (
-          <div style={{ overflowX: 'auto' }}>
-            <table aria-labelledby="pending-deploys-heading">
-              <thead>
-                <tr>
-                  <th className="text-1">Deploy</th>
-                  <th className="text-1">Deployer</th>
-                  <th className="text-1">Submitted</th>
-                  <th className="text-1">Phlo Limit</th>
-                  <th className="text-1">Phlo Price</th>
-                  <th className="text-1">Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {deploys.map((deploy) => {
-                  const state = pendingDeployStatus(deploy);
-                  const submitted = deployTime(deploy.timestamp);
-                  return (
-                    <tr key={deploy.sig}>
-                      <td className="hash-cell">
-                        <Link to={`/transaction/${deploy.sig}`} className="mono" title={deploy.sig}>
-                          {shortKey(deploy.sig)}
-                        </Link>
-                      </td>
-                      <td className="text-3 mono" title={deploy.deployer_address}>
-                        {shortKey(deploy.deployer_address)}
-                      </td>
-                      <td className="text-3">
-                        {submitted ? formatDistanceToNow(submitted, { addSuffix: true }) : '--'}
-                      </td>
-                      <td className="text-3">{deploy.phlo_limit ?? '--'}</td>
-                      <td className="text-3">{deploy.phlo_price ?? '--'}</td>
-                      <td className="text-3">
-                        <span className={state.className}>{state.label}</span>
-                        {deploy.included_deployment && (
-                          <> in block {heightLabel(deploy.included_deployment.block_number)}</>
-                        )}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        )}
+        <AnimatePresence initial={false} mode="wait">
+          {deploys.length === 0 ? (
+            <p key="empty" className="text-muted">{status.status.reachable === status.status.nodes ?
+                'No deploys are waiting for a block.' : 'No pending deploys are visible in the available snapshots.'}</p>
+          ) : (
+            <motion.div key="list" animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={fade} style={{ overflowX: 'auto' }}>
+              <table aria-labelledby="pending-deploys-heading">
+                <thead>
+                  <tr>
+                    <th className="text-1">Deploy</th>
+                    <th className="text-1">Deployer</th>
+                    <th className="text-1">Submitted</th>
+                    <th className="text-1">Phlo Limit</th>
+                    <th className="text-1">Phlo Price</th>
+                    <th className="text-1">Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <AnimatePresence initial={false}>
+                    {deploys.map((deploy) => {
+                      const state = pendingDeployStatus(deploy);
+                      const submitted = deployTime(deploy.timestamp);
+                      return (
+                        <motion.tr key={deploy.sig} layout={reducedMotion ? false : 'position'}
+                          animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={fade}>
+                          <td className="hash-cell">
+                            <Link to={`/transaction/${deploy.sig}`} className="mono" title={deploy.sig}>
+                              {shortKey(deploy.sig)}
+                            </Link>
+                          </td>
+                          <td className="text-3 mono" title={deploy.deployer_address}>
+                            {shortKey(deploy.deployer_address)}
+                          </td>
+                          <td className="text-3">
+                            {submitted ? formatDistanceToNow(submitted, { addSuffix: true }) : '--'}
+                          </td>
+                          <td className="text-3">{deploy.phlo_limit ?? '--'}</td>
+                          <td className="text-3">{deploy.phlo_price ?? '--'}</td>
+                          <td className="text-3">
+                            <span className={state.className}>{state.label}</span>
+                            {deploy.included_deployment && (
+                              <> in block {heightLabel(deploy.included_deployment.block_number)}</>
+                            )}
+                          </td>
+                        </motion.tr>
+                      );
+                    })}
+                  </AnimatePresence>
+                </tbody>
+              </table>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </>
     );
   }
