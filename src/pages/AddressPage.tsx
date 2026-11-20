@@ -31,12 +31,22 @@ function AddressSnapshot({ address, direction, onDirectionChange }: AddressSnaps
   useEffect(() => {
     const controller = new AbortController();
     let active = true;
-    const timeout = setTimeout(() => controller.abort(), 30000);
-    async function load() {
+    let retryTimer: ReturnType<typeof setTimeout>;
+    let timeout: ReturnType<typeof setTimeout>;
+    async function load(canRetry: boolean) {
+      timeout = setTimeout(() => controller.abort(), 30000);
       try {
         const base = getPublicConfig().indexerApiUrl.replace(/\/+$/, '');
         const response = await fetch(`${base}/address/${encodeURIComponent(address)}`,
           { signal: controller.signal, cache: 'no-store' });
+        if (!active) return;
+        if (canRetry && response.status === 503) {
+          const delay = response.headers?.get('Retry-After');
+          if (delay && /^\d+$/.test(delay) && Number(delay) < 30) {
+            retryTimer = setTimeout(() => { void load(false); }, Number(delay) * 1000);
+            return;
+          }
+        }
         if (response.status === 400) {
           if (active) setError('Invalid ASI address.');
           return;
@@ -54,8 +64,8 @@ function AddressSnapshot({ address, direction, onDirectionChange }: AddressSnaps
         clearTimeout(timeout);
       }
     }
-    void load();
-    return () => { active = false; clearTimeout(timeout); controller.abort(); };
+    void load(true);
+    return () => { active = false; clearTimeout(retryTimer); clearTimeout(timeout); controller.abort(); };
   }, [address]);
 
   return <>

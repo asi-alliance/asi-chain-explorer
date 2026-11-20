@@ -1,4 +1,4 @@
-import { useEffect, useState, useSyncExternalStore } from 'react';
+import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { useQuery, useSubscription } from '@apollo/client';
 import type { ApolloError, DocumentNode, OperationVariables } from '@apollo/client';
 
@@ -65,14 +65,18 @@ export function useLiveQuery<T = any, V extends OperationVariables = OperationVa
     notifyOnNetworkStatusChange: false,
   });
 
-  if (fallback) {
-    const data = polled.data ?? live.data;
-    return {
-      data,
-      loading: polled.loading && data === undefined,
-      error: polled.error,
-      live: false,
-    };
-  }
-  return { data: live.data, loading: !skip && (!visible || live.loading), error: undefined, live: !paused };
+  const current = fallback ? polled.data ?? live.data : live.data;
+  const loading = !skip && (!visible || (fallback ? polled.loading : live.loading));
+  const variablesKey = JSON.stringify(variables);
+  const previous = useRef<{ subscription: DocumentNode; variablesKey?: string; data: T } | null>(null);
+  useEffect(() => {
+    if (skip || previous.current?.subscription !== subscription || previous.current.variablesKey !== variablesKey) {
+      previous.current = null;
+    }
+    if (!paused && current !== undefined) previous.current = { subscription, variablesKey, data: current };
+  }, [skip, paused, subscription, variablesKey, current]);
+  const retained = loading && previous.current?.subscription === subscription && previous.current.variablesKey === variablesKey
+    ? previous.current.data : undefined;
+  const data = skip ? undefined : current ?? retained;
+  return { data, loading: loading && data === undefined, error: fallback ? polled.error : undefined, live: !paused && !fallback };
 }

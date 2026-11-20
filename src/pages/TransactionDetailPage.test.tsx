@@ -98,6 +98,15 @@ test('releases per-deploy subscriptions when the wait expires and resumes on req
   expect(requested).toContain('WatchPendingDeploy');
 });
 
+test('keeps the missing transaction ID visible after the watch expires', () => {
+  jest.useFakeTimers();
+  renderLookup({});
+  act(() => { jest.advanceTimersByTime(180_000); });
+  expect(screen.getByRole('heading', { name: 'Transaction Not Found' })).toBeInTheDocument();
+  expect(screen.getByText(`Transaction ${SIG} could not be found.`)).toBeInTheDocument();
+  expect(screen.getByRole('status')).toHaveTextContent('Automatic updates stopped');
+});
+
 test.each([true, false])('refetches on inclusion without seeing a pending row (tracking %s)', async enabled => {
   const { refetch, requested } = renderLookup({
     enabled,

@@ -330,6 +330,8 @@ Exported at: ${new Date().toLocaleString()}
   if (!transaction && (watchExpired || detailsChecked)) {
     return (
       <section className="asi-card">
+        {watchExpired && !seenInBuffer && <h2>Transaction Not Found</h2>}
+        {watchExpired && !seenInBuffer && <p>Transaction {transactionId} could not be found.</p>}
         <p role="status">{watchExpired ? 'Automatic updates stopped after three minutes.' :
           'The indexer has recorded this deploy. Its details are currently unavailable.'}</p>
         <button className="btn btn-secondary" onClick={() => {

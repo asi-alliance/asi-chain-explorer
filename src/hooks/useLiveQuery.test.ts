@@ -46,14 +46,22 @@ test('continues polling during a reconnect and stops after a new live result', (
 test('pauses a hidden page and subscribes again when visible', () => {
   const visibility = jest.spyOn(document, 'visibilityState', 'get');
   try {
-    run({});
+    const data = { things: [{ id: 'a' }] };
+    (useSubscription as jest.Mock).mockReturnValue({ data, loading: false });
+    (useQuery as jest.Mock).mockReturnValue({});
+    const hook = renderHook(({ id }) => useLiveQuery(WATCH, GET, { variables: { id } }), { initialProps: variables });
+    (useSubscription as jest.Mock).mockReturnValue({ loading: true });
     visibility.mockReturnValue('hidden');
     act(() => { document.dispatchEvent(new Event('visibilitychange')); });
     expect(useSubscription).toHaveBeenLastCalledWith(WATCH, { variables, skip: true });
     expect(useQuery).toHaveBeenLastCalledWith(GET, expect.objectContaining({ skip: true }));
+    expect(hook.result.current).toMatchObject({ data, loading: false });
     visibility.mockReturnValue('visible');
     act(() => { document.dispatchEvent(new Event('visibilitychange')); });
     expect(useSubscription).toHaveBeenLastCalledWith(WATCH, { variables, skip: false });
+    expect(hook.result.current).toMatchObject({ data, loading: false });
+    hook.rerender({ id: 'b' });
+    expect(hook.result.current).toMatchObject({ data: undefined, loading: true });
   } finally {
     visibility.mockRestore();
   }

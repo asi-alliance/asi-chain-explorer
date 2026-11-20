@@ -5,6 +5,11 @@ import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import AdvancedSearch from '../components/AdvancedSearch';
 import AddressPage from './AddressPage';
 
+jest.mock('../runtimeConfig', () => ({
+  ...jest.requireActual('../runtimeConfig'),
+  getPublicConfig: () => ({ indexerApiUrl: '/api/indexer' }),
+}));
+
 jest.mock('react-router-dom', () => {
   Object.assign(global, { TextEncoder: require('util').TextEncoder });
   return jest.requireActual('react-router');
@@ -55,6 +60,23 @@ test('a malformed transfer amount preserves the finalized balance', async () => 
   expect(await screen.findByText('42 ASI')).toBeInTheDocument();
   expect(screen.getByRole('link', { name: '#7294' })).toHaveAttribute('href', '/block/hash/' + hash);
   expect(screen.queryByRole('table')).not.toBeInTheDocument();
+});
+
+test('retries a busy balance lookup once after Retry-After', async () => {
+  jest.useFakeTimers();
+  try {
+    const busy = { ok: false, status: 503, headers: new Headers({ 'Retry-After': '1' }) };
+    fetchMock.mockResolvedValue(busy);
+    await act(async () => { show('/address/' + address); });
+    await act(async () => { jest.advanceTimersByTime(999); });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    await act(async () => { jest.advanceTimersByTime(1); });
+    expect(screen.getByRole('alert')).toHaveTextContent('Balance unavailable');
+    await act(async () => { jest.advanceTimersByTime(1000); });
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  } finally {
+    jest.useRealTimers();
+  }
 });
 
 test('a failed balance read preserves indexed history', async () => {
