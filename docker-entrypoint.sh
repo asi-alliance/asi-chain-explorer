@@ -12,7 +12,8 @@ case "$INDEXER_STATUS_URL" in
     http://*/status|https://*/status) ;;
     *) echo "INDEXER_STATUS_URL must be an HTTP(S) URL ending in /status" >&2; exit 1 ;;
 esac
-envsubst '${INDEXER_STATUS_URL}' < /etc/nginx/templates/default.conf.template > /etc/nginx/conf.d/default.conf
+export INDEXER_BASE_URL="${INDEXER_STATUS_URL%/status}"
+envsubst '${INDEXER_STATUS_URL} ${INDEXER_BASE_URL}' < /etc/nginx/templates/default.conf.template > /etc/nginx/conf.d/default.conf
 
 # Public endpoints for the browser. A missing or unsafe value stops the container
 # instead of serving a bundle that connects to an unrelated default service.

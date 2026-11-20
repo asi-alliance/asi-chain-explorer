@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
+import WalletAddressLink from '../components/WalletAddressLink';
 import { useQuery } from '@apollo/client';
 import { motion } from 'framer-motion';
 import { AnimatePresence } from '../components/AnimatePresenceWrapper';
@@ -34,12 +35,18 @@ import NativeTransferLifecycle, {
 } from '../components/NativeTransferLifecycle';
 import { getParentHashes } from '../utils/blockParent';
 import { getBlockPath } from '../utils/blockPath';
-import { GET_PENDING_DEPLOY } from '../graphql/queries';
+import {
+  GET_DEPLOYMENT_INDEXED,
+  GET_PENDING_DEPLOY,
+  WATCH_DEPLOYMENT_INDEXED,
+  WATCH_PENDING_DEPLOY,
+} from '../graphql/queries';
+import { useLiveQuery } from '../hooks/useLiveQuery';
+import { usePendingDeploysStatus } from '../hooks/usePendingDeploysStatus';
 import PendingDeployDetails, { PendingDeployLeftBuffer } from '../components/PendingDeployDetails';
 import { transferStatusView } from '../utils/transferStatus';
 
-// The indexer refreshes its pending-deploy snapshot every sync cycle (5 s by default).
-const PENDING_POLL_MS = 5000;
+const PENDING_WATCH_MS = 3 * 60_000;
 
 // Helper functions to safely parse timestamps
 const parseTimestamp = (timestamp: any): number => {
@@ -149,6 +156,10 @@ const GET_TRANSACTION_DETAILS = gql`
 
 const TransactionDetailPage: React.FC = () => {
   const { transactionId } = useParams<{ transactionId: string }>();
+  return <TransactionDetail key={transactionId} transactionId={transactionId} />;
+};
+
+const TransactionDetail: React.FC<{ transactionId?: string }> = ({ transactionId }) => {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<'overview' | 'code' | 'transfers' | 'block'>('overview');
   const [showRawData, setShowRawData] = useState(false);
@@ -166,30 +177,48 @@ const TransactionDetailPage: React.FC = () => {
   const lifecycle = useNativeTransferLifecycle(transaction?.deploy_id);
   const lifecycleLabel = lifecycleCallLabel(lifecycle);
 
-  // A deploy that is not in a block yet exists only in the pending-deploy snapshot.
+  // A deploy that is not in a block yet exists only in the pending-deploy
+  // snapshot, which the indexer keeps only when it reads validator buffers.
   const notIndexed = !!transactionId && !loading && !error && !transaction;
-  const { data: pendingData, loading: pendingLoading } = useQuery(GET_PENDING_DEPLOY, {
+  const pendingFeature = usePendingDeploysStatus();
+  const [watchExpired, setWatchExpired] = useState(false);
+  const [detailsChecked, setDetailsChecked] = useState(false);
+  const awaitingIndexer = notIndexed && !watchExpired && !detailsChecked;
+  const watchPending = awaitingIndexer && !!pendingFeature.status;
+  useEffect(() => {
+    if (!awaitingIndexer) return;
+    const timer = window.setTimeout(() => setWatchExpired(true), PENDING_WATCH_MS);
+    return () => window.clearTimeout(timer);
+  }, [awaitingIndexer]);
+
+  const { data: pendingData, loading: pendingLoading, error: pendingError } = useLiveQuery(WATCH_PENDING_DEPLOY, GET_PENDING_DEPLOY, {
     variables: { sig: transactionId },
-    skip: !notIndexed,
-    pollInterval: PENDING_POLL_MS,
+    skip: !watchPending,
   });
   const pendingDeploy = notIndexed ? pendingData?.pending_deploys?.[0] : undefined;
   const isPending = !!pendingDeploy;
 
-  // The node can drop a deploy from its buffer before the indexer stores the
-  // block that includes it. Keep the lookup alive after the deploy was seen.
-  const [pendingSeenFor, setPendingSeenFor] = useState<string | null>(null);
+  // Remember a pending observation so the page can explain a subsequent empty buffer.
+  const [seenInBuffer, setSeenInBuffer] = useState(false);
   useEffect(() => {
-    if (isPending && transactionId) setPendingSeenFor(transactionId);
-  }, [isPending, transactionId]);
-  const leftBuffer = notIndexed && !isPending && pendingSeenFor === transactionId;
-  const awaitingIndexer = isPending || leftBuffer;
+    if (isPending) setSeenInBuffer(true);
+  }, [isPending]);
+  const leftBuffer = watchPending && seenInBuffer && pendingData?.pending_deploys?.length === 0;
 
+  // Reload the details once the indexer stores the deploy, instead of polling them.
+  const { data: indexedData, loading: indexedLoading, error: indexedError } = useLiveQuery(WATCH_DEPLOYMENT_INDEXED, GET_DEPLOYMENT_INDEXED, {
+    variables: { deployId: transactionId },
+    skip: !awaitingIndexer,
+  });
+  const indexedNow = awaitingIndexer && (indexedData?.deployments?.length ?? 0) > 0;
+  const requestedDetails = useRef(false);
   useEffect(() => {
-    if (!awaitingIndexer) return;
-    const timer = setInterval(() => { refetch(); }, PENDING_POLL_MS);
-    return () => clearInterval(timer);
-  }, [awaitingIndexer, refetch]);
+    if (indexedNow && !requestedDetails.current) {
+      requestedDetails.current = true;
+      // Keep a manual retry available if the detail row is still absent or the request fails.
+      void refetch().then(() => setDetailsChecked(true), () => setDetailsChecked(true));
+    }
+  }, [indexedNow, refetch]);
 
   useEffect(() => {
     if (!transactionId) {
@@ -278,7 +307,11 @@ Exported at: ${new Date().toLocaleString()}
     return '#9ca3af';
   };
 
-  if (loading || (notIndexed && pendingLoading && !pendingData)) {
+  const statusError = error ?? (awaitingIndexer
+    ? indexedError ?? pendingFeature.error ?? (watchPending ? pendingError : undefined)
+    : undefined);
+  const checkingStatus = indexedLoading || pendingFeature.loading || (pendingLoading && !pendingData);
+  if (loading || (awaitingIndexer && !isPending && (indexedNow || (!statusError && checkingStatus)))) {
     return (
       <div style={{
         display: 'flex',
@@ -294,11 +327,26 @@ Exported at: ${new Date().toLocaleString()}
     );
   }
 
-  if (pendingDeploy) {
+  if (!transaction && (watchExpired || detailsChecked)) {
+    return (
+      <section className="asi-card">
+        {watchExpired && !seenInBuffer && <h2>Transaction Not Found</h2>}
+        {watchExpired && !seenInBuffer && <p>Transaction {transactionId} could not be found.</p>}
+        <p role="status">{watchExpired ? 'Automatic updates stopped after three minutes.' :
+          'The indexer has recorded this deploy. Its details are currently unavailable.'}</p>
+        <button className="btn btn-secondary" onClick={() => {
+          setWatchExpired(false);
+          void refetch().catch(() => { /* useQuery reports the failure. */ });
+        }}>Check again</button>
+      </section>
+    );
+  }
+
+  if (pendingDeploy && !statusError) {
     return <PendingDeployDetails deploy={pendingDeploy} />;
   }
 
-  if (leftBuffer && transactionId) {
+  if (leftBuffer && !statusError && transactionId) {
     return <PendingDeployLeftBuffer sig={transactionId} />;
   }
 
@@ -307,10 +355,10 @@ Exported at: ${new Date().toLocaleString()}
       <div className="asi-card" style={{ textAlign: 'center', padding: '3rem' }}>
         <div style={{ color: '#ef4444', marginBottom: '1rem' }}>
           <AlertCircle size={48} style={{ marginBottom: '1rem' }} />
-          <h2>Transaction Not Found</h2>
+          <h2>{statusError ? 'Unable to verify deploy status' : 'Transaction Not Found'}</h2>
         </div>
         <p style={{ color: '#9ca3af', marginBottom: '2rem' }}>
-          {error ? error.message : `Transaction ${transactionId} could not be found.`}
+          {statusError ? statusError.message : `Transaction ${transactionId} could not be found.`}
         </p>
         <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center' }}>
           <button
@@ -321,7 +369,7 @@ Exported at: ${new Date().toLocaleString()}
             Go Back
           </button>
           <button
-            onClick={() => refetch()}
+            onClick={() => { void refetch().catch(() => { /* useQuery reports the failure. */ }); }}
             className="btn btn-primary"
           >
             <Activity size={16} style={{ marginRight: '0.5rem' }} />
@@ -657,10 +705,10 @@ Exported at: ${new Date().toLocaleString()}
                 </div>
                 <div style={{ fontSize: '0.875rem', color: '#d1d5db' }}>
                   <div style={{ marginBottom: '0.25rem' }}>
-                    <strong>From:</strong> {transfer.from_address.slice(0, 12)}...
+                    <strong>From:</strong> <WalletAddressLink address={transfer.from_address} short />
                   </div>
                   <div>
-                    <strong>To:</strong> {transfer.to_address.slice(0, 12)}...
+                    <strong>To:</strong> <WalletAddressLink address={transfer.to_address} short />
                   </div>
                 </div>
               </div>
@@ -832,7 +880,7 @@ Exported at: ${new Date().toLocaleString()}
                     fontSize: '0.875rem',
                     wordBreak: 'break-all'
                   }}>
-                    {transfer.from_address}
+                    <WalletAddressLink address={transfer.from_address} />
                   </div>
                 </div>
 
@@ -853,7 +901,7 @@ Exported at: ${new Date().toLocaleString()}
                     fontSize: '0.875rem',
                     wordBreak: 'break-all'
                   }}>
-                    {transfer.to_address}
+                    <WalletAddressLink address={transfer.to_address} />
                   </div>
                 </div>
               </div>

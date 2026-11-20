@@ -30,15 +30,7 @@ export function deployTime(value: unknown): Date | null {
   return Number.isFinite(date.getTime()) ? date : null;
 }
 
-// The node caps its pending-deploy response; the indexer records the count before the cap.
-export function truncatedTotal(stored: unknown, totalAvailable: unknown): number | null {
-  const storedCount = Number(stored);
-  const total = Number(totalAvailable);
-  if (!Number.isSafeInteger(storedCount) || !Number.isSafeInteger(total)) return null;
-  return total > storedCount ? total : null;
-}
-
-// The indexer stores fetched_at as a UTC timestamp without a time zone.
+// The indexer stores timestamps in UTC without a time zone.
 export function snapshotTime(value: unknown): Date | null {
   if (typeof value !== 'string' || value === '') return null;
   const text = value.replace(' ', 'T');
@@ -48,13 +40,68 @@ export function snapshotTime(value: unknown): Date | null {
   return Number.isFinite(date.getTime()) ? date : null;
 }
 
-// The indexer refreshes the snapshot every sync cycle (5 s by default). When it
-// cannot read the node buffers, it keeps the last snapshot without a change.
-export const STALE_SNAPSHOT_MS = 60_000;
+export const PENDING_STATUS_KEY = 'pending_deploys_status';
 
-export function staleSnapshotAge(fetchedAt: unknown, now: number): number | null {
-  const date = snapshotTime(fetchedAt);
-  if (!date) return null;
-  const age = now - date.getTime();
+/** The indexer's pending-deploy reader, from its `pending_deploys_status` row. */
+export interface PendingDeploysStatus {
+  /** Validators listed in the indexer's PENDING_DEPLOYS_NODES. */
+  nodes: number;
+  /** Validators whose buffer the last read reached. */
+  reachable: number;
+  /** Deploys in the merged snapshot. */
+  count: number;
+  /** Deploys before each node's response cap. */
+  totalAvailable: number;
+  /** Last write of the status row; the indexer rewrites it at least every 10 s. */
+  updatedAt: Date | null;
+  intervalMs: number | null;
+}
+
+interface StateRow {
+  key?: unknown;
+  value?: unknown;
+  updated_at?: unknown;
+}
+
+const counter = (value: unknown): number | null =>
+  typeof value === 'number' && Number.isSafeInteger(value) && value >= 0 ? value : null;
+
+/**
+ * Parses the indexer status row. Null means that the indexer does not read
+ * pending deploys (without PENDING_DEPLOYS_NODES it deletes the row) or that
+ * the row is unreadable: either way the explorer must not present a queue.
+ */
+export function parsePendingDeploysStatus(rows: unknown): PendingDeploysStatus | null {
+  if (!Array.isArray(rows)) return null;
+  const row = (rows as StateRow[]).find((item) => item?.key === PENDING_STATUS_KEY);
+  if (!row || typeof row.value !== 'string') return null;
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(row.value);
+  } catch {
+    return null;
+  }
+  if (!parsed || typeof parsed !== 'object') return null;
+  const fields = parsed as Record<string, unknown>;
+  const nodes = counter(fields.nodes);
+  const reachable = counter(fields.reachable);
+  const count = counter(fields.count);
+  const totalAvailable = counter(fields.total_available);
+  if (!nodes || reachable === null || count === null || totalAvailable === null) return null;
+  return { nodes, reachable, count, totalAvailable, intervalMs: counter(fields.interval_ms), updatedAt: snapshotTime(row.updated_at) };
+}
+
+// Each node caps its pending-deploy response; the indexer records the total before the caps.
+export function truncatedTotal(status: Pick<PendingDeploysStatus, 'count' | 'totalAvailable'>): number | null {
+  return status.totalAvailable > status.count ? status.totalAvailable : null;
+}
+
+// The indexer rewrites its status row at least every 10 s while it reads the
+// validators. When it stops, the last snapshot stays in the table unchanged.
+export const STALE_SNAPSHOT_MS = 30_000;
+
+export function staleSnapshotAge(updatedAt: Date | null, now: number): number | null {
+  if (!updatedAt) return null;
+  const age = now - updatedAt.getTime();
   return age > STALE_SNAPSHOT_MS ? age : null;
 }

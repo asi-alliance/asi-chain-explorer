@@ -4,9 +4,11 @@ import { format, formatDistanceStrict } from 'date-fns';
 import { Clock } from 'lucide-react';
 import type { PendingDeploy } from '../types';
 import { useNow } from '../hooks/useNow';
+import { usePendingDeploysStatus } from '../hooks/usePendingDeploysStatus';
 import { heightLabel } from '../utils/blockHeight';
 import { getBlockPath } from '../utils/blockPath';
 import { deployTime, pendingDeployStatus, snapshotTime, staleSnapshotAge } from '../utils/pendingDeploys';
+import type { PendingDeploysStatus } from '../utils/pendingDeploys';
 
 interface PendingDeployDetailsProps {
   deploy: PendingDeploy;
@@ -24,18 +26,34 @@ const snapshotText = (value: unknown) => {
   return date ? format(date, 'yyyy-MM-dd HH:mm:ss') : '--';
 };
 
-// The indexer keeps its last snapshot when the node is not available, so a
-// "pending" row can be out of date.
-export const StaleSnapshotNote: React.FC<{ fetchedAt: unknown }> = ({ fetchedAt }) => {
+// The indexer rewrites its status at least every 10 s while it reads the
+// validators, and keeps the last snapshot of a validator it cannot reach. A
+// "pending" row can therefore be out of date.
+export const PendingSourceNotes: React.FC<{ status: PendingDeploysStatus }> = ({ status }) => {
   const now = useNow(NOW_REFRESH_MS);
-  const age = staleSnapshotAge(fetchedAt, now);
-  if (age === null) return null;
+  const age = staleSnapshotAge(status.updatedAt, now);
+  const unreachable = status.nodes - status.reachable;
   return (
-    <p className="text-warning" role="note" aria-label="Stale snapshot" style={{ fontSize: '14px' }}>
-      The indexer did not refresh the pending-deploy snapshot for {formatDistanceStrict(now - age, now)}.
-      The node can be unavailable, so this status can be out of date.
-    </p>
+    <>
+      {age !== null && (
+        <p className="text-warning" role="note" aria-label="Stale snapshot" style={{ fontSize: '14px' }}>
+          The indexer did not refresh the pending deploys for {formatDistanceStrict(now - age, now)}.
+          This status can be out of date.
+        </p>
+      )}
+      {age === null && unreachable > 0 && (
+        <p className="text-warning" role="note" aria-label="Unreachable validators" style={{ fontSize: '14px' }}>
+          The indexer cannot reach {unreachable} of {status.nodes} validators. This view is partial. The indexer drops
+          snapshots aged 30 seconds or more from unreachable validators on each refresh.
+        </p>
+      )}
+    </>
   );
+};
+
+const LivePendingSourceNotes: React.FC = () => {
+  const { status } = usePendingDeploysStatus();
+  return status ? <PendingSourceNotes status={status} /> : null;
 };
 
 export const PendingDeployLeftBuffer: React.FC<{ sig: string }> = ({ sig }) => (
@@ -47,7 +65,7 @@ export const PendingDeployLeftBuffer: React.FC<{ sig: string }> = ({ sig }) => (
       </h2>
     </div>
     <p className="text-muted" role="status">
-      This deploy left the node deploy buffer, but the indexer did not record it in a block yet.
+      This deploy is no longer visible in the pending snapshot. The indexer has not recorded it in a block yet.
       The indexer can be behind the node. If the node dropped the deploy, for example after it expired, it does not appear.
       This page updates when the deploy is indexed.
     </p>
@@ -70,7 +88,7 @@ const PendingDeployDetails: React.FC<PendingDeployDetailsProps> = ({ deploy }) =
     ['Phlo limit', deploy.phlo_limit ?? '--'],
     ['Phlo price', deploy.phlo_price ?? '--'],
     ['Shard', deploy.shard_id || '--'],
-    ['Snapshot taken', snapshotText(deploy.fetched_at)],
+    ['First seen by indexer', snapshotText(deploy.fetched_at)],
   ];
 
   return (
@@ -94,10 +112,10 @@ const PendingDeployDetails: React.FC<PendingDeployDetailsProps> = ({ deploy }) =
         ) : status.state === 'retrying' ? (
           'The node rejected this deploy after a merge conflict and keeps it for another attempt. It is not in a block yet. This page updates when the deploy is indexed.'
         ) : (
-          'This deploy is in the node deploy buffer and is not in a block yet. This page updates when the deploy is indexed.'
+          'This deploy is in a validator deploy buffer and is not in a block yet. This page updates when the deploy is indexed.'
         )}
       </p>
-      <StaleSnapshotNote fetchedAt={deploy.fetched_at} />
+      <LivePendingSourceNotes />
       <dl style={{ display: 'grid', gridTemplateColumns: 'max-content 1fr', gap: '0.5rem 1.5rem' }}>
         {fields.map(([label, value]) => (
           <React.Fragment key={label}>

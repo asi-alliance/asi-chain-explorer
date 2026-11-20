@@ -377,20 +377,45 @@ export const PENDING_DEPLOY_FRAGMENT = gql`
   }
 `;
 
+// The pending list is read live over the GraphQL WebSocket (WATCH_*), with the
+// matching GET_* query as the HTTP polling fallback. Hasura allows only one root
+// field in a subscription, so the list and the indexer status are separate.
 export const GET_PENDING_DEPLOYS = gql`
   ${PENDING_DEPLOY_FRAGMENT}
   query GetPendingDeploys($limit: Int!) {
     pending_deploys(order_by: [{ timestamp: desc }, { sig: asc }], limit: $limit) {
       ...PendingDeployFragment
     }
-    pending_deploys_aggregate {
-      aggregate {
-        count
-      }
+  }
+`;
+
+export const WATCH_PENDING_DEPLOYS = gql`
+  ${PENDING_DEPLOY_FRAGMENT}
+  subscription WatchPendingDeploys($limit: Int!) {
+    pending_deploys(order_by: [{ timestamp: desc }, { sig: asc }], limit: $limit) {
+      ...PendingDeployFragment
     }
-    indexer_state(where: { key: { _eq: "pending_deploys_total_available" } }) {
+  }
+`;
+
+// The indexer writes pending_deploys_status only while it reads validator
+// buffers (PENDING_DEPLOYS_NODES); without it the explorer hides the view.
+export const GET_PENDING_DEPLOYS_STATUS = gql`
+  query GetPendingDeploysStatus {
+    indexer_state(where: { key: { _in: ["pending_deploys_status", "pending_deploys_total_available"] } }) {
       key
       value
+      updated_at
+    }
+  }
+`;
+
+export const WATCH_PENDING_DEPLOYS_STATUS = gql`
+  subscription WatchPendingDeploysStatus {
+    indexer_state(where: { key: { _in: ["pending_deploys_status", "pending_deploys_total_available"] } }) {
+      key
+      value
+      updated_at
     }
   }
 `;
@@ -401,6 +426,33 @@ export const GET_PENDING_DEPLOY = gql`
     pending_deploys(where: { sig: { _eq: $sig } }) {
       ...PendingDeployFragment
       term
+    }
+  }
+`;
+
+export const WATCH_PENDING_DEPLOY = gql`
+  ${PENDING_DEPLOY_FRAGMENT}
+  subscription WatchPendingDeploy($sig: String!) {
+    pending_deploys(where: { sig: { _eq: $sig } }) {
+      ...PendingDeployFragment
+      term
+    }
+  }
+`;
+
+// Tells a page that waits for a pending deploy when the indexer stored it.
+export const GET_DEPLOYMENT_INDEXED = gql`
+  query GetDeploymentIndexed($deployId: String!) {
+    deployments(where: { deploy_id: { _eq: $deployId } }, limit: 1) {
+      deploy_id
+    }
+  }
+`;
+
+export const WATCH_DEPLOYMENT_INDEXED = gql`
+  subscription WatchDeploymentIndexed($deployId: String!) {
+    deployments(where: { deploy_id: { _eq: $deployId } }, limit: 1) {
+      deploy_id
     }
   }
 `;

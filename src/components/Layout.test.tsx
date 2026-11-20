@@ -2,6 +2,7 @@ import React from 'react';
 import { render, screen, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import Layout from './Layout';
+import { usePendingDeploysStatus } from '../hooks/usePendingDeploysStatus';
 
 jest.mock('react-router-dom', () => {
   Object.assign(global, { TextEncoder: require('util').TextEncoder });
@@ -10,6 +11,11 @@ jest.mock('react-router-dom', () => {
 });
 jest.mock('./AdvancedSearch', () => () => null);
 jest.mock('./ConnectionStatus', () => () => null);
+jest.mock('../hooks/usePendingDeploysStatus', () => ({ usePendingDeploysStatus: jest.fn() }));
+
+beforeEach(() => {
+  (usePendingDeploysStatus as jest.Mock).mockReturnValue({ status: {}, loading: false });
+});
 
 function renderAt(path: string) {
   render(<MemoryRouter initialEntries={[path]}><Layout><div /></Layout></MemoryRouter>);
@@ -26,4 +32,16 @@ test('places the Pending tab immediately to the right of Transactions (issue #70
 test('marks only the Pending tab active on the pending page', () => {
   const tabs = renderAt('/pending');
   expect(tabs.filter((tab) => tab.classList.contains('active')).map((tab) => tab.textContent)).toEqual(['Pending']);
+});
+
+test('keeps the Pending tab available while checking indexer support', () => {
+  (usePendingDeploysStatus as jest.Mock).mockReturnValue({ status: null, loading: true });
+  expect(renderAt('/pending').map(tab => tab.textContent)).toContain('Pending');
+});
+
+test('hides the Pending tab when the indexer does not track pending deploys', () => {
+  (usePendingDeploysStatus as jest.Mock).mockReturnValue({ status: null, loading: false });
+  const names = renderAt('/').map((tab) => tab.textContent);
+  expect(names).not.toContain('Pending');
+  expect(names).toContain('Transactions');
 });

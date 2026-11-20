@@ -52,7 +52,7 @@ The system indexes blockchain data including blocks, deployments, transfers, val
 ## Core Functionality
 - **Block Explorer**: Real-time block monitoring with detailed information
 - **Transaction Viewer**: Comprehensive transaction details including deployments and transfers
-- **Pending Deploys**: Deploys in the node deploy buffers that no indexed block includes yet (Pending page)
+- **Pending Deploys** (optional): Deploys in the validators' deploy buffers that no indexed block includes yet, updated live over the GraphQL WebSocket (Pending page). Shown only when the indexer reads validator buffers
 - **Native Transfer Calls**: Calls that a deploy started or completed, with pending, completed, rejected or coalesced status (Transfers tab of a deploy)
 - **Validator Dashboard**: Current validators with stake distribution; inactive validators are listed separately and are not counted in totals
 - **Network Statistics**: Simplified Network Dashboard view
@@ -227,7 +227,7 @@ to localhost.
 
 A same-origin path such as `/v1/graphql` needs a reverse proxy in front of the
 explorer that routes that path to Hasura, for both HTTP and WebSocket. The nginx
-in the image proxies only `/api/indexer/status`. Without such a proxy, use
+in the image proxies indexer status and address balances. Without a GraphQL proxy, use
 absolute Hasura URLs.
 
 `REACT_APP_NATIVE_TOKEN_DECIMALS` stays a build-time value. It only sets the
@@ -239,7 +239,7 @@ separate image only when the wallet lookup must use a different fallback.
 |----------|-------------|---------|
 | `REACT_APP_GRAPHQL_URL` | Hasura GraphQL HTTP endpoint: `http(s)://` URL or same-origin path. Required | `npm start` only: `http://localhost:8080/v1/graphql` |
 | `REACT_APP_GRAPHQL_WS_URL` | Hasura GraphQL WebSocket endpoint: `ws(s)://` URL or same-origin path. Required | `npm start` only: `ws://localhost:8080/v1/graphql` |
-| `REACT_APP_INDEXER_API_URL` | Base path of the indexer status request | `/api/indexer` |
+| `REACT_APP_INDEXER_API_URL` | Public base path for indexer status and address balances | `/api/indexer` |
 | `REACT_APP_RCHAIN_NODE_URL` | Node HTTP API for the wallet balance lookup (not mounted in the current UI) | Same origin |
 | `INDEXER_STATUS_URL` | Server-side indexer `/status` URL for nginx (runtime, not in the bundle) | `http://host.docker.internal:9090/status` |
 | `REACT_APP_NATIVE_TOKEN_DECIMALS` | Wallet-balance precision for nodes without `nativeTokenDecimals`. Build time only, also in the Docker image | `8` |
@@ -305,7 +305,17 @@ seconds after the preceding request completes. It displays the stored sync curso
 against the node's finalized height. Missing data and failed requests show an
 unavailable state; failed refreshes clear the previous status.
 
-Production nginx proxies only `GET /api/indexer/status` to `INDEXER_STATUS_URL`.
+Production nginx proxies `GET /api/indexer/status` to `INDEXER_STATUS_URL`.
+For `GET /api/indexer/address/{address}` it replaces the upstream `/status`
+suffix with `/api/address/{address}`. Static hosting requires an equivalent
+ingress route with caching disabled and an indexer that implements address lookup.
+The address page captures the indexer's `last_indexed_block` and highest transfer ID
+when opened. It shows the captured height and warns when it trails the balance.
+All, Incoming and Outgoing share these bounds. Self-transfers appear once in All
+and in both directional views. Pages continue after the last displayed block
+number and transfer ID in descending order. Select **Refresh** to fetch the latest
+finalized balance and return to the first page of newly indexed history with the
+same direction filter.
 Set that server-side URL to the monitoring endpoint reachable from the explorer
 container. Compose supplies a host-gateway alias for the default host port 9090;
 on a shared Docker network it can instead be `http://asi-indexer:9090/status`.
@@ -329,12 +339,13 @@ resolves before nginx starts.
 - `/blocks` - Block explorer with pagination
 - `/block/:blockNumber`, `/block/hash/:blockHash` - Block details
 - `/transactions` - Transaction list
-- `/pending` - Deploys in the node deploy buffers that no indexed block includes yet
+- `/pending` - Deploys in the validators' deploy buffers that no indexed block includes yet (the navigation tab appears only when the indexer tracks pending deploys)
 - `/transaction/:transactionId` - Deploy details: overview, code, transfers with native transfer calls, block. A pending deploy shows its pending state until it is indexed.
 - `/validators` - Current validators; inactive validators in a separate table
 - `/validator-history` - Validator history
 - `/statistics` - Network Dashboard only
 - `/search` - Advanced search interface
+- `/address/:address` - Spendable balance at the latest finalized block and indexed transfer history
 - `/indexer-status` - Indexer health monitoring
 
 The `/transfers` and `/deployments` routes are disabled in `src/App.tsx`.
@@ -429,6 +440,24 @@ the documented history repair, and Hasura metadata from
 `scripts/full-init-hasura.sh`. The explorer reads `pending_deploys` and the
 `native_transfer_lifecycle` view, which only that metadata exposes. Keep
 `HASURA_GRAPHQL_STRINGIFY_NUMERIC_TYPES=true`.
+
+Pending deploys are optional. A deploy waits only in the buffer of the validator
+that received it: nodes do not gossip deploys, and an observer rejects them. The
+explorer shows the Pending tab only when the indexer reports the
+`pending_deploys_status` row in `indexer_state`, which it writes only while its
+`PENDING_DEPLOYS_NODES` lists the validators. Navigation, the Pending list and deploy details share one status subscription.
+The Pending page reads the list
+through GraphQL subscriptions on `REACT_APP_GRAPHQL_WS_URL`.
+Hasura can batch subscribers to each query shape. With a 500 ms refetch interval,
+even one visible Pending page refreshes both the list and status twice per second.
+Hidden tabs pause their subscriptions and fallback polling. If the WebSocket
+fails, or the server does not acknowledge the connection within 5 seconds,
+visible pages poll over HTTP every 5 seconds and retry the subscription
+every 30 seconds until live data arrives. If both transports fail, the deploy
+detail page reports that it cannot verify the status.
+An empty detail lookup starts an inclusion watch even when pending tracking is
+off or the deploy has already left the buffer. The watch stops after three
+minutes. Select **Check again** to resume.
 Transfers, bonds and blocks supply their own `token_decimals`, so historical
 8-decimal rows and 18-decimal rows display with their original units. Missing
 historical metadata retains the legacy 8-decimal interpretation.

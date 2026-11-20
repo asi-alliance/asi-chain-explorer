@@ -56,6 +56,24 @@ test('continues beyond the public 5000-row cap and supports previous-page naviga
   expect(requests.some(request => request.offset === 5000)).toBe(true);
 });
 
+test('submitting a wallet address searches deployments when that type is selected', async () => {
+  const address = '1111x5QCpTeTXakyVzda9zAVyo6vnSG2WTd9TJ3n93LmMYRhzZouR';
+  const deployment = { deploy_id: 'matching-deploy', deployer_address: address, deployer: 'key',
+    block_hash: 'hash', block_number: '7', timestamp: '1700000000000', errored: false, deployment_type: 'deploy' };
+  renderSearch('', new ApolloLink(({ variables }) => {
+    expect(variables.blocks).toEqual({ _or: [] });
+    expect(variables.transfers).toEqual({ _or: [] });
+    expect(variables.deployments._or).toContainEqual({ deployer_address: { _like: `%${address}%` } });
+    return Observable.of({ data: { blocks: [], transfers: [], deployments: [deployment] } });
+  }));
+  fireEvent.change(screen.getByLabelText('Result type'), { target: { value: 'deployments' } });
+  fireEvent.change(screen.getByRole('textbox'), { target: { value: address } });
+  fireEvent.click(screen.getByRole('button', { name: 'Search' }));
+  const result = await screen.findByRole('link', { name: 'Deployment matching-deploy' });
+  expect(result).toHaveAttribute('href', '/transaction/matching-deploy');
+  expect(screen.getByLabelText('Result type')).toHaveValue('deployments');
+});
+
 test('opens a deep-linked page beyond the public row cap', async () => {
   fixture('q=hash&type=blocks&order=desc&page=251');
   await screen.findByRole('link', { name: 'Block #24' });

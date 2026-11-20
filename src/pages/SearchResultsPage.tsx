@@ -1,10 +1,12 @@
 import React from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { addressPath, isVaultAddress } from '../utils/addressPath';
 import { SEARCH_PAGE_SIZE as PAGE_SIZE, SearchType } from '../utils/search';
 import { useSearchResults } from '../hooks/useSearchResults';
 
 const SearchResultsPage: React.FC = () => {
   const [params, setParams] = useSearchParams();
+  const navigate = useNavigate();
   const query = (params.get('q') || '').trim();
   const type = (['blocks', 'transfers', 'deployments'].includes(params.get('type') || '')
     ? params.get('type') : 'all') as SearchType;
@@ -22,13 +24,15 @@ const SearchResultsPage: React.FC = () => {
     <h1>Search Results</h1>
     <form onSubmit={event => {
       event.preventDefault();
-      const value = new FormData(event.currentTarget).get('query')?.toString() || '';
-      update('q', value.trim());
+      const value = new FormData(event.currentTarget).get('query')?.toString().trim() || '';
+      if (type === 'all' && isVaultAddress(value)) navigate(addressPath(value));
+      else update('q', value);
     }}>
       <label htmlFor="search-query">Block height or hash, deploy ID, or address</label>
       <input id="search-query" name="query" key={query} defaultValue={query} />
       <button type="submit" className="btn btn-primary">Search</button>
     </form>
+    {isVaultAddress(query) && <Link to={addressPath(query)}>View wallet address</Link>}
     <div style={{ display: 'flex', gap: '1rem', margin: '1rem 0' }}>
       <label>Type <select aria-label="Result type" value={type} onChange={e => update('type', e.target.value)}>
         <option value="all">All</option><option value="blocks">Blocks</option>
