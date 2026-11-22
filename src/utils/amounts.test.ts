@@ -1,4 +1,4 @@
-import { decimalRaw, decimalText, formatRaw, normalizedRaw, rawInteger, percentage } from './amounts';
+import { decimalRaw, decimalText, formatRaw, groupThousands, normalizedRaw, rawInteger, percentage } from './amounts';
 
 test('keeps raw units exact through display and parsing', () => {
   for (const raw of [2n**53n+1n, 2n**63n, 2n**128n, 2n**256n-1n]) {
@@ -28,6 +28,14 @@ test('preserves the smallest units and aggregates beyond uint256', () => {
   expect(formatRaw('100000000')).toBe('1');
   expect(percentage(1n, 3n)).toBe('33.33');
   expect(percentage(0n, 0n)).toBe('0');
+});
+
+test('groups thousands without changing the exact value', () => {
+  expect(groupThousands('10000')).toBe('10,000');
+  expect(groupThousands('20001.000000000000000001')).toBe('20,001.000000000000000001');
+  expect(groupThousands('0.000000000000000001')).toBe('0.000000000000000001');
+  expect(groupThousands('12345678901234567890')).toBe('12,345,678,901,234,567,890');
+  expect(groupThousands('not a number')).toBe('not a number');
 });
 
 test.each([-1, 78, 1.5, NaN])('rejects invalid decimal precision %p', decimals => {

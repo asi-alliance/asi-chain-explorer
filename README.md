@@ -315,7 +315,9 @@ All, Incoming and Outgoing share these bounds. Self-transfers appear once in All
 and in both directional views. Pages continue after the last displayed block
 number and transfer ID in descending order. Select **Refresh** to fetch the latest
 finalized balance and return to the first page of newly indexed history with the
-same direction filter.
+same direction filter. A refresh keeps the previous balance visible while the
+lookup runs; if the lookup fails, the page reports the error and labels the block
+as the last loaded one.
 Set that server-side URL to the monitoring endpoint reachable from the explorer
 container. Compose supplies a host-gateway alias for the default host port 9090;
 on a shared Docker network it can instead be `http://asi-indexer:9090/status`.

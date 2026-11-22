@@ -32,6 +32,14 @@ export function formatRaw(value: unknown, decimals = LEGACY_DECIMALS): string {
   return text.slice(0, -decimals) + (fraction ? "." + fraction : "");
 }
 
+/** Groups the integer part of an exact decimal for display; the value is unchanged. */
+export function groupThousands(text: string): string {
+  if (!/^\d+(?:\.\d+)?$/.test(text)) return text;
+  const [whole, fraction] = text.split('.');
+  const grouped = whole.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+  return fraction === undefined ? grouped : `${grouped}.${fraction}`;
+}
+
 export function decimalText(value: unknown): string {
   if (typeof value === "number" && !Number.isSafeInteger(value)) {
     throw new Error("Decimal amounts must use strings");

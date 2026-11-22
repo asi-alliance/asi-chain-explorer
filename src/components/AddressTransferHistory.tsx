@@ -1,8 +1,11 @@
 import React, { useState } from 'react';
 import { gql, useQuery } from '@apollo/client';
 import { Link } from 'react-router-dom';
+import {
+  AlertTriangle, ArrowDownLeft, ArrowLeftRight, ArrowUpRight, ChevronLeft, ChevronRight, Database, Inbox,
+} from 'lucide-react';
 import WalletAddressLink from './WalletAddressLink';
-import { decimalText } from '../utils/amounts';
+import { groupThousands, decimalText } from '../utils/amounts';
 import { blockHeight } from '../utils/blockHeight';
 import { CURRENT_TOKEN } from '../utils/constants';
 
@@ -32,12 +35,27 @@ interface Transfer extends Cursor {
   amount_asi: unknown;
 }
 
+const DIRECTIONS: Array<{ value: Direction; label: string; icon: React.ReactNode }> = [
+  { value: 'all', label: 'All transfers', icon: <ArrowLeftRight aria-hidden="true" /> },
+  { value: 'incoming', label: 'Incoming', icon: <ArrowDownLeft aria-hidden="true" /> },
+  { value: 'outgoing', label: 'Outgoing', icon: <ArrowUpRight aria-hidden="true" /> },
+];
+
 function formatTransferRows(rows: Transfer[]) {
   try {
     return rows.map(row => ({ ...row, amount_asi: decimalText(row.amount_asi) }));
   } catch {
     return null;
   }
+}
+
+function transferDirection(row: Transfer, address: string): 'in' | 'out' | 'self' | null {
+  const incoming = row.to_address === address;
+  const outgoing = row.from_address === address;
+  if (incoming && outgoing) return 'self';
+  if (incoming) return 'in';
+  if (outgoing) return 'out';
+  return null;
 }
 
 interface PageProps {
@@ -72,25 +90,77 @@ function TransferPages({ address, direction, maxId, indexedHeight }: PageProps) 
   const rows = formatted ?? [];
   const last = rows[PAGE_SIZE - 1];
   const invalidCursor = rows.some(row => blockHeight(row.id) === null || blockHeight(row.block_number) === null);
+
   return <>
-    {loading ? <p role="status">Loading transfers…</p>
-      : error || formatted === null || invalidCursor ? <p role="alert">Transfer history unavailable.</p>
-      : rows.length ? <table>
-        <thead><tr><th>Block</th><th>From</th><th>To</th><th>Amount</th><th>Transaction</th></tr></thead>
-        <tbody>{rows.map(row => <tr key={row.id}>
-          <td>{row.block_number}</td>
-          <td><WalletAddressLink address={row.from_address} short /></td>
-          <td><WalletAddressLink address={row.to_address} short /></td>
-          <td>{row.amount_asi} {CURRENT_TOKEN}</td>
-          <td><Link to={`/transaction/${encodeURIComponent(row.deploy_id)}`}>View transaction</Link></td>
-        </tr>)}</tbody>
-      </table> : <p>No indexed transfers found.</p>}
-    {(cursors.length > 0 || hasNext) && <div className="pagination-controls">
-      <button disabled={!cursors.length || loading} onClick={() => setCursors(cursors.slice(0, -1))}>Previous</button>
-      <span>Page {cursors.length + 1}</span>
-      <button disabled={loading || !!error || invalidCursor || !last || !hasNext}
-        onClick={() => setCursors([...cursors, { id: last.id, block_number: last.block_number }])}>Next</button>
-    </div>}
+    {loading ? <p className="address-loading" role="status">
+      <span className="loading" aria-hidden="true" /> Loading transfers…
+    </p>
+      : error || formatted === null || invalidCursor ? (
+        <div className="address-alert address-alert--history" role="alert">
+          <AlertTriangle size={16} aria-hidden="true" />
+          <span>Transfer history unavailable.</span>
+        </div>
+      )
+      : rows.length ? (
+        <div className="address-table-wrap">
+          <table className="address-table" aria-label="Transfer history">
+            <thead>
+              <tr>
+                <th scope="col">Block</th>
+                <th scope="col">From</th>
+                <th scope="col">To</th>
+                <th scope="col" className="amount-cell">Amount</th>
+                <th scope="col">Transaction</th>
+              </tr>
+            </thead>
+            <tbody>{rows.map(row => {
+              const kind = transferDirection(row, address);
+              return <tr key={row.id}>
+                <td className="block-cell">
+                  <Link to={`/block/${encodeURIComponent(String(row.block_number))}`}>#{row.block_number}</Link>
+                </td>
+                <td className="mono"><WalletAddressLink address={row.from_address} short /></td>
+                <td className="mono"><WalletAddressLink address={row.to_address} short /></td>
+                <td className="amount-cell">
+                  <div className="address-amount">
+                    {direction === 'all' && kind && (
+                      <span className={`address-direction address-direction--${kind}`}>
+                        {kind === 'in' ? 'Incoming' : kind === 'out' ? 'Outgoing' : 'Self'}
+                      </span>
+                    )}
+                    <span>{groupThousands(row.amount_asi)} {CURRENT_TOKEN}</span>
+                  </div>
+                </td>
+                <td>
+                  <Link className="address-tx-link" to={`/transaction/${encodeURIComponent(row.deploy_id)}`}>
+                    View transaction <ArrowUpRight size={13} aria-hidden="true" />
+                  </Link>
+                </td>
+              </tr>;
+            })}</tbody>
+          </table>
+        </div>
+      ) : (
+        <div className="address-empty">
+          <Inbox size={32} aria-hidden="true" />
+          <h3>{direction === 'all' ? 'No indexed transfers found.'
+            : direction === 'incoming' ? 'No incoming transfers found.' : 'No outgoing transfers found.'}</h3>
+          <p>{direction === 'all' ? 'Transfers to or from this address appear here once the indexer processes them.'
+            : `This address has no ${direction} transfers in the indexed history.`}</p>
+        </div>
+      )}
+    {(cursors.length > 0 || hasNext) && <nav className="address-pagination" aria-label="Transfer history pages">
+      <button type="button" className="btn btn-secondary" disabled={!cursors.length || loading}
+        onClick={() => setCursors(cursors.slice(0, -1))}>
+        <ChevronLeft size={14} aria-hidden="true" /> Previous
+      </button>
+      <span aria-live="polite">Page {cursors.length + 1}</span>
+      <button type="button" className="btn btn-secondary"
+        disabled={loading || !!error || invalidCursor || !last || !hasNext}
+        onClick={() => setCursors([...cursors, { id: last.id, block_number: last.block_number }])}>
+        Next <ChevronRight size={14} aria-hidden="true" />
+      </button>
+    </nav>}
   </>;
 }
 
@@ -108,22 +178,63 @@ export default function AddressTransferHistory({ address, balanceHeight, directi
   const indexedHeight = blockHeight(bounds.data?.indexer_state[0]?.value);
   const maxId = blockHeight(bounds.data?.newest[0]?.id);
   const lag = balanceHeight !== undefined && indexedHeight !== null ? BigInt(balanceHeight) - indexedHeight : null;
-  return <>
-    <h2>Transfer history</h2>
-    <label>Direction <select value={direction} onChange={event => onDirectionChange(event.target.value as Direction)}>
-      <option value="all">All transfers</option><option value="incoming">Incoming</option><option value="outgoing">Outgoing</option>
-    </select></label>
-    {bounds.loading ? <p role="status">Loading transfers…</p>
-      : bounds.error || !bounds.data ? <p role="alert">Transfer history unavailable.</p>
-      : <>
-        <p>{indexedHeight === null ? 'Indexed height unavailable.' : `Indexed through block #${indexedHeight}.`}
-          {lag !== null && lag > 0n && <strong className="text-warning" role="status">
-            {` History is ${lag} ${lag === 1n ? 'block' : 'blocks'} behind the balance. Recent transfers may be missing.`}
-          </strong>}
+
+  return (
+    <section className="asi-card address-history" aria-labelledby="address-history-heading">
+      <div className="address-history__header">
+        <div>
+          <h2 id="address-history-heading">Transfer history</h2>
+          <p className="address-history__subtitle">Newest indexed transfers to and from this address.</p>
+        </div>
+        <div className="address-segmented" role="group" aria-label="Direction">
+          {DIRECTIONS.map(option => (
+            <button key={option.value} type="button" aria-pressed={direction === option.value}
+              onClick={() => onDirectionChange(option.value)}>
+              {option.icon}
+              {option.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {bounds.loading ? (
+        <p className="address-loading" role="status">
+          <span className="loading" aria-hidden="true" /> Loading transfers…
         </p>
-        {!bounds.data.newest.length ? <p>No indexed transfers found.</p>
-          : maxId === null ? <p role="alert">Transfer history unavailable.</p>
-          : <TransferPages key={direction} address={address} direction={direction} indexedHeight={indexedHeight} maxId={maxId.toString()} />}
+      ) : bounds.error || !bounds.data ? (
+        <div className="address-alert address-alert--history" role="alert">
+          <AlertTriangle size={16} aria-hidden="true" />
+          <span>Transfer history unavailable.</span>
+        </div>
+      ) : <>
+        <div className="address-history__meta">
+          <span className="address-history__checkpoint">
+            <Database size={14} aria-hidden="true" />
+            {indexedHeight === null ? 'Indexed height unavailable.' : `Indexed through block #${indexedHeight}.`}
+          </span>
+          {lag !== null && lag > 0n && (
+            <span className="address-history__lag" role="status">
+              <AlertTriangle size={14} aria-hidden="true" />
+              {`History is ${lag} ${lag === 1n ? 'block' : 'blocks'} behind the balance. Recent transfers may be missing.`}
+            </span>
+          )}
+        </div>
+        {!bounds.data.newest.length ? (
+          <div className="address-empty">
+            <Inbox size={32} aria-hidden="true" />
+            <h3>No indexed transfers found.</h3>
+            <p>Transfers to or from this address appear here once the indexer processes them.</p>
+          </div>
+        ) : maxId === null ? (
+          <div className="address-alert address-alert--history" role="alert">
+            <AlertTriangle size={16} aria-hidden="true" />
+            <span>Transfer history unavailable.</span>
+          </div>
+        ) : (
+          <TransferPages key={direction} address={address} direction={direction}
+            indexedHeight={indexedHeight} maxId={maxId.toString()} />
+        )}
       </>}
-  </>;
+    </section>
+  );
 }

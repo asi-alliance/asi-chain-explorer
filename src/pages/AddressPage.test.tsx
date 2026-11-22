@@ -45,7 +45,7 @@ test.each(['Enter', 'click'])('full address opens its balance without indexed tr
   fireEvent.change(input, { target: { value: address } });
   if (action === 'Enter') fireEvent.keyDown(input, { key: 'Enter' });
   else fireEvent.click(screen.getByRole('button', { name: 'View wallet address' }));
-  expect(await screen.findByText('20001.000000000000000001 ASI')).toBeInTheDocument();
+  expect(await screen.findByText('20,001.000000000000000001 ASI')).toBeInTheDocument();
   expect(screen.getByRole('link', { name: '#7294' })).toHaveAttribute('href', '/block/hash/' + hash);
   expect(await screen.findByText('No indexed transfers found.')).toBeInTheDocument();
   expect(screen.getByText('Indexed through block #7294.')).toBeInTheDocument();
@@ -195,12 +195,11 @@ test('keeps a stable cursor across inserts, back navigation and changes of direc
   fireEvent.click(screen.getByRole('button', { name: 'Next' }));
   expect(await ids()).toEqual([3, 2, 1]);
 
-  const direction = screen.getByRole('combobox', { name: 'Direction' });
-  fireEvent.change(direction, { target: { value: 'incoming' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Incoming' }));
   expect(await ids()).toEqual([22, 20, 18, 16, 14, 12, 10, 8, 6, 4, 2, 1]);
-  fireEvent.change(direction, { target: { value: 'outgoing' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Outgoing' }));
   expect(await ids()).toEqual([23, 21, 19, 17, 15, 13, 11, 9, 7, 5, 3, 1]);
-  fireEvent.change(direction, { target: { value: 'all' } });
+  fireEvent.click(screen.getByRole('button', { name: 'All transfers' }));
   expect(await ids()).toEqual(first);
   expect(screen.getByRole('button', { name: 'Previous' })).toBeDisabled();
   expect(boundsRead).toHaveBeenCalledTimes(1);
@@ -223,7 +222,7 @@ test('refresh loads the new balance and first page with the selected direction',
   const { link, boundsRead } = historySource(rows, () => height);
   show('/address/' + address, [], null, link);
   expect(await screen.findByText('100 ASI')).toBeInTheDocument();
-  fireEvent.change(screen.getByRole('combobox', { name: 'Direction' }), { target: { value: 'incoming' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Incoming' }));
   fireEvent.click(await screen.findByRole('button', { name: 'Next' }));
   expect(await screen.findByText('Page 2')).toBeInTheDocument();
   expect(await screen.findByRole('link', { name: 'View transaction' })).toHaveAttribute('href', '/transaction/1');
@@ -236,13 +235,38 @@ test('refresh loads the new balance and first page with the selected direction',
   expect(await screen.findByText('Indexed through block #11.')).toBeInTheDocument();
   expect(screen.getByText(/1 block behind the balance/)).toBeInTheDocument();
   expect(await screen.findByText('Page 1')).toBeInTheDocument();
-  expect(screen.getByRole('combobox', { name: 'Direction' })).toHaveValue('incoming');
+  expect(screen.getByRole('button', { name: 'Incoming' })).toHaveAttribute('aria-pressed', 'true');
   expect(screen.getByRole('button', { name: 'Previous' })).toBeDisabled();
   const links = screen.getAllByRole('link', { name: 'View transaction' });
   expect(links[0]).toHaveAttribute('href', '/transaction/22');
   expect(links.map(el => el.getAttribute('href'))).not.toContain('/transaction/23');
   expect(boundsRead).toHaveBeenCalledTimes(2);
   expect(fetchMock).toHaveBeenCalledTimes(2);
+});
+
+test('keeps the current balance visible while a refresh is in flight', async () => {
+  let finishRefresh!: (response: ReturnType<typeof balanceResponse>) => void;
+  fetchMock.mockResolvedValueOnce(balanceResponse('100', 10, hash))
+    .mockReturnValueOnce(new Promise(resolve => { finishRefresh = resolve; }));
+  show('/address/' + address);
+  expect(await screen.findByText('100 ASI')).toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: 'Refresh' }));
+  expect(screen.getByText('100 ASI')).toBeInTheDocument();
+  await act(async () => { finishRefresh(balanceResponse('110', 12, hash)); });
+  expect(await screen.findByText('110 ASI')).toBeInTheDocument();
+  expect(screen.getByRole('link', { name: '#12' })).toHaveAttribute('href', '/block/hash/' + hash);
+});
+
+test('a failed refresh keeps the last balance and reports the error', async () => {
+  fetchMock.mockResolvedValueOnce(balanceResponse('100', 10, hash))
+    .mockResolvedValueOnce({ ok: false, status: 503 });
+  show('/address/' + address);
+  expect(await screen.findByText('100 ASI')).toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: 'Refresh' }));
+  expect(await screen.findByRole('alert')).toHaveTextContent('Balance unavailable.');
+  expect(screen.getByText('100 ASI')).toBeInTheDocument();
+  expect(screen.getByText(/Last loaded at/)).toBeInTheDocument();
+  expect(screen.getByRole('link', { name: '#10' })).toHaveAttribute('href', '/block/hash/' + hash);
 });
 
 test('refresh supersedes in-flight balance and history reads', async () => {

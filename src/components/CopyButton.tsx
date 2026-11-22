@@ -6,6 +6,7 @@ export interface ICopyButtonProps {
     dataToCopy?: string;
     iconSize?: number;
     className?: string;
+    label?: string;
 }
 
 export interface IIconProps {
@@ -66,6 +67,7 @@ const CopyButton = ({
     dataToCopy,
     iconSize,
     className = "",
+    label = "Copy",
 }: ICopyButtonProps) => {
     const [isCopied, setIsCopied] = useState<boolean>(false);
     const timeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -107,7 +109,8 @@ const CopyButton = ({
             <button
                 onClick={runAction}
                 className={`copy-button ${className}`}
-                title={isCopied ? "Copied" : "Copy"}
+                aria-label={isCopied ? "Copied" : label}
+                title={isCopied ? "Copied" : label}
             >
                 {isCopied ? (
                     <CopiedIcon iconSize={iconSize} />
