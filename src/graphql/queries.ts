@@ -398,6 +398,34 @@ export const WATCH_PENDING_DEPLOYS = gql`
   }
 `;
 
+// Pending rows are deploy submissions, not transfers. This address filter reads
+// the deploys that the wallet submitted; the indexer has no recipient field.
+export const GET_ADDRESS_PENDING_DEPLOYS = gql`
+  ${PENDING_DEPLOY_FRAGMENT}
+  query GetAddressPendingDeploys($address: String!, $limit: Int!) {
+    pending_deploys(
+      where: { deployer_address: { _eq: $address } }
+      order_by: [{ timestamp: desc }, { sig: asc }]
+      limit: $limit
+    ) {
+      ...PendingDeployFragment
+    }
+  }
+`;
+
+export const WATCH_ADDRESS_PENDING_DEPLOYS = gql`
+  ${PENDING_DEPLOY_FRAGMENT}
+  subscription WatchAddressPendingDeploys($address: String!, $limit: Int!) {
+    pending_deploys(
+      where: { deployer_address: { _eq: $address } }
+      order_by: [{ timestamp: desc }, { sig: asc }]
+      limit: $limit
+    ) {
+      ...PendingDeployFragment
+    }
+  }
+`;
+
 // The indexer writes pending_deploys_status only while it reads validator
 // buffers (PENDING_DEPLOYS_NODES); without it the explorer hides the view.
 export const GET_PENDING_DEPLOYS_STATUS = gql`

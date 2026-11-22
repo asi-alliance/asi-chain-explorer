@@ -7,6 +7,7 @@ import { formatRaw, groupThousands, validateDecimals } from '../utils/amounts';
 import { isVaultAddress } from '../utils/addressPath';
 import { getBlockPath } from '../utils/blockPath';
 import { CURRENT_TOKEN } from '../utils/constants';
+import AddressPendingDeploys from '../components/AddressPendingDeploys';
 import AddressTransferHistory, { Direction } from '../components/AddressTransferHistory';
 import CopyButton from '../components/CopyButton';
 import '../styles/address.css';
@@ -179,6 +180,8 @@ function AddressView({ address }: { address: string }) {
           </p>
         </div>
       </section>
+
+      <AddressPendingDeploys address={address} />
 
       <AddressTransferHistory key={revision} address={address} balanceHeight={balance?.height}
         direction={direction} onDirectionChange={setDirection} />

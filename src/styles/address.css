@@ -268,6 +268,109 @@
     font-size: 0.85rem;
 }
 
+/* Pending deploys submitted by the wallet */
+
+.asi-card.address-pending {
+    margin-bottom: 0;
+    border-color: rgba(255, 184, 77, 0.24);
+}
+
+.address-pending__header {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: var(--spacing-md);
+    margin-bottom: var(--spacing-sm);
+}
+
+.address-pending__title {
+    display: flex;
+    gap: 0.75rem;
+    align-items: flex-start;
+    min-width: 0;
+}
+
+.address-pending__icon {
+    display: grid;
+    place-items: center;
+    flex: none;
+    width: 36px;
+    height: 36px;
+    border: 1px solid rgba(255, 184, 77, 0.22);
+    border-radius: 9px;
+    background: rgba(255, 184, 77, 0.09);
+    color: var(--warning-orange);
+}
+
+.address-pending__heading-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+}
+
+.address-pending h2 {
+    margin: 0;
+}
+
+.address-pending__subtitle {
+    max-width: 62ch;
+    margin: 0.25rem 0 0;
+    color: var(--text-tertiary);
+    font-size: 0.8rem;
+}
+
+.address-pending__count {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 20px;
+    height: 20px;
+    padding: 0 6px;
+    border-radius: 999px;
+    background: rgba(255, 184, 77, 0.14);
+    color: var(--warning-orange);
+    font-size: 0.72rem;
+    font-weight: 700;
+}
+
+.address-pending__live {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--text-tertiary);
+    font-size: 0.72rem;
+    white-space: nowrap;
+}
+
+.address-pending__dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--asi-lime);
+    box-shadow: 0 0 6px rgba(147, 226, 124, 0.5);
+}
+
+.address-pending__live.is-polling .address-pending__dot {
+    background: var(--warning-orange);
+    box-shadow: none;
+}
+
+.address-pending__table {
+    min-width: 620px;
+}
+
+.address-pending__note {
+    margin: 0.75rem 0 0;
+    color: var(--text-tertiary);
+    font-size: 0.78rem;
+}
+
+.address-pending .address-alert {
+    margin: 0.75rem 0 0;
+}
+
 /* Transfer history */
 
 .address-history {

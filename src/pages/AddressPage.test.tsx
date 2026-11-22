@@ -15,6 +15,9 @@ jest.mock('react-router-dom', () => {
   return jest.requireActual('react-router');
 });
 
+// Covered by AddressPendingDeploys.test.tsx; the page tests need no status provider.
+jest.mock('../components/AddressPendingDeploys', () => () => null);
+
 const address = '1111x5QCpTeTXakyVzda9zAVyo6vnSG2WTd9TJ3n93LmMYRhzZouR';
 const hash = 'ab'.repeat(32);
 const fetchMock = jest.fn();

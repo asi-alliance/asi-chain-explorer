@@ -317,7 +317,11 @@ number and transfer ID in descending order. Select **Refresh** to fetch the late
 finalized balance and return to the first page of newly indexed history with the
 same direction filter. A refresh keeps the previous balance visible while the
 lookup runs; if the lookup fails, the page reports the error and labels the block
-as the last loaded one.
+as the last loaded one. When the indexer tracks pending deploys, the page also
+lists the latest deploys that this address submitted, above the indexed transfers.
+These are deploy submissions, not transfers: they do not change the finalized
+balance and do not appear as transfer rows. Incoming pending transfers stay
+invisible until their deploy executes and the indexer stores the block.
 Set that server-side URL to the monitoring endpoint reachable from the explorer
 container. Compose supplies a host-gateway alias for the default host port 9090;
 on a shared Docker network it can instead be `http://asi-indexer:9090/status`.
