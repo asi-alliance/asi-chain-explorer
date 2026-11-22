@@ -159,6 +159,17 @@ const TransactionDetailPage: React.FC = () => {
   return <TransactionDetail key={transactionId} transactionId={transactionId} />;
 };
 
+const TransferParty: React.FC<{ label: string; address: string }> = ({ label, address }) => (
+  <div>
+    <div style={{ color: '#9ca3af', fontSize: '0.75rem', letterSpacing: '0.04em', marginBottom: '0.2rem', textTransform: 'uppercase' }}>
+      {label}
+    </div>
+    <div className="mono" style={{ fontSize: '0.875rem', lineHeight: 1.5, wordBreak: 'break-all' }}>
+      <WalletAddressLink address={address} />
+    </div>
+  </div>
+);
+
 const TransactionDetail: React.FC<{ transactionId?: string }> = ({ transactionId }) => {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<'overview' | 'code' | 'transfers' | 'block'>('overview');
@@ -681,7 +692,7 @@ Exported at: ${new Date().toLocaleString()}
             gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
             gap: '1rem'
           }}>
-            {transfers.slice(0, 4).map((transfer: any, index: number) => (
+            {transfers.slice(0, 4).map((transfer: any) => (
               <div
                 key={transfer.id}
                 style={{
@@ -710,13 +721,9 @@ Exported at: ${new Date().toLocaleString()}
                     {transferStatusView(transfer.status).label}
                   </span>
                 </div>
-                <div style={{ fontSize: '0.875rem', color: '#d1d5db' }}>
-                  <div style={{ marginBottom: '0.25rem' }}>
-                    <strong>From:</strong> <WalletAddressLink address={transfer.from_address} short />
-                  </div>
-                  <div>
-                    <strong>To:</strong> <WalletAddressLink address={transfer.to_address} short />
-                  </div>
+                <div style={{ display: 'grid', gap: '0.65rem' }}>
+                  <TransferParty label="From" address={transfer.from_address} />
+                  <TransferParty label="To" address={transfer.to_address} />
                 </div>
               </div>
             ))}

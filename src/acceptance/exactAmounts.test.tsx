@@ -138,6 +138,23 @@ test('deploy details keep exact 18-decimal, legacy 8-decimal, zero, smallest, 2^
   expect(screen.getByText('Dust: 1000000000000000001')).toBeInTheDocument();
 });
 
+test('deploy overview shows full transfer addresses instead of shortened labels', async () => {
+  const sender = '1111x5QCpTeTXakyVzda9zAVyo6vnSG2WTd9TJ3n93LmMYRhzZouR';
+  const receiver = '11112HCvTdobZGUsaSKBLRSh6XW4kY3RNQFeKj4VMqXxHz2AYS2LyH';
+  mountDeploy(op => (op === 'GetTransactionDetails' ? json({
+    deployments: [deployment({ transfers: [
+      { ...transfer('1', '1000000000000000000', 18), from_address: sender, to_address: receiver },
+    ] })],
+  }) : undefined));
+
+  expect(await screen.findByRole('link', { name: sender }))
+    .toHaveAttribute('href', `/address/${encodeURIComponent(sender)}`);
+  expect(screen.getByRole('link', { name: receiver }))
+    .toHaveAttribute('href', `/address/${encodeURIComponent(receiver)}`);
+  expect(screen.queryByText('1111x5QC…hzZouR')).not.toBeInTheDocument();
+  expect(screen.queryByText('11112HCv…S2LyH')).not.toBeInTheDocument();
+});
+
 test('deploy details keep exact int64 phlo cost, phlo limit beyond 2^53 and uint256 phlo price', async () => {
   mountDeploy(op => (op === 'GetTransactionDetails' ? json({ deployments: [deployment()] }) : undefined));
   expect(await screen.findByText(INT64_MAX)).toBeInTheDocument();
