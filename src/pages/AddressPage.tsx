@@ -175,7 +175,7 @@ function AddressView({ address }: { address: string }) {
             Indexer finalized state
           </p>
           <p className="address-note">
-            Only finalized transfers are included. Pending or unfinalized transfers are not counted.
+            Only finalized transfers are included in this balance. Pending or unfinalized transfers are not counted.
           </p>
         </div>
       </section>

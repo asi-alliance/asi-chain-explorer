@@ -132,6 +132,7 @@
 }
 
 .address-refresh {
+    gap: 8px;
     padding: 10px 16px;
     line-height: 20px;
 }
@@ -473,6 +474,7 @@
 }
 
 .address-pagination .btn {
+    gap: 6px;
     padding: 8px 14px;
     font-size: 0.8rem;
 }
