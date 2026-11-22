@@ -347,7 +347,7 @@ Exported at: ${new Date().toLocaleString()}
         </>}
         {watchExpired && seenInBuffer && <>
           <h2>Deploy status unavailable</h2>
-          <p>The deploy left the pending view before the indexer recorded it in a block.</p>
+          <p>The deploy was still pending when the three-minute watch ended. It may still be in a validator buffer.</p>
         </>}
         {!watchExpired && <h2>Transaction details unavailable</h2>}
         <p role="status">{watchExpired ? 'Automatic updates stopped after three minutes.' :
@@ -366,6 +366,19 @@ Exported at: ${new Date().toLocaleString()}
 
   if (leftBuffer && !statusError && transactionId) {
     return <PendingDeployLeftBuffer sig={transactionId} />;
+  }
+
+  // The inclusion watch is still running: this is not a terminal not-found state.
+  if (awaitingIndexer && !statusError) {
+    return (
+      <section className="asi-card">
+        <h2>Deploy not indexed yet</h2>
+        <p>Transaction {transactionId} has not been indexed in a block yet.</p>
+        <p className="text-muted" role="status">
+          This page keeps checking for three minutes and updates automatically when the deploy is indexed.
+        </p>
+      </section>
+    );
   }
 
   if (error || !transaction) {

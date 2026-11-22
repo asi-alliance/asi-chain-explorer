@@ -93,6 +93,7 @@ test('releases per-deploy subscriptions when the wait expires and resumes on req
   requested.length = 0;
   act(() => { jest.advanceTimersByTime(180_000); });
   expect(screen.getByRole('heading', { name: 'Deploy status unavailable' })).toBeInTheDocument();
+  expect(screen.getByText(/still pending when the three-minute watch ended/)).toBeInTheDocument();
   expect(screen.getByRole('status')).toHaveTextContent('Automatic updates stopped');
   expect(requested).not.toContain('WatchDeploymentIndexed');
   expect(requested).not.toContain('WatchPendingDeploy');
@@ -131,14 +132,15 @@ test('subscribes to the pending deploy by the looked-up signature', () => {
 test('does not look for a pending deploy when the indexer does not track pending deploys', () => {
   const { requested } = renderLookup({ enabled: false, pending: { data: { pending_deploys: [pending] } } });
 
-  expect(screen.getByRole('heading', { name: 'Transaction Not Found' })).toBeInTheDocument();
+  expect(screen.getByRole('heading', { name: 'Deploy not indexed yet' })).toBeInTheDocument();
   expect(requested).not.toContain('WatchPendingDeploy');
   expect(requested).not.toContain('GetPendingDeploy');
 });
 
-test('keeps "not found" for a deploy that is neither indexed nor pending', () => {
+test('keeps checking while a deploy that is neither indexed nor pending may still arrive', () => {
   renderLookup({ pending: { data: { pending_deploys: [] } } });
-  expect(screen.getByRole('heading', { name: 'Transaction Not Found' })).toBeInTheDocument();
+  expect(screen.getByRole('heading', { name: 'Deploy not indexed yet' })).toBeInTheDocument();
+  expect(screen.getByRole('status')).toHaveTextContent('keeps checking for three minutes');
 });
 
 const socketFailure = { error: new Error('WebSocket unavailable') };
@@ -155,7 +157,7 @@ test.each([true, false])('reports an unavailable status after both pending reads
 
   // The HTTP fallback confirms an empty buffer on the next successful poll.
   update({ pendingHttp: { data: { pending_deploys: [] } } });
-  expect(screen.getByRole('heading', { name: seen ? 'Waiting for the Indexer' : 'Transaction Not Found' }))
+  expect(screen.getByRole('heading', { name: seen ? 'Waiting for the Indexer' : 'Deploy not indexed yet' }))
     .toBeInTheDocument();
 });
 

@@ -96,6 +96,11 @@ test('shows an included deploy with its block link', () => {
     .toHaveAttribute('href', '/block/hash/' + hash);
 });
 
+test('notes when the address has more than the visible limit', () => {
+  show(ADDRESS_PENDING_LIMIT);
+  expect(screen.getByText(`Showing the latest ${ADDRESS_PENDING_LIMIT} pending deploys.`)).toBeInTheDocument();
+});
+
 test('renders nothing while the indexer does not track pending deploys', () => {
   (usePendingDeploysStatus as jest.Mock).mockReturnValue({
     status: null, loading: false, error: undefined, live: false,

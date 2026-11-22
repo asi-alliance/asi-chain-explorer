@@ -14,8 +14,11 @@ export function createApolloClient(config: Pick<PublicConfig, 'graphqlUrl' | 'gr
   const wsLink = new GraphQLWsLink(createClient({
     url: config.graphqlWsUrl,
     connectionAckWaitTimeout: 5_000,
-    // Surface a missing ack to the HTTP fallback immediately. Other close events
-    // keep graphql-ws reconnect behavior, and useLiveQuery retries the socket.
+    // useLiveQuery owns the retry loop: one failed reconnect is enough to start
+    // the HTTP fallback, and the hook restarts the socket every 30 seconds. The
+    // graphql-ws default of five retries would delay a blocked upgrade by 30-45 s.
+    retryAttempts: 1,
+    // Surface a missing ack to the HTTP fallback immediately.
     shouldRetry: event => typeof event === 'object' && event !== null &&
       'code' in event && 'reason' in event && event.code !== CloseCode.ConnectionAcknowledgementTimeout,
   }));

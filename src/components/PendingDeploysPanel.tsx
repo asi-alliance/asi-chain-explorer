@@ -33,7 +33,7 @@ const PendingDeploysPanel: React.FC = () => {
 
   let body: React.ReactNode;
   if (error) {
-    body = <p className="text-muted" role="status">Pending deploys are not available: {error.message}</p>;
+    body = <p className="text-error" role="alert">Pending deploys are not available: {error.message}</p>;
   } else if (loading) {
     body = <p className="text-muted" role="status">Loading pending deploys...</p>;
   } else if (!status.status) {
@@ -87,7 +87,7 @@ const PendingDeploysPanel: React.FC = () => {
                         <motion.tr key={deploy.sig} layout={reducedMotion ? false : 'position'}
                           animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={fade}>
                           <td className="hash-cell">
-                            <Link to={`/transaction/${deploy.sig}`} className="mono" title={deploy.sig}>
+                            <Link to={`/transaction/${encodeURIComponent(deploy.sig)}`} className="mono" title={deploy.sig}>
                               {shortKey(deploy.sig)}
                             </Link>
                           </td>

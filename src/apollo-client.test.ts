@@ -50,4 +50,5 @@ test('opens subscriptions on the configured WebSocket endpoint without connectio
   const options = calls[calls.length - 1][0];
   expect(options.url).toBe(CONFIG.graphqlWsUrl);
   expect(options.connectionParams).toBeUndefined();
+  expect(options.retryAttempts).toBe(1);
 });

@@ -430,7 +430,7 @@ export const WATCH_ADDRESS_PENDING_DEPLOYS = gql`
 // buffers (PENDING_DEPLOYS_NODES); without it the explorer hides the view.
 export const GET_PENDING_DEPLOYS_STATUS = gql`
   query GetPendingDeploysStatus {
-    indexer_state(where: { key: { _in: ["pending_deploys_status", "pending_deploys_total_available"] } }) {
+    indexer_state(where: { key: { _eq: "pending_deploys_status" } }) {
       key
       value
       updated_at
@@ -440,7 +440,7 @@ export const GET_PENDING_DEPLOYS_STATUS = gql`
 
 export const WATCH_PENDING_DEPLOYS_STATUS = gql`
   subscription WatchPendingDeploysStatus {
-    indexer_state(where: { key: { _in: ["pending_deploys_status", "pending_deploys_total_available"] } }) {
+    indexer_state(where: { key: { _eq: "pending_deploys_status" } }) {
       key
       value
       updated_at

@@ -134,7 +134,7 @@ test('reports a failed query instead of an empty list', () => {
     listFallback: { error: new Error('field "pending_deploys" not found') },
   });
 
-  expect(screen.getByRole('status')).toHaveTextContent('not available');
+  expect(screen.getByRole('alert')).toHaveTextContent('not available');
   expect(screen.queryByRole('table')).not.toBeInTheDocument();
   expect(screen.queryByLabelText('Pending deploy count')).not.toBeInTheDocument();
 });
