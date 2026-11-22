@@ -83,6 +83,7 @@ test('shows a pending deploy instead of "not found" and reloads when the deploy 
 
   update({ indexed: { data: { deployments: [{ __typename: 'deployments', deploy_id: SIG }] } } });
   await waitFor(() => expect(screen.getByRole('button', { name: 'Check again' })).toBeInTheDocument());
+  expect(screen.getByRole('heading', { name: 'Transaction details unavailable' })).toBeInTheDocument();
   expect(refetch).toHaveBeenCalledTimes(1);
 });
 
@@ -91,6 +92,7 @@ test('releases per-deploy subscriptions when the wait expires and resumes on req
   const { requested } = renderLookup({ pending: { data: { pending_deploys: [pending] } } });
   requested.length = 0;
   act(() => { jest.advanceTimersByTime(180_000); });
+  expect(screen.getByRole('heading', { name: 'Deploy status unavailable' })).toBeInTheDocument();
   expect(screen.getByRole('status')).toHaveTextContent('Automatic updates stopped');
   expect(requested).not.toContain('WatchDeploymentIndexed');
   expect(requested).not.toContain('WatchPendingDeploy');
