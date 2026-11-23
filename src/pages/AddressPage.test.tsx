@@ -48,12 +48,34 @@ test.each(['Enter', 'click'])('full address opens its balance without indexed tr
   fireEvent.change(input, { target: { value: address } });
   if (action === 'Enter') fireEvent.keyDown(input, { key: 'Enter' });
   else fireEvent.click(screen.getByRole('button', { name: 'View wallet address' }));
-  expect(await screen.findByText('20,001.000000000000000001 ASI')).toBeInTheDocument();
+  expect(await screen.findByText('20,001 ASI')).toBeInTheDocument();
+  expect(screen.getByTitle('20,001.000000000000000001 ASI')).toHaveTextContent('20,001');
   expect(screen.getByRole('link', { name: '#7294' })).toHaveAttribute('href', '/block/hash/' + hash);
   expect(await screen.findByText('No indexed transfers found.')).toBeInTheDocument();
   expect(screen.getByText('Indexed through block #7294.')).toBeInTheDocument();
   expect(screen.queryByText(/behind the balance/)).not.toBeInTheDocument();
   expect(fetchMock).toHaveBeenCalledWith('/api/indexer/address/' + address, expect.anything());
+});
+
+test('shows eight decimals by default and the exact balance on hover', async () => {
+  fetchMock.mockResolvedValue({ ok: true, json: async () => ({
+    address, balance: '899999999999999998091895', token_decimals: 18, block_hash: hash, block_number: 7294,
+  }) });
+  show('/address/' + address);
+  expect(await screen.findByText('899,999.99999999 ASI')).toBeInTheDocument();
+  expect(screen.getByTitle('899,999.999999999998091895 ASI')).toHaveTextContent('899,999.99999999');
+});
+
+test('retries a failed balance read from the warning', async () => {
+  fetchMock.mockResolvedValueOnce({ ok: false, status: 503 })
+    .mockResolvedValueOnce({ ok: false, status: 503 })
+    .mockResolvedValueOnce({ ok: false, status: 503 })
+    .mockResolvedValueOnce(balanceResponse('42', 7294, hash));
+  show('/address/' + address);
+  expect(await screen.findByRole('alert', {}, { timeout: 4000 })).toHaveTextContent('Balance unavailable.');
+  fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
+  expect(await screen.findByText('42 ASI')).toBeInTheDocument();
+  expect(screen.queryByRole('alert')).not.toBeInTheDocument();
 });
 
 test('a malformed transfer amount preserves the finalized balance', async () => {
@@ -74,9 +96,11 @@ test('retries a busy balance lookup once after Retry-After', async () => {
     await act(async () => { jest.advanceTimersByTime(999); });
     expect(fetchMock).toHaveBeenCalledTimes(1);
     await act(async () => { jest.advanceTimersByTime(1); });
-    expect(screen.getByRole('alert')).toHaveTextContent('Balance unavailable');
-    await act(async () => { jest.advanceTimersByTime(1000); });
     expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    await act(async () => { jest.advanceTimersByTime(1000); });
+    expect(screen.getByRole('alert')).toHaveTextContent('Balance unavailable');
+    expect(fetchMock).toHaveBeenCalledTimes(3);
   } finally {
     jest.useRealTimers();
   }
@@ -86,7 +110,7 @@ test('a failed balance read preserves indexed history', async () => {
   fetchMock.mockResolvedValue({ ok: false, status: 503 });
   show('/address/' + address, [{ id: '1', deploy_id: 'aa', from_address: address, to_address: address,
     amount_asi: '0.000000000000000001', block_number: 123 }]);
-  expect(await screen.findByRole('alert')).toHaveTextContent('Balance unavailable');
+  expect(await screen.findByRole('alert', {}, { timeout: 4000 })).toHaveTextContent('Balance unavailable');
   expect(await screen.findByText('0.000000000000000001 ASI')).toBeInTheDocument();
   expect(screen.getByText('Indexed through block #7294.')).toBeInTheDocument();
   expect(screen.queryByText(/behind the balance/)).not.toBeInTheDocument();
@@ -206,7 +230,7 @@ test('keeps a stable cursor across inserts, back navigation and changes of direc
   expect(await ids()).toEqual(first);
   expect(screen.getByRole('button', { name: 'Previous' })).toBeDisabled();
   expect(boundsRead).toHaveBeenCalledTimes(1);
-  expect(fetchMock).toHaveBeenCalledTimes(1);
+  expect(fetchMock.mock.calls[0][0]).toBe('/api/indexer/address/' + address);
 });
 
 function balanceResponse(balance: string, height: number, blockHash: string) {
@@ -262,17 +286,17 @@ test('keeps the current balance visible while a refresh is in flight', async () 
 
 test('a failed refresh keeps the last balance and reports the error', async () => {
   fetchMock.mockResolvedValueOnce(balanceResponse('100', 10, hash))
-    .mockResolvedValueOnce({ ok: false, status: 503 });
+    .mockResolvedValue({ ok: false, status: 503 });
   show('/address/' + address);
   expect(await screen.findByText('100 ASI')).toBeInTheDocument();
   fireEvent.click(screen.getByRole('button', { name: 'Refresh' }));
-  expect(await screen.findByRole('alert')).toHaveTextContent('Balance unavailable.');
+  expect(await screen.findByRole('alert', {}, { timeout: 4000 })).toHaveTextContent('Balance unavailable.');
   expect(screen.getByText('100 ASI')).toBeInTheDocument();
   expect(screen.getByText(/Last loaded at/)).toBeInTheDocument();
   expect(screen.getByRole('link', { name: '#10' })).toHaveAttribute('href', '/block/hash/' + hash);
 });
 
-test('refresh supersedes in-flight balance and history reads', async () => {
+test('refresh supersedes in-flight balance and history reads without cancelling them', async () => {
   let finishBalance!: (response: ReturnType<typeof balanceResponse>) => void;
   fetchMock.mockReturnValueOnce(new Promise(resolve => { finishBalance = resolve; }))
     .mockResolvedValueOnce(balanceResponse('110', 12, hash));
@@ -296,5 +320,6 @@ test('refresh supersedes in-flight balance and history reads', async () => {
   });
   expect(screen.getByText('110 ASI')).toBeInTheDocument();
   expect(screen.getByText('Indexed through block #12.')).toBeInTheDocument();
-  expect(fetchMock.mock.calls[0][1].signal.aborted).toBe(true);
+  // The superseded read is ignored rather than cancelled on the shared connection.
+  expect(fetchMock.mock.calls[0][1].signal.aborted).toBe(false);
 });

@@ -40,6 +40,19 @@ export function groupThousands(text: string): string {
   return fraction === undefined ? grouped : `${grouped}.${fraction}`;
 }
 
+/**
+ * Cuts the fraction to at most `decimals` digits without rounding, so a shown
+ * balance never claims more funds than the account holds. Trailing zeros are
+ * removed; the untouched value stays available for a tooltip.
+ */
+export function truncateDecimal(text: string, decimals = 8): string {
+  validateDecimals(decimals);
+  if (!/^\d+(?:\.\d+)?$/.test(text)) return text;
+  const [whole, fraction = ''] = text.split('.');
+  const kept = fraction.slice(0, decimals).replace(/0+$/, '');
+  return kept ? `${whole}.${kept}` : whole;
+}
+
 export function decimalText(value: unknown): string {
   if (typeof value === "number" && !Number.isSafeInteger(value)) {
     throw new Error("Decimal amounts must use strings");

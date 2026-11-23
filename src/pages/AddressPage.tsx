@@ -3,7 +3,7 @@ import { Link, useParams } from 'react-router-dom';
 import { format } from 'date-fns';
 import { AlertTriangle, ArrowLeft, CheckCircle2, RefreshCw, Wallet } from 'lucide-react';
 import { getPublicConfig } from '../runtimeConfig';
-import { formatRaw, groupThousands, validateDecimals } from '../utils/amounts';
+import { formatRaw, groupThousands, truncateDecimal, validateDecimals } from '../utils/amounts';
 import { isVaultAddress } from '../utils/addressPath';
 import { getBlockPath } from '../utils/blockPath';
 import { CURRENT_TOKEN } from '../utils/constants';
@@ -28,15 +28,20 @@ interface BalanceState {
 
 const INITIAL_BALANCE_STATE: BalanceState = { error: '', loading: true, refreshing: false };
 
+const BALANCE_TIMEOUT_MS = 30_000;
+const BALANCE_ATTEMPTS = 3;
+const BALANCE_RETRY_MS = 1_000;
+
 /**
  * Reads the finalized spendable balance. A refresh keeps the previous snapshot
- * visible while the next one loads, and supersedes any read still in flight.
+ * visible while the next one loads and supersedes any read still in flight.
+ * Transient failures get up to two retries; a busy indexer still supplies its
+ * own delay.
  */
 function useAddressBalance(address: string, revision: number): BalanceState {
   const [state, setState] = useState<BalanceState>(INITIAL_BALANCE_STATE);
 
   useEffect(() => {
-    const controller = new AbortController();
     let active = true;
     let retryTimer: ReturnType<typeof setTimeout> | undefined;
     let timeout: ReturnType<typeof setTimeout> | undefined;
@@ -48,19 +53,21 @@ function useAddressBalance(address: string, revision: number): BalanceState {
       refreshing: previous.balance !== undefined,
     }));
 
-    async function load(canRetry: boolean) {
-      timeout = setTimeout(() => controller.abort(), 30000);
+    async function load(attemptsLeft: number, honorBusyDelay: boolean) {
+      if (!active) return;
+      const controller = new AbortController();
+      timeout = setTimeout(() => controller.abort(), BALANCE_TIMEOUT_MS);
       try {
         const base = getPublicConfig().indexerApiUrl.replace(/\/+$/, '');
         const response = await fetch(`${base}/address/${encodeURIComponent(address)}`,
           { signal: controller.signal, cache: 'no-store' });
         if (!active) return;
-        if (canRetry && response.status === 503) {
-          const delay = response.headers?.get('Retry-After');
-          if (delay && /^\d+$/.test(delay) && Number(delay) < 30) {
-            retryTimer = setTimeout(() => { void load(false); }, Number(delay) * 1000);
-            return;
-          }
+        if (response.status === 503 && attemptsLeft > 1) {
+          const retryAfter = response.headers?.get('Retry-After');
+          const delay = honorBusyDelay && retryAfter && /^\d+$/.test(retryAfter) && Number(retryAfter) < 30
+            ? Number(retryAfter) * 1000 : BALANCE_RETRY_MS;
+          retryTimer = setTimeout(() => { void load(attemptsLeft - 1, false); }, delay);
+          return;
         }
         if (response.status === 400) {
           setState(previous => ({ ...previous, error: 'Invalid ASI address.', loading: false, refreshing: false }));
@@ -83,20 +90,25 @@ function useAddressBalance(address: string, revision: number): BalanceState {
           updatedAt: new Date(),
         });
       } catch {
-        if (active) {
-          setState(previous => ({ ...previous, error: 'Balance unavailable.', loading: false, refreshing: false }));
+        if (!active) return;
+        if (attemptsLeft > 1) {
+          retryTimer = setTimeout(() => { void load(attemptsLeft - 1, false); }, BALANCE_RETRY_MS);
+          return;
         }
+        setState(previous => ({ ...previous, error: 'Balance unavailable.', loading: false, refreshing: false }));
       } finally {
         if (timeout) clearTimeout(timeout);
       }
     }
 
-    void load(true);
+    void load(BALANCE_ATTEMPTS, true);
     return () => {
       active = false;
       if (retryTimer) clearTimeout(retryTimer);
-      if (timeout) clearTimeout(timeout);
-      controller.abort();
+      // Keep the read alive when the page is left. Aborting it during a
+      // client-side navigation can leave the next balance read queued behind
+      // the canceled stream; the request is idempotent and its timeout still
+      // bounds it.
     };
   }, [address, revision]);
 
@@ -108,6 +120,20 @@ function AddressView({ address }: { address: string }) {
   const [revision, setRevision] = useState(0);
   const { balance, error, loading, refreshing, updatedAt } = useAddressBalance(address, revision);
   const busy = loading || refreshing;
+
+  // A browser may restore this document from its back/forward cache after the
+  // balance was last read. Refresh it instead of showing a stale snapshot.
+  useEffect(() => {
+    const refreshAfterRestore = (event: PageTransitionEvent) => {
+      if (event.persisted) setRevision(value => value + 1);
+    };
+    window.addEventListener('pageshow', refreshAfterRestore);
+    return () => window.removeEventListener('pageshow', refreshAfterRestore);
+  }, []);
+
+  const exactBalance = balance ? `${groupThousands(balance.amount)} ${CURRENT_TOKEN}` : '';
+  const compactBalance = balance ? truncateDecimal(balance.amount) : '';
+  const truncated = balance ? compactBalance !== balance.amount : false;
 
   return (
     <div className="address-page">
@@ -148,11 +174,16 @@ function AddressView({ address }: { address: string }) {
             <div className="address-alert" role="alert">
               <AlertTriangle size={16} aria-hidden="true" />
               <span>{error}</span>
+              <button type="button" className="btn btn-secondary address-retry"
+                onClick={() => setRevision(value => value + 1)}>Retry</button>
             </div>
           )}
           {balance ? (
             <div className="address-balance__value">
-              {groupThousands(balance.amount)} {CURRENT_TOKEN}
+              <span className={truncated ? 'address-precision' : undefined}
+                title={truncated ? exactBalance : undefined}>
+                {groupThousands(compactBalance)} {CURRENT_TOKEN}
+              </span>
             </div>
           ) : loading ? (
             <>

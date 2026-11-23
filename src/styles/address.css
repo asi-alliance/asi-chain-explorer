@@ -179,6 +179,17 @@
     overflow-wrap: anywhere;
 }
 
+/* The shown balance is cut to eight decimals; hovering reveals the exact value. */
+.address-precision {
+    text-decoration: underline dotted rgba(147, 226, 124, 0.45);
+    text-underline-offset: 5px;
+    cursor: help;
+}
+
+.address-precision:hover {
+    text-decoration-color: var(--asi-lime);
+}
+
 .address-foot {
     margin: 0;
     color: var(--text-secondary);
@@ -235,6 +246,14 @@
 .address-alert svg {
     flex: none;
     margin-top: 2px;
+}
+
+.address-alert .address-retry {
+    flex: none;
+    margin-left: auto;
+    padding: 4px 10px;
+    font-size: 0.75rem;
+    line-height: 1.4;
 }
 
 .address-alert--history {

@@ -1,4 +1,4 @@
-import { decimalRaw, decimalText, formatRaw, groupThousands, normalizedRaw, rawInteger, percentage } from './amounts';
+import { decimalRaw, decimalText, formatRaw, groupThousands, normalizedRaw, rawInteger, percentage, truncateDecimal } from './amounts';
 
 test('keeps raw units exact through display and parsing', () => {
   for (const raw of [2n**53n+1n, 2n**63n, 2n**128n, 2n**256n-1n]) {
@@ -36,6 +36,16 @@ test('groups thousands without changing the exact value', () => {
   expect(groupThousands('0.000000000000000001')).toBe('0.000000000000000001');
   expect(groupThousands('12345678901234567890')).toBe('12,345,678,901,234,567,890');
   expect(groupThousands('not a number')).toBe('not a number');
+});
+
+test('cuts the displayed fraction without rounding up', () => {
+  expect(truncateDecimal('899999.999999999998091895')).toBe('899999.99999999');
+  expect(truncateDecimal('1.000000001')).toBe('1');
+  expect(truncateDecimal('1.2345678901')).toBe('1.23456789');
+  expect(truncateDecimal('42')).toBe('42');
+  expect(truncateDecimal('0.000000000000000001')).toBe('0');
+  expect(truncateDecimal('1.234', 2)).toBe('1.23');
+  expect(truncateDecimal('not a number')).toBe('not a number');
 });
 
 test.each([-1, 78, 1.5, NaN])('rejects invalid decimal precision %p', decimals => {
