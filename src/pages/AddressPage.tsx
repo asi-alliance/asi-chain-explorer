@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useId, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { format } from 'date-fns';
 import { AlertTriangle, ArrowLeft, CheckCircle2, RefreshCw, Wallet } from 'lucide-react';
@@ -105,10 +105,8 @@ function useAddressBalance(address: string, revision: number): BalanceState {
     return () => {
       active = false;
       if (retryTimer) clearTimeout(retryTimer);
-      // Keep the read alive when the page is left. Aborting it during a
-      // client-side navigation can leave the next balance read queued behind
-      // the canceled stream; the request is idempotent and its timeout still
-      // bounds it.
+      // Keep the read alive when the page is left. It is idempotent, bounded
+      // by its timeout, and the next mount performs its own read.
     };
   }, [address, revision]);
 
@@ -131,6 +129,7 @@ function AddressView({ address }: { address: string }) {
     return () => window.removeEventListener('pageshow', refreshAfterRestore);
   }, []);
 
+  const exactBalanceId = useId();
   const exactBalance = balance ? `${groupThousands(balance.amount)} ${CURRENT_TOKEN}` : '';
   const compactBalance = balance ? truncateDecimal(balance.amount) : '';
   const truncated = balance ? compactBalance !== balance.amount : false;
@@ -182,10 +181,13 @@ function AddressView({ address }: { address: string }) {
             <div className="address-balance__value">
               <span className={truncated ? 'address-precision' : undefined}
                 data-exact={truncated ? exactBalance : undefined}
-                aria-label={truncated ? exactBalance : undefined}
+                aria-describedby={truncated ? exactBalanceId : undefined}
                 tabIndex={truncated ? 0 : undefined}>
                 {groupThousands(compactBalance)} {CURRENT_TOKEN}
               </span>
+              {truncated && (
+                <span id={exactBalanceId} className="address-sr">{exactBalance}</span>
+              )}
             </div>
           ) : loading ? (
             <>

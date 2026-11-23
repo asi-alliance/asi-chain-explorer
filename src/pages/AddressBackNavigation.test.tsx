@@ -91,3 +91,17 @@ test('keeps an in-flight balance read alive when leaving the page', async () => 
   expect(screen.getByText('110 ASI')).toBeInTheDocument();
   expect(screen.queryByText('Balance unavailable.')).not.toBeInTheDocument();
 });
+
+test('refreshes the balance after a back/forward-cache restore', async () => {
+  fetchMock.mockResolvedValueOnce(balance(addressA, '100'))
+    .mockResolvedValueOnce(balance(addressA, '120'));
+  show();
+  expect(await screen.findByText('100 ASI')).toBeInTheDocument();
+
+  const restore = new Event('pageshow');
+  Object.defineProperty(restore, 'persisted', { value: true });
+  fireEvent(window, restore);
+
+  expect(await screen.findByText('120 ASI')).toBeInTheDocument();
+  expect(fetchMock).toHaveBeenCalledTimes(2);
+});

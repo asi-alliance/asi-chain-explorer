@@ -51,6 +51,10 @@ test.each(['Enter', 'click'])('full address opens its balance without indexed tr
   const compact = await screen.findByText('20,001 ASI');
   expect(compact).toBeInTheDocument();
   expect(compact).toHaveAttribute('data-exact', '20,001.000000000000000001 ASI');
+  const exactId = compact.getAttribute('aria-describedby');
+  expect(exactId).toBeTruthy();
+  expect(document.getElementById(exactId as string))
+    .toHaveTextContent('20,001.000000000000000001 ASI');
   expect(screen.getByRole('link', { name: '#7294' })).toHaveAttribute('href', '/block/hash/' + hash);
   expect(await screen.findByText('No indexed transfers found.')).toBeInTheDocument();
   expect(screen.getByText('Indexed through block #7294.')).toBeInTheDocument();
@@ -67,6 +71,10 @@ test('shows eight decimals by default and the exact balance on hover', async () 
   expect(compact).toBeInTheDocument();
   expect(compact).toHaveAttribute('data-exact', '899,999.999999999998091895 ASI');
   expect(compact).toHaveAttribute('tabindex', '0');
+  const exactId = compact.getAttribute('aria-describedby');
+  expect(exactId).toBeTruthy();
+  expect(document.getElementById(exactId as string))
+    .toHaveTextContent('899,999.999999999998091895 ASI');
 });
 
 test('retries a failed balance read from the warning', async () => {

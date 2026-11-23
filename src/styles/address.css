@@ -216,10 +216,23 @@
 }
 
 .address-precision:hover::after,
-.address-precision:focus-visible::after {
+.address-precision:focus::after {
     opacity: 1;
     visibility: visible;
     transform: translateY(0);
+}
+
+/* Exact balance for screen readers; the visible text keeps the compact form. */
+.address-sr {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
 }
 
 .address-foot {
