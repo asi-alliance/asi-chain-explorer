@@ -181,7 +181,9 @@ function AddressView({ address }: { address: string }) {
           {balance ? (
             <div className="address-balance__value">
               <span className={truncated ? 'address-precision' : undefined}
-                title={truncated ? exactBalance : undefined}>
+                data-exact={truncated ? exactBalance : undefined}
+                aria-label={truncated ? exactBalance : undefined}
+                tabIndex={truncated ? 0 : undefined}>
                 {groupThousands(compactBalance)} {CURRENT_TOKEN}
               </span>
             </div>

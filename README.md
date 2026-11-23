@@ -318,10 +318,10 @@ finalized balance and return to the first page of newly indexed history with the
 same direction filter. A refresh keeps the previous balance visible while the
 lookup runs; if the lookup fails, the page reports the error and labels the block
 as the last loaded one. The balance keeps at most eight decimals, truncated
-without rounding up, and its hover title holds the exact amount. A failed read
-is retried twice; the warning offers **Retry**, and leaving the page does not
-cancel a read that is still in flight. A back/forward-cache restore refreshes
-the snapshot. When the indexer tracks pending deploys, the page also
+without rounding up; hover or focus it to see the exact amount in a tooltip. A
+failed read is retried twice; the warning offers **Retry**, and leaving the page
+does not cancel a read that is still in flight. A back/forward-cache restore
+refreshes the snapshot. When the indexer tracks pending deploys, the page also
 lists the latest deploys that this address submitted, above the indexed transfers.
 These are deploy submissions, not transfers: they do not change the finalized
 balance and do not appear as transfer rows. Incoming pending transfers stay

@@ -48,8 +48,9 @@ test.each(['Enter', 'click'])('full address opens its balance without indexed tr
   fireEvent.change(input, { target: { value: address } });
   if (action === 'Enter') fireEvent.keyDown(input, { key: 'Enter' });
   else fireEvent.click(screen.getByRole('button', { name: 'View wallet address' }));
-  expect(await screen.findByText('20,001 ASI')).toBeInTheDocument();
-  expect(screen.getByTitle('20,001.000000000000000001 ASI')).toHaveTextContent('20,001');
+  const compact = await screen.findByText('20,001 ASI');
+  expect(compact).toBeInTheDocument();
+  expect(compact).toHaveAttribute('data-exact', '20,001.000000000000000001 ASI');
   expect(screen.getByRole('link', { name: '#7294' })).toHaveAttribute('href', '/block/hash/' + hash);
   expect(await screen.findByText('No indexed transfers found.')).toBeInTheDocument();
   expect(screen.getByText('Indexed through block #7294.')).toBeInTheDocument();
@@ -62,8 +63,10 @@ test('shows eight decimals by default and the exact balance on hover', async () 
     address, balance: '899999999999999998091895', token_decimals: 18, block_hash: hash, block_number: 7294,
   }) });
   show('/address/' + address);
-  expect(await screen.findByText('899,999.99999999 ASI')).toBeInTheDocument();
-  expect(screen.getByTitle('899,999.999999999998091895 ASI')).toHaveTextContent('899,999.99999999');
+  const compact = await screen.findByText('899,999.99999999 ASI');
+  expect(compact).toBeInTheDocument();
+  expect(compact).toHaveAttribute('data-exact', '899,999.999999999998091895 ASI');
+  expect(compact).toHaveAttribute('tabindex', '0');
 });
 
 test('retries a failed balance read from the warning', async () => {
