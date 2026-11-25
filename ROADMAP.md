@@ -30,6 +30,8 @@ lives in
 - Mobile search panel and height overview.
 - A 404 page for unknown paths, with the attempted path, the chain search
   and recovery links.
+- Absolute favicon and manifest links for every route, and no missing
+  `/favicon.svg` request in the browser console.
 - Route-level code splitting: the home page ships with the shell, while charts
   and the syntax highlighter load only on the pages that use them. Removed the
   unused `react-window`, `react-virtualized`, `react-qr-code` and `react-csv`
@@ -48,7 +50,7 @@ Tracked in
 
 - [ ] Mobile Recent Blocks: sticky Height column, or a card view below 600 px.
 - [ ] Loading skeletons and explicit error/retry states for stats, Recent
-      Blocks and height summaries. Remove the `/favicon.svg` 404.
+      Blocks and height summaries.
 - [ ] Keep the Home search/filter state in the URL so back/forward and copied
       links restore it.
 - [ ] Add a compact status legend to Recent Blocks (Confirmed / Unfinalized).
