@@ -2,7 +2,7 @@
     "name": "explorer",
     "version": "0.1.0",
     "private": true,
-    "homepage": ".",
+    "homepage": "/",
     "dependencies": {
         "@apollo/client": "^3.13.9",
         "@graphql-codegen/cli": "^5.0.7",
