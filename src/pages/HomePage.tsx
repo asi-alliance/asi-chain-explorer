@@ -32,7 +32,7 @@ const HomePage: React.FC = () => {
     const [currentPage, setCurrentPage] = useState(1);
     const [searchQuery, setSearchQuery] = useState("");
     const [validatorFilter, setValidatorFilter] = useState("");
-    const [unfinalizedOnly, setUnfinalizedOnly] = useState(false);
+    const [finalizedOnly, setFinalizedOnly] = useState(false);
     const [debouncedQuery, setDebouncedQuery] = useState("");
     const [debouncedValidator, setDebouncedValidator] = useState("");
     const blocksPerPage = 20;
@@ -49,7 +49,7 @@ const HomePage: React.FC = () => {
 
     useEffect(() => {
         setCurrentPage(1);
-    }, [debouncedQuery, debouncedValidator, unfinalizedOnly]);
+    }, [debouncedQuery, debouncedValidator, finalizedOnly]);
 
     // Get initial network statistics with polling
     const { data: statsData, loading: statsLoading } = useQuery(
@@ -68,11 +68,11 @@ const HomePage: React.FC = () => {
     const searchTerm = debouncedQuery.trim();
     const validatorTerm = debouncedValidator.trim();
     const isSearching = searchTerm.length > 0;
-    const isFiltering = isSearching || unfinalizedOnly || validatorTerm.length > 0;
+    const isFiltering = isSearching || finalizedOnly || validatorTerm.length > 0;
     const isNumericSearch = /^\d+$/.test(searchTerm);
     const filterStatements: object[] = [];
-    if (unfinalizedOnly) {
-        filterStatements.push({ finalization_status: { _neq: 'finalized' } });
+    if (finalizedOnly) {
+        filterStatements.push({ finalization_status: { _eq: 'finalized' } });
     }
     if (validatorTerm) {
         filterStatements.push({ proposer: { _ilike: searchPattern(validatorTerm) } });
@@ -337,10 +337,10 @@ const HomePage: React.FC = () => {
                     <label className="home-filter-row__check">
                         <input
                             type="checkbox"
-                            checked={unfinalizedOnly}
-                            onChange={(event) => setUnfinalizedOnly(event.target.checked)}
+                            checked={finalizedOnly}
+                            onChange={(event) => setFinalizedOnly(event.target.checked)}
                         />
-                        Unfinalized only
+                        Finalized only
                     </label>
                     <label className="home-filter-row__validator">
                         Validator
@@ -351,12 +351,12 @@ const HomePage: React.FC = () => {
                             onChange={(event) => setValidatorFilter(event.target.value)}
                         />
                     </label>
-                    {(unfinalizedOnly || validatorFilter) && (
+                    {(finalizedOnly || validatorFilter) && (
                         <button
                             type="button"
                             className="home-filter-row__clear"
                             onClick={() => {
-                                setUnfinalizedOnly(false);
+                                setFinalizedOnly(false);
                                 setValidatorFilter("");
                             }}
                         >
