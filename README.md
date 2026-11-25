@@ -59,6 +59,8 @@ The system indexes blockchain data including blocks, deployments, transfers, val
 - **Validator Dashboard**: Current validators with stake distribution; inactive validators are listed separately and are not counted in totals
 - **Network Statistics**: Simplified Network Dashboard view
 - **Genesis Funding**: Complete visibility of initial token distribution
+- **Shareable views**: Home filters (`?q=`, `?finalized=1`), the `/transactions` tab (`?tab=transfers`) and transaction detail tabs (`?tab=code`, `?tab=transfers`, `?tab=block`) live in the URL; every route also sets a descriptive browser title
+- **Mobile Recent Blocks**: below 600 px the Height column stays pinned while the table scrolls horizontally
 - **Route fallback**: Unknown paths render a 404 page with the attempted path, chain search and recovery links; the legacy `/blocks` path redirects to `/`
 
 ## Architecture
@@ -350,12 +352,12 @@ resolves before nginx starts.
 
 ## Available Pages
 
-- `/` - Home dashboard with network overview and Recent Blocks with a footer CSV export
+- `/` - Home dashboard with network overview and Recent Blocks with a footer CSV export; `?q=` and `?finalized=1` preserve the filters
 - `/blocks` - Redirects to `/`; the home page is the block list
 - `/block/:blockNumber`, `/block/hash/:blockHash` - Block details; a height with several DAG siblings shows the height overview
-- `/transactions` - Transaction list with one icon tab row and a footer CSV export
+- `/transactions` - Transaction list with one icon tab row and a footer CSV export; `?tab=transfers` opens the Transfers tab
 - `/pending` - Deploys in the validators' deploy buffers that no indexed block includes yet (the navigation tab appears only when the indexer tracks pending deploys)
-- `/transaction/:transactionId` - Deploy details: executed fee in ASI, code, transfers with native transfer calls and block. Shows one copyable ID, a status tooltip, local and relative timestamps; block-0 records carry a Genesis label. A pending deploy shows its pending state until it is indexed.
+- `/transaction/:transactionId` - Deploy details: executed fee in ASI, code, transfers with native transfer calls and block. Shows one copyable ID, a status tooltip, local and relative timestamps; block-0 records carry a Genesis label. `?tab=code`, `?tab=transfers` and `?tab=block` open a tab directly. A pending deploy shows its pending state until it is indexed.
 - `/validators` - Current validators; inactive validators in a separate table
 - `/validator-history` - Validator history
 - `/statistics` - Network Dashboard only
@@ -401,7 +403,7 @@ docker rmi asi-explorer:latest
 
 ## Performance Metrics
 
-- **Initial JS**: ~227 kB gzip for the shell and home page
+- **Initial JS**: ~228 kB gzip for the shell and home page
 - **On-demand chunks**: Statistics (charts) ~135 kB gzip; the transaction detail vendor chunk (code highlighter and toast styles) ~227 kB gzip
 - **Recent Blocks**: 2 s polling, also while the finalized-only filter is on; a text search pauses it
 - **Live pending data**: WebSocket subscriptions with a 5 s HTTP fallback
@@ -491,8 +493,8 @@ Docker builds accept the same build argument. Changing a display setting does no
 rescale tokens or upgrade a chain's denomination.
 
 Validation: `CI=true npm test -- --watchAll=false --runInBand`,
-`npx tsc --noEmit`, and `npm run build`. The suite currently has 369 tests
-in 37 suites.
+`npx tsc --noEmit`, and `npm run build`. The suite currently has 372 tests
+in 38 suites.
 The `Tests` workflow runs these checks on pull requests to `dev` and `main` and
 on pushes to `dev`. Its build runs with `CI=true`, so a lint warning fails the
 check. The Docker build does not set `CI`; run `CI=true npm run build` locally

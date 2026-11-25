@@ -1,9 +1,11 @@
 import React, {
     useState,
+    useEffect,
     useMemo,
     useRef,
 } from "react";
 import { useQuery, gql, useLazyQuery } from "@apollo/client";
+import { useSearchParams } from "react-router-dom";
 import { motion } from "framer-motion";
 import {
   RefreshCw,
@@ -127,19 +129,39 @@ interface TransactionTrackerImprovedProps {
     embedded?: boolean;
 }
 
+type TransactionTab = "deployments" | "transfers";
+
+const tabFromParam = (value: string | null): TransactionTab => (
+    value === "transfers" ? "transfers" : "deployments"
+);
+
 const TransactionTrackerImproved: React.FC<TransactionTrackerImprovedProps> = ({
     onTransactionSelect,
     embedded = false,
 }) => {
     const debounceRef = useRef<NodeJS.Timeout | undefined>(undefined);
+    const [searchParams, setSearchParams] = useSearchParams();
     // State
-    const [activeTab, setActiveTab] = useState<"deployments" | "transfers">(
-        "deployments"
-    );
+    const [activeTab, setActiveTab] = useState<TransactionTab>(tabFromParam(searchParams.get("tab")));
     // const [activeTab, setActiveTab] = useState<'all' | 'deployments' | 'transfers'>('all');
     const [currentPage, setCurrentPage] = useState(1);
     const [itemsPerPage, setItemsPerPage] = useState(20);
     const [searchQuery, setSearchQuery] = useState("");
+
+    useEffect(() => {
+        const tab = tabFromParam(searchParams.get("tab"));
+        setActiveTab(previous => previous === tab ? previous : tab);
+        setCurrentPage(1);
+    }, [searchParams]);
+
+    const selectTab = (tab: TransactionTab) => {
+        setActiveTab(tab);
+        setCurrentPage(1);
+        const next = new URLSearchParams(searchParams);
+        if (tab === "transfers") next.set("tab", "transfers");
+        else next.delete("tab");
+        setSearchParams(next);
+    };
 
     // Fetch total counts
     const { data: countsData } = useQuery(GET_TRANSACTION_COUNTS, {
@@ -380,10 +402,8 @@ const TransactionTrackerImproved: React.FC<TransactionTrackerImprovedProps> = ({
                         <button
                             className="text-1"
                             key={tab}
-                            onClick={() => {
-                                setActiveTab(tab);
-                                setCurrentPage(1);
-                            }}
+                            onClick={() => selectTab(tab)}
+                            aria-pressed={activeTab === tab}
                             style={{
                                 display: "flex",
                                 alignItems: "center",

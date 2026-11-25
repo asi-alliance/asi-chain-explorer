@@ -573,6 +573,27 @@ code, .code {
     }
 }
 
+@media (max-width: 600px) {
+    .recent-blocks-table {
+        overflow: visible;
+        border-radius: 0;
+    }
+
+    .recent-blocks-table th:first-child,
+    .recent-blocks-table td:first-child {
+        position: sticky;
+        left: 0;
+        z-index: 2;
+        background: var(--charcoal-700);
+        box-shadow: 1px 0 0 var(--border-color);
+    }
+
+    .recent-blocks-table thead th:first-child {
+        z-index: 3;
+        background: var(--charcoal-500);
+    }
+}
+
 /* Scrollbar Styling */
 ::-webkit-scrollbar {
     width: 10px;

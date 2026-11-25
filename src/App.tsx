@@ -4,6 +4,7 @@ import { ApolloClient, ApolloProvider } from "@apollo/client";
 import { PendingDeploysStatusProvider } from "./hooks/usePendingDeploysStatus";
 import Layout from "./components/Layout";
 import RouteFallback from "./components/RouteFallback";
+import RouteTitle from "./components/RouteTitle";
 import HomePage from "./pages/HomePage";
 import FeedbackForm from "./components/community/FeedbackForm";
 import "./styles/global.css";
@@ -33,6 +34,7 @@ function App({ client }: { client: ApolloClient<unknown> }) {
     return (
         <ExplorerProviders client={client}>
             <Router>
+                <RouteTitle />
                 <Layout>
                     <Suspense fallback={<RouteFallback />}>
                         <Routes>

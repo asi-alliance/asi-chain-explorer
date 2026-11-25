@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useQuery, gql } from "@apollo/client";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import {
     GET_NETWORK_STATS,
     GET_LATEST_BLOCKS,
@@ -29,11 +29,36 @@ const GET_RECENT_BLOCKS = gql`
 `;
 
 const HomePage: React.FC = () => {
+    const [searchParams, setSearchParams] = useSearchParams();
+    const initialQuery = searchParams.get("q") ?? "";
+    const initialFinalized = searchParams.get("finalized") === "1";
     const [currentPage, setCurrentPage] = useState(1);
-    const [searchQuery, setSearchQuery] = useState("");
-    const [finalizedOnly, setFinalizedOnly] = useState(false);
-    const [debouncedQuery, setDebouncedQuery] = useState("");
+    const [searchQuery, setSearchQuery] = useState(initialQuery);
+    const [finalizedOnly, setFinalizedOnly] = useState(initialFinalized);
+    const [debouncedQuery, setDebouncedQuery] = useState(initialQuery);
     const blocksPerPage = 20;
+
+    useEffect(() => {
+        const query = searchParams.get("q") ?? "";
+        const finalized = searchParams.get("finalized") === "1";
+        setSearchQuery(previous => previous === query ? previous : query);
+        setDebouncedQuery(previous => previous === query ? previous : query);
+        setFinalizedOnly(previous => previous === finalized ? previous : finalized);
+    }, [searchParams]);
+
+    useEffect(() => {
+        const query = debouncedQuery.trim();
+        const urlQuery = searchParams.get("q") ?? "";
+        const urlFinalized = searchParams.get("finalized") === "1";
+        if (query === urlQuery && finalizedOnly === urlFinalized) return;
+
+        const next = new URLSearchParams(searchParams);
+        if (query) next.set("q", query);
+        else next.delete("q");
+        if (finalizedOnly) next.set("finalized", "1");
+        else next.delete("finalized");
+        setSearchParams(next, { replace: true });
+    }, [debouncedQuery, finalizedOnly, searchParams, setSearchParams]);
 
     useEffect(() => {
         const timer = window.setTimeout(() => setDebouncedQuery(searchQuery), 250);
@@ -286,6 +311,9 @@ const HomePage: React.FC = () => {
                                     onClick={() => {
                                         setSearchQuery("");
                                         setCurrentPage(1);
+                                        const next = new URLSearchParams(searchParams);
+                                        next.delete("q");
+                                        setSearchParams(next);
                                     }}
                                 >
                                     Clear
@@ -317,7 +345,14 @@ const HomePage: React.FC = () => {
                         <input
                             type="checkbox"
                             checked={finalizedOnly}
-                            onChange={(event) => setFinalizedOnly(event.target.checked)}
+                            onChange={(event) => {
+                                const checked = event.target.checked;
+                                setFinalizedOnly(checked);
+                                const next = new URLSearchParams(searchParams);
+                                if (checked) next.set("finalized", "1");
+                                else next.delete("finalized");
+                                setSearchParams(next);
+                            }}
                         />
                         Finalized only
                     </label>
@@ -325,7 +360,12 @@ const HomePage: React.FC = () => {
                         <button
                             type="button"
                             className="home-filter-row__clear"
-                            onClick={() => setFinalizedOnly(false)}
+                            onClick={() => {
+                                setFinalizedOnly(false);
+                                const next = new URLSearchParams(searchParams);
+                                next.delete("finalized");
+                                setSearchParams(next);
+                            }}
                         >
                             Clear filter
                         </button>
@@ -343,7 +383,7 @@ const HomePage: React.FC = () => {
                     </div>
                 ) : (
                     <div style={{ overflowX: "auto" }}>
-                        <table>
+                        <table className="recent-blocks-table">
                             <thead className="text-1">
                                 <tr>
                                     <th scope="col" title="Block height. A height can contain several DAG sibling blocks.">Height</th>

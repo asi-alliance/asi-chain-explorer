@@ -1,5 +1,6 @@
 import React from 'react';
 import { render, screen } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
 import { useLazyQuery, useQuery } from '@apollo/client';
 import TransactionTrackerImproved from './TransactionTrackerImproved';
 
@@ -8,6 +9,11 @@ jest.mock('@apollo/client', () => ({
   useQuery: jest.fn(),
   useLazyQuery: jest.fn(),
 }));
+jest.mock('react-router-dom', () => {
+  Object.assign(global, { TextEncoder: require('util').TextEncoder });
+  // CRA's Jest resolver predates react-router-dom's react-router/dom export.
+  return jest.requireActual('react-router');
+});
 
 const deployments = Array.from({ length: 20 }, (_, index) => ({
   __typename: 'deployments',
@@ -47,7 +53,7 @@ afterEach(() => {
 });
 
 test('shows one icon tab row and a single export footer instead of the old summary bar', () => {
-  render(<TransactionTrackerImproved />);
+  render(<MemoryRouter initialEntries={['/transactions']}><TransactionTrackerImproved /></MemoryRouter>);
 
   expect(screen.getByRole('button', { name: 'Deployments (51)' })).toBeInTheDocument();
   expect(screen.getByRole('button', { name: 'Transfers (21)' })).toBeInTheDocument();
@@ -55,4 +61,11 @@ test('shows one icon tab row and a single export footer instead of the old summa
   expect(screen.queryByText('72 Total')).not.toBeInTheDocument();
   expect(screen.getByText('Showing 1-20 of 51')).toBeInTheDocument();
   expect(screen.getByRole('button', { name: 'Export recent deployments as CSV' })).toBeInTheDocument();
+});
+
+test('opens the transfers tab from the URL', () => {
+  render(<MemoryRouter initialEntries={['/transactions?tab=transfers']}><TransactionTrackerImproved /></MemoryRouter>);
+
+  expect(screen.getByRole('button', { name: 'Transfers (21)' })).toHaveAttribute('aria-pressed', 'true');
+  expect(screen.getByRole('button', { name: 'Deployments (51)' })).toHaveAttribute('aria-pressed', 'false');
 });

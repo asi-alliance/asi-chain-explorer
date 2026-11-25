@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
+import { useParams, useNavigate, Link, useSearchParams } from 'react-router-dom';
 import WalletAddressLink from '../components/WalletAddressLink';
 import { useQuery } from '@apollo/client';
 import { motion } from 'framer-motion';
@@ -115,6 +115,13 @@ const TransactionDetailPage: React.FC = () => {
   return <TransactionDetail key={transactionId} transactionId={transactionId} />;
 };
 
+const DETAIL_TABS = ['overview', 'code', 'transfers', 'block'] as const;
+type DetailTab = typeof DETAIL_TABS[number];
+
+const detailTabFromParam = (value: string | null): DetailTab => (
+  DETAIL_TABS.includes(value as DetailTab) ? value as DetailTab : 'overview'
+);
+
 const TransferParty: React.FC<{ label: string; address: string }> = ({ label, address }) => (
   <div>
     <div style={{ color: '#9ca3af', fontSize: '0.75rem', letterSpacing: '0.04em', marginBottom: '0.2rem', textTransform: 'uppercase' }}>
@@ -128,8 +135,22 @@ const TransferParty: React.FC<{ label: string; address: string }> = ({ label, ad
 
 const TransactionDetail: React.FC<{ transactionId?: string }> = ({ transactionId }) => {
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState<'overview' | 'code' | 'transfers' | 'block'>('overview');
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [activeTab, setActiveTab] = useState<DetailTab>(detailTabFromParam(searchParams.get('tab')));
   const [showRawData, setShowRawData] = useState(false);
+
+  useEffect(() => {
+    const tab = detailTabFromParam(searchParams.get('tab'));
+    setActiveTab(previous => previous === tab ? previous : tab);
+  }, [searchParams]);
+
+  const selectTab = (tab: DetailTab) => {
+    setActiveTab(tab);
+    const next = new URLSearchParams(searchParams);
+    if (tab === 'overview') next.delete('tab');
+    else next.set('tab', tab);
+    setSearchParams(next);
+  };
 
   const { data, loading, error, refetch } = useQuery(GET_TRANSACTION_DETAILS, {
     variables: { deployId: transactionId },
@@ -687,7 +708,7 @@ Exported at: ${new Date().toLocaleString()}
           {transfers.length > 4 && (
             <div style={{ textAlign: 'center', marginTop: '1rem' }}>
               <button
-                onClick={() => setActiveTab('transfers')}
+                onClick={() => selectTab('transfers')}
                 style={{
                   padding: '0.5rem 1rem',
                   border: '1px solid #3b82f6',
@@ -1131,7 +1152,8 @@ Exported at: ${new Date().toLocaleString()}
         {tabs.map((tab) => (
           <button
             key={tab.key}
-            onClick={() => setActiveTab(tab.key as any)}
+            onClick={() => selectTab(tab.key as DetailTab)}
+            aria-pressed={activeTab === tab.key}
             style={{
               flex: 1,
               padding: '0.75rem 1rem',

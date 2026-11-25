@@ -54,6 +54,12 @@ lives in
 - CSV export is a labeled `Export CSV` action in the table footer for blocks,
   deployments and transfers, with an entity-specific accessible name and the
   existing filenames.
+- Home search and finalized-only filters, the `/transactions` tab and
+  transaction detail tabs are URL-backed and survive copy/share.
+- Below 600 px the Recent Blocks Height column stays pinned while the table
+  scrolls horizontally.
+- Every route sets a descriptive browser title; unknown paths report
+  `Page not found`.
 - Transaction tabs wrap on narrow screens instead of overflowing the page.
 
 ## Frontend-only next
@@ -61,17 +67,10 @@ lives in
 Tracked in
 [asi-chain-explorer#83](https://github.com/asi-alliance/asi-chain-explorer/issues/83).
 
-- [ ] Mobile Recent Blocks: sticky Height column, or a card view below 600 px.
 - [ ] Loading skeletons and explicit error/retry states for stats, Recent
       Blocks and height summaries.
-- [ ] Keep the Home search/filter state in the URL so back/forward and copied
-      links restore it.
 - [ ] Add a compact status legend to Recent Blocks (Confirmed / Unfinalized).
 - [ ] Revisit the home filter row on narrow screens after the mobile table work.
-
-Also planned:
-
-- [ ] Per-page `document.title`; every route currently reports `Explorer`.
 
 ## Blocked by the indexer / Hasura
 
