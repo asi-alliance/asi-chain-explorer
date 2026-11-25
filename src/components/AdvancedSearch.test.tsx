@@ -1,7 +1,7 @@
 import React from 'react';
 import { ApolloClient, ApolloLink, ApolloProvider, InMemoryCache, Observable } from '@apollo/client';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import AdvancedSearch from './AdvancedSearch';
 
 jest.mock('react-router-dom', () => {
@@ -10,36 +10,36 @@ jest.mock('react-router-dom', () => {
   return jest.requireActual('react-router');
 });
 
-function collect(filter: any, field: string, found: any[] = []): any[] {
-  if (Array.isArray(filter)) filter.forEach(part => collect(part, field, found));
-  else if (filter && typeof filter === 'object') {
-    Object.entries(filter).forEach(([key, value]) => key === field ? found.push(value) : collect(value, field, found));
-  }
-  return found;
+const address = '1111x5QCpTeTXakyVzda9zAVyo6vnSG2WTd9TJ3n93LmMYRhzZouR';
+const block = {
+  block_number: '42',
+  block_hash: 'ab'.repeat(32),
+  proposer: 'validator',
+  timestamp: '1700000000000',
+};
+
+function clientWith(link: ApolloLink) {
+  return new ApolloClient({ cache: new InMemoryCache(), link });
 }
 
-async function search(text: string) {
+async function search(text: string, data: any = { blocks: [], transfers: [], deployments: [] }) {
   const requests: any[] = [];
-  const client = new ApolloClient({
-    cache: new InMemoryCache(),
-    link: new ApolloLink(operation => {
-      requests.push(operation.variables);
-      return Observable.of({ data: { blocks: [], transfers: [], deployments: [] } });
-    }),
-  });
-  const view = render(<ApolloProvider client={client}><MemoryRouter><AdvancedSearch /></MemoryRouter></ApolloProvider>);
-  fireEvent.change(screen.getByPlaceholderText(/Search blocks/), { target: { value: text } });
+  const client = clientWith(new ApolloLink(operation => {
+    requests.push(operation.variables);
+    return Observable.of({ data });
+  }));
+  const view = render(
+    <ApolloProvider client={client}>
+      <MemoryRouter><AdvancedSearch /></MemoryRouter>
+    </ApolloProvider>
+  );
+  const input = screen.getByRole('combobox');
+  fireEvent.change(input, { target: { value: text } });
   await waitFor(() => expect(requests).toHaveLength(1));
   // The input keeps exactly what was typed.
-  expect(screen.getByPlaceholderText(/Search blocks/)).toHaveValue(text);
+  expect(input).toHaveValue(text);
   view.unmount();
-  const variables = requests[0];
-  return {
-    heights: collect(variables.blocks_where, 'block_number'),
-    blockText: collect(variables.blocks_where, 'block_hash'),
-    transferText: collect(variables.transfers_where, 'deploy_id'),
-    deploymentText: collect(variables.deployments_where, 'deploy_id'),
-  };
+  return requests[0] as { pattern: string; height: string };
 }
 
 test.each([
@@ -49,40 +49,115 @@ test.each([
   ['42'],
   ['0'],
 ])('sends exact height %s without Number rounding (issue #62)', async text => {
-  const result = await search(text);
-  expect(result.heights).toEqual([{ _eq: text }]);
-  expect(result.blockText).toEqual([]);
-  expect(result.transferText).toEqual([{ _ilike: `%${text}%` }]);
-  expect(result.deploymentText).toEqual([{ _ilike: `%${text}%` }]);
+  const variables = await search(text);
+  expect(variables.height).toBe(text);
+  expect(variables.pattern).toBe(`%${text}%`);
 });
 
 test('rejects out-of-range heights instead of substituting another block', async () => {
-  const result = await search('9223372036854775808');
-  expect(result.heights).toEqual([]);
-  expect(result.blockText).toEqual([{ _ilike: '%9223372036854775808%' }]);
+  const variables = await search('9223372036854775808');
+  expect(variables.height).toBe('-1');
+  expect(variables.pattern).toBe('%9223372036854775808%');
 });
 
 test('keeps leading zeros for text matches while querying the canonical height', async () => {
-  const result = await search('0012');
-  expect(result.heights).toEqual([{ _eq: '12' }]);
-  expect(result.transferText).toEqual([{ _ilike: '%0012%' }]);
-  expect(result.deploymentText).toEqual([{ _ilike: '%0012%' }]);
+  const variables = await search('0012');
+  expect(variables.height).toBe('12');
+  expect(variables.pattern).toBe('%0012%');
 });
 
 test.each(['1e3', '0x12', '1.5', '-1', 'abc123'])('treats %p as text, not a coerced height', async text => {
-  const result = await search(text);
-  expect(result.heights).toEqual([]);
-  expect(result.blockText).toEqual([{ _ilike: `%${text}%` }]);
-  expect(result.deploymentText).toEqual([{ _ilike: `%${text}%` }]);
+  const variables = await search(text);
+  expect(variables.height).toBe('-1');
+  expect(variables.pattern).toBe(`%${text}%`);
+});
+
+test('escapes LIKE wildcards instead of matching every row', async () => {
+  const variables = await search('a%b_c');
+  expect(variables.pattern).toBe('%a\\%b\\_c%');
+});
+
+test('shows grouped results, de-duplicates one deploy, and links to the full search', async () => {
+  const deployId = 'deploy-1';
+  const client = clientWith(new ApolloLink(() => Observable.of({ data: {
+    blocks: [block],
+    deployments: [{ deploy_id: deployId, block_number: '42', timestamp: '1700000000000',
+      deployer: 'key', deployer_address: address, errored: false }],
+    transfers: [{ id: '7', deploy_id: deployId, block_number: '42', timestamp: '1700000000000',
+      from_address: address, to_address: '1111recipient', amount_asi: '5', status: 'success' }],
+  } })));
+  render(<ApolloProvider client={client}><MemoryRouter><AdvancedSearch /></MemoryRouter></ApolloProvider>);
+  fireEvent.change(screen.getByRole('combobox'), { target: { value: deployId } });
+
+  const listbox = await screen.findByRole('listbox');
+  const options = within(listbox).getAllByRole('option');
+  expect(options).toHaveLength(2);
+  expect(options.map(option => option.textContent)).toEqual([
+    expect.stringContaining('Block #42'),
+    expect.stringContaining('Transaction deploy-1'),
+  ]);
+  expect(screen.getByRole('link', { name: 'See all results' }))
+    .toHaveAttribute('href', `/search?q=${deployId}`);
+});
+
+test('a full wallet address opens the address page without querying Hasura', async () => {
+  const requests: any[] = [];
+  const client = clientWith(new ApolloLink(operation => {
+    requests.push(operation.variables);
+    return Observable.of({ data: { blocks: [], transfers: [], deployments: [] } });
+  }));
+  render(<ApolloProvider client={client}><MemoryRouter><AdvancedSearch /></MemoryRouter></ApolloProvider>);
+  fireEvent.change(screen.getByRole('combobox'), { target: { value: address } });
+
+  expect(await screen.findByRole('link', { name: /Wallet address/ }))
+    .toHaveAttribute('href', `/address/${encodeURIComponent(address)}`);
+  expect(requests).toHaveLength(0);
+});
+
+test('keyboard navigation opens the first result', async () => {
+  const client = clientWith(new ApolloLink(() => Observable.of({ data: {
+    blocks: [block], transfers: [], deployments: [],
+  } })));
+  render(
+    <ApolloProvider client={client}>
+      <MemoryRouter initialEntries={['/']}>
+        <Routes>
+          <Route path="/" element={<AdvancedSearch />} />
+          <Route path="/block/hash/:blockHash" element={<p>block page</p>} />
+        </Routes>
+      </MemoryRouter>
+    </ApolloProvider>
+  );
+  const input = screen.getByRole('combobox');
+  fireEvent.change(input, { target: { value: '42' } });
+  await screen.findByRole('listbox');
+
+  fireEvent.keyDown(input, { key: 'ArrowDown' });
+  fireEvent.keyDown(input, { key: 'Enter' });
+  expect(await screen.findByText('block page')).toBeInTheDocument();
+});
+
+test('clicking outside closes an open panel', async () => {
+  const client = clientWith(new ApolloLink(() => Observable.of({ data: {
+    blocks: [block], transfers: [], deployments: [],
+  } })));
+  render(<ApolloProvider client={client}><MemoryRouter><AdvancedSearch /></MemoryRouter></ApolloProvider>);
+  fireEvent.change(screen.getByRole('combobox'), { target: { value: '42' } });
+  await screen.findByRole('listbox');
+
+  fireEvent.mouseDown(document.body);
+  expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
 });
 
 test('reports an HTTP-200 GraphQL error envelope instead of "No results"', async () => {
-  const client = new ApolloClient({
-    cache: new InMemoryCache(),
-    link: new ApolloLink(() => Observable.of({ errors: [{ message: 'statement timeout' } as any] })),
-  });
-  render(<ApolloProvider client={client}><MemoryRouter><AdvancedSearch /></MemoryRouter></ApolloProvider>);
-  fireEvent.change(screen.getByPlaceholderText(/Search blocks/), { target: { value: '42' } });
-  expect(await screen.findByRole('alert')).toHaveTextContent('Search failed: statement timeout');
-  expect(screen.queryByText(/No results found/)).not.toBeInTheDocument();
+  const consoleError = jest.spyOn(console, 'error').mockImplementation(() => {});
+  try {
+    const client = clientWith(new ApolloLink(() => Observable.of({ errors: [{ message: 'statement timeout' } as any] })));
+    render(<ApolloProvider client={client}><MemoryRouter><AdvancedSearch /></MemoryRouter></ApolloProvider>);
+    fireEvent.change(screen.getByRole('combobox'), { target: { value: '42' } });
+    expect(await screen.findByRole('alert')).toHaveTextContent('Search is temporarily unavailable.');
+    expect(screen.queryByText(/No results/)).not.toBeInTheDocument();
+  } finally {
+    consoleError.mockRestore();
+  }
 });

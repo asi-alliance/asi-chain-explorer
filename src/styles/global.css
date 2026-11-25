@@ -607,9 +607,35 @@ code, .code {
 
 .header-right {
     display: flex;
+    flex: 1 1 auto;
     gap: 1.5rem;
     align-items: center;
+    justify-content: flex-end;
+    min-width: 0;
     z-index: 5;
+}
+
+/* Global search takes the space the old 400px box left unused. */
+.global-search-slot {
+    flex: 1 1 380px;
+    min-width: 0;
+    max-width: 720px;
+}
+
+@media (max-width: 900px) {
+    .header-right {
+        flex-basis: 100%;
+    }
+
+    .global-search-slot {
+        max-width: none;
+    }
+}
+
+@media (max-width: 600px) {
+    .header-right {
+        gap: 0.75rem;
+    }
 }
 
 .advanced-searcher option{

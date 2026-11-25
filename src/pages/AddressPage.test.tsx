@@ -44,10 +44,10 @@ test.each(['Enter', 'click'])('full address opens its balance without indexed tr
     address, balance: '20001000000000000000001', token_decimals: 18, block_hash: hash, block_number: 7294,
   }) });
   show('/');
-  const input = screen.getByPlaceholderText(/Search blocks/);
+  const input = screen.getByRole('combobox');
   fireEvent.change(input, { target: { value: address } });
   if (action === 'Enter') fireEvent.keyDown(input, { key: 'Enter' });
-  else fireEvent.click(screen.getByRole('button', { name: 'View wallet address' }));
+  else fireEvent.click(screen.getByRole('link', { name: /Wallet address/ }));
   const compact = await screen.findByText('20,001 ASI');
   expect(compact).toBeInTheDocument();
   expect(compact).toHaveAttribute('data-exact', '20,001.000000000000000001 ASI');

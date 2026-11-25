@@ -69,7 +69,7 @@ test('submitting a wallet address searches deployments when that type is selecte
   fireEvent.change(screen.getByLabelText('Result type'), { target: { value: 'deployments' } });
   fireEvent.change(screen.getByRole('textbox'), { target: { value: address } });
   fireEvent.click(screen.getByRole('button', { name: 'Search' }));
-  const result = await screen.findByRole('link', { name: 'Deployment matching-deploy' });
+  const result = await screen.findByRole('link', { name: 'Transaction matching-deploy' });
   expect(result).toHaveAttribute('href', '/transaction/matching-deploy');
   expect(screen.getByLabelText('Result type')).toHaveValue('deployments');
 });
@@ -133,7 +133,7 @@ test('mixed pages reuse cursors for Next/Previous and return to page one when op
   fireEvent.click(screen.getByRole('button', { name: 'Next' }));
   await screen.findByRole('link', { name: 'Block #24' });
   requests.length = 0;
-  const input = screen.getByLabelText('Block height or hash, deploy ID, or address');
+  const input = screen.getByLabelText('Block height or hash, transaction ID, or address');
   fireEvent.change(input, { target: { value: 'new' } });
   fireEvent.submit(input.closest('form')!);
   await screen.findByRole('link', { name: 'Block #44' });
@@ -160,7 +160,7 @@ test('changing query cancels a pending page and ignores its late response', asyn
     }
   })));
   await waitFor(() => expect(oldSignal).toBeDefined());
-  const input = screen.getByLabelText('Block height or hash, deploy ID, or address');
+  const input = screen.getByLabelText('Block height or hash, transaction ID, or address');
   fireEvent.change(input, { target: { value: 'new' } });
   fireEvent.submit(input.closest('form')!);
   await screen.findByRole('link', { name: 'Block #42' });
@@ -192,7 +192,7 @@ test('filter/order changes reset pagination and clearing the query clears old ro
   expect(link).toHaveAttribute('href', '/transaction/exact-transfer');
   expect(requests.at(-1).blocks).toEqual({ _or: [] });
   const requestCount = requests.length;
-  const input = screen.getByLabelText('Block height or hash, deploy ID, or address');
+  const input = screen.getByLabelText('Block height or hash, transaction ID, or address');
   fireEvent.change(input, { target: { value: '' } });
   fireEvent.submit(input.closest('form')!);
   expect(screen.getByText('Enter a query to search the indexed chain.')).toBeInTheDocument();

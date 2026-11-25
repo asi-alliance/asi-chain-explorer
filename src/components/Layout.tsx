@@ -46,18 +46,10 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                         <Logo size="large" showText={true} />
                     </div>
                     <div className="header-right">
-                        <div
-                            style={{
-                                display: "flex",
-                                alignItems: "center",
-                                gap: "1rem",
-                                maxWidth: "400px",
-                                flex: "1",
-                            }}
-                        >
+                        <div className="global-search-slot">
                             <AdvancedSearch
                                 embedded={true}
-                                placeholder="Search blocks, transfers, addresses..."
+                                placeholder="Search block, tx, or address"
                             />
                         </div>
                         <ConnectionStatus

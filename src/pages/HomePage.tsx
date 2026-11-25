@@ -13,6 +13,7 @@ import { calculateAverageBlockTime } from "../utils/calculateBlockTime";
 import RealtimeActivityFeed from "../components/RealtimeActivityFeed";
 import RecentDataExporter, { ExportEntities } from "../components/RecentDataExporter";
 import { getBlockPath } from "../utils/blockPath";
+import { searchPattern } from "../utils/search";
 // import { useRealtimeBlocks } from '../services/websocketService';
 
 // Query to get recent blocks for calculating average block time
@@ -67,7 +68,7 @@ const HomePage: React.FC = () => {
         } else {
             queryToUse = SEARCH_BLOCKS_BY_HASH;
             queryVariables = {
-                search: `%${searchTerm}%`,
+                search: searchPattern(searchTerm),
                 limit: blocksPerPage,
                 offset: (currentPage - 1) * blocksPerPage,
             };

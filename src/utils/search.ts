@@ -37,10 +37,19 @@ export const SEARCH_INDEX = gql`
   }
 `;
 
+/** Escape LIKE metacharacters so a user's % and _ are matched literally. */
+export function escapeLikePattern(text: string): string {
+  return text.replace(/[\\%_]/g, '\\$&');
+}
+
+export function searchPattern(query: string): string {
+  return `%${escapeLikePattern(query.trim())}%`;
+}
+
 export function searchVariables(query: string, limit: number, order: 'asc' | 'desc', type: SearchType,
   offset = 0, cursor?: SearchCursor) {
   const value = query.trim();
-  const pattern = `%${value.replace(/[\\%_]/g, '\\$&')}%`;
+  const pattern = searchPattern(value);
   const disabled = { _or: [] };
   const exactHeight = heightInput(value);
   const height = exactHeight === null ? [] : [{ block_number: { _eq: exactHeight } }];
@@ -82,7 +91,7 @@ export function searchResults(data: any, order: 'asc' | 'desc'): SearchResult[] 
       path: `/transaction/${encodeURIComponent(t.deploy_id)}`, timestamp: Number(t.timestamp), data: t
     })),
     ...(data?.deployments || []).map((d: any) => ({
-      type: 'deployment', id: `deployment:${d.deploy_id}`, title: `Deployment ${d.deploy_id}`,
+      type: 'deployment', id: `deployment:${d.deploy_id}`, title: `Transaction ${d.deploy_id}`,
       description: `From ${d.deployer_address || d.deployer}${d.errored ? ' (failed)' : ''}`,
       path: `/transaction/${encodeURIComponent(d.deploy_id)}`, timestamp: Number(d.timestamp), data: d
     }))
