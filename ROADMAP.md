@@ -46,6 +46,11 @@ lives in
   local timezone and include its zone.
 - Deployments in block 0 are labelled `Genesis`; their original RChain mainnet
   timestamp is available on hover instead of reading as the testnet's age.
+- Transaction details keep one transaction ID with its copy action, and the
+  inclusion banner is replaced by a compact status icon whose tooltip explains
+  the state.
+- The transaction list uses one tab row with icons and counts plus a total;
+  the duplicate summary bar is gone.
 - Transaction tabs wrap on narrow screens instead of overflowing the page.
 
 ## Frontend-only next

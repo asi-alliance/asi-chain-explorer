@@ -367,94 +367,64 @@ const TransactionTrackerImproved: React.FC<TransactionTrackerImprovedProps> = ({
                 </p>
             </div>
 
-            {/* Summary Stats Bar */}
-            {!embedded && (
-                <div
-                    style={{
-                        display: "flex",
-                        gap: "1rem",
-                        marginBottom: "2rem",
-                        padding: "1rem",
-                        backgroundColor: "rgba(255, 255, 255, 0.05)",
-                        borderRadius: "8px",
-                    }}
-                >
-                    <div
-                        style={{
-                            display: "flex",
-                            alignItems: "center",
-                            gap: "0.5rem",
-                        }}
-                    >
-                        <FileText size={16} style={{ color: "#f59e0b" }} />
-                        <h3>{totalDeployments} Deployments</h3>
-                    </div>
-                    <div
-                        style={{
-                            display: "flex",
-                            alignItems: "center",
-                            gap: "0.5rem",
-                        }}
-                    >
-                        <ArrowRightLeft
-                            size={16}
-                            style={{ color: "#3b82f6" }}
-                        />
-                        <h3>{totalTransfers} Transfers</h3>
-                    </div>
-                    <div
-                        style={{
-                            display: "flex",
-                            alignItems: "center",
-                            gap: "0.5rem",
-                        }}
-                    >
-                        <Activity size={16} style={{ color: "#10b981" }} />
-                        <h3>{totalTransactions} Total</h3>
-                    </div>
-                </div>
-            )}
-
             {/* Tab Navigation */}
             <div
                 style={{
                     display: "flex",
+                    alignItems: "center",
                     gap: "1rem",
                     borderBottom: "1px solid rgba(255, 255, 255, 0.1)",
                     marginBottom: "2rem",
+                    flexWrap: "wrap",
                 }}
             >
-                {/* {(['all', 'deployments', 'transfers'] as const).map((tab) => ( */}
-                {(["deployments", "transfers"] as const).map((tab) => (
-                    <button
-                        className="text-1"
-                        key={tab}
-                        onClick={() => {
-                            setActiveTab(tab);
-                            setCurrentPage(1);
-                        }}
+                <div style={{ display: "flex", gap: "0.35rem" }}>
+                    {(["deployments", "transfers"] as const).map((tab) => (
+                        <button
+                            className="text-1"
+                            key={tab}
+                            onClick={() => {
+                                setActiveTab(tab);
+                                setCurrentPage(1);
+                            }}
+                            style={{
+                                display: "flex",
+                                alignItems: "center",
+                                gap: "0.4rem",
+                                padding: "0.75rem 1rem",
+                                background: "none",
+                                border: "none",
+                                borderBottom:
+                                    activeTab === tab
+                                        ? "2px solid #10b981"
+                                        : "2px solid transparent",
+                                color: activeTab === tab ? "#10b981" : "#9ca3af",
+                                cursor: "pointer",
+                                textTransform: "capitalize",
+                                fontWeight: activeTab === tab ? "600" : "400",
+                            }}
+                        >
+                            {tab === "deployments"
+                                ? <FileText size={15} aria-hidden="true" />
+                                : <ArrowRightLeft size={15} aria-hidden="true" />}
+                            {tab === "deployments"
+                                ? `Deployments (${searchQuery ? totalSearchDeployments : totalDeployments})`
+                                : `Transfers (${searchQuery ? totalSearchTransfers : totalTransfers})`}
+                        </button>
+                    ))}
+                </div>
+                {!searchQuery && (
+                    <span
                         style={{
-                            padding: "0.75rem 1rem",
-                            background: "none",
-                            border: "none",
-                            borderBottom:
-                                activeTab === tab
-                                    ? "2px solid #10b981"
-                                    : "2px solid transparent",
-                            color: activeTab === tab ? "#10b981" : "#9ca3af",
-                            cursor: "pointer",
-                            textTransform: "capitalize",
-                            fontWeight: activeTab === tab ? "600" : "400",
+                            marginLeft: "auto",
+                            paddingBottom: "0.75rem",
+                            color: "#9ca3af",
+                            fontSize: "0.875rem",
                         }}
                     >
-                        {/* {tab === 'all' ? `All (${totalTransactions})` 
-              : tab === 'deployments' ? `Deployments (${totalDeployments})`
-              : `Transfers (${totalTransfers})`} */}
-                        {tab === "deployments"
-                            ? `Deployments (${searchQuery ? totalSearchDeployments : totalDeployments})`
-                            : `Transfers (${searchQuery ? totalSearchTransfers : totalTransfers})`}
-                    </button>
-                ))}
+                        {totalTransactions} total
+                    </span>
+                )}
             </div>
 
             {/* Search Bar */}

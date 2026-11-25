@@ -225,6 +225,10 @@ test('shows the executed deploy fee in ASI using the block decimals', async () =
 
   expect(await screen.findByText('0.0277155 ASI')).toBeInTheDocument();
   expect(screen.getByText(/precharge up to 0.1 ASI/)).toBeInTheDocument();
+  expect(screen.getAllByText(SIG)).toHaveLength(1);
+  expect(screen.queryByText(/Transaction has been processed/)).not.toBeInTheDocument();
+  expect(screen.getByRole('img', { name: /Transaction Included/ }))
+    .toHaveAttribute('title', expect.stringContaining('processed and included'));
 });
 
 test('labels RChain mainnet deployments in the genesis block', async () => {

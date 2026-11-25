@@ -269,13 +269,6 @@ Exported at: ${new Date().toLocaleString()}
     return 'Unknown';
   };
 
-  const getStatusColor = (errored: boolean, status?: string) => {
-    if (errored) return '#ef4444';
-    if (status === 'success' || status === 'included') return '#10b981';
-    if (status === 'pending') return '#f59e0b';
-    return '#9ca3af';
-  };
-
   const statusError = error ?? (awaitingIndexer
     ? indexedError ?? pendingFeature.error ?? (watchPending ? pendingError : undefined)
     : undefined);
@@ -372,6 +365,13 @@ Exported at: ${new Date().toLocaleString()}
   const feeDecimals = transaction.block?.token_decimals ?? NATIVE_DECIMALS;
   const fee = deploymentFee(transaction);
   const maxFee = deployFee(transaction.phlo_limit, transaction.phlo_price, feeDecimals);
+  const statusText = getStatusText(transaction.errored, transaction.status);
+  const statusDetail = transaction.errored
+    ? transaction.error_message || 'The deploy was processed with an error.'
+    : transaction.status === 'pending'
+      ? 'The deploy is waiting to be included in a block.'
+      : 'The transaction has been processed and included in the blockchain.';
+  const statusClass = transaction.errored ? ' is-error' : transaction.status === 'pending' ? ' is-pending' : '';
 
   const tabs = [
     { key: 'overview', label: 'Overview', icon: <Activity size={16} /> },
@@ -382,34 +382,6 @@ Exported at: ${new Date().toLocaleString()}
 
   const renderOverviewTab = () => (
     <div>
-      {/* Status Banner */}
-      <div className="asi-card" style={{
-        marginBottom: '2rem',
-        backgroundColor: transaction.errored ? 'rgba(239, 68, 68, 0.1)' : 'rgba(16, 185, 129, 0.1)',
-        border: `1px solid ${getStatusColor(transaction.errored, transaction.status)}40`
-      }}>
-        <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: '1rem'
-        }}>
-          {getStatusIcon(transaction.errored, transaction.status)}
-          <div>
-            <div style={{
-              fontSize: '1.25rem',
-              fontWeight: '600',
-              color: getStatusColor(transaction.errored, transaction.status)
-            }}>
-              Transaction {getStatusText(transaction.errored, transaction.status)}
-            </div>
-            <div style={{ fontSize: '0.875rem', color: '#9ca3af' }}>
-              {transaction.errored && transaction.error_message ? transaction.error_message : 
-               'Transaction has been processed and included in the blockchain'}
-            </div>
-          </div>
-        </div>
-      </div>
-
       {/* Main Details Grid */}
       <div style={{
         display: 'grid',
@@ -430,22 +402,6 @@ Exported at: ${new Date().toLocaleString()}
             Transaction Information
           </h3>
           <div style={{ gap: '1rem' }}>
-            <div style={{ marginBottom: '1rem' }}>
-              <div style={{ fontSize: '0.875rem', color: '#9ca3af', marginBottom: '0.25rem' }}>
-                Transaction ID
-              </div>
-              <div style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.5rem',
-                fontSize: '0.875rem',
-                wordBreak: 'break-all'
-              }}>
-                {transaction.deploy_id}
-                <CopyButton dataToCopy={transaction.deploy_id} iconSize={14} />
-              </div>
-            </div>
-
             <div style={{ marginBottom: '1rem' }}>
               <div style={{ fontSize: '0.875rem', color: '#9ca3af', marginBottom: '0.25rem' }}>
                 Deployer
@@ -1124,13 +1080,21 @@ Exported at: ${new Date().toLocaleString()}
             Back
           </button>
           
-          <h1 style={{ margin: '0 0 0.5rem 0' }}>Transaction Details</h1>
-          <div style={{
-            fontSize: '0.875rem',
-            color: '#9ca3af',
-            wordBreak: 'break-all'
-          }}>
-            {transactionId}
+          <div className="transaction-heading">
+            <h1>Transaction Details</h1>
+            <span
+              className={`transaction-status${statusClass}`}
+              role="img"
+              title={`Transaction ${statusText}: ${statusDetail}`}
+              aria-label={`Transaction ${statusText}: ${statusDetail}`}
+              tabIndex={0}
+            >
+              <span aria-hidden="true">{getStatusIcon(transaction.errored, transaction.status)}</span>
+            </span>
+          </div>
+          <div className="transaction-id-row">
+            <span className="mono">{transaction.deploy_id}</span>
+            <CopyButton dataToCopy={transaction.deploy_id} iconSize={14} />
           </div>
         </div>
 
