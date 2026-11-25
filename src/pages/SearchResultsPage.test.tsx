@@ -67,7 +67,7 @@ test('submitting a wallet address searches deployments when that type is selecte
     return Observable.of({ data: { blocks: [], transfers: [], deployments: [deployment] } });
   }));
   fireEvent.click(screen.getByRole('tab', { name: 'Transactions' }));
-  fireEvent.change(screen.getByRole('textbox'), { target: { value: address } });
+  fireEvent.change(screen.getByLabelText('Block height or hash, transaction ID, or address'), { target: { value: address } });
   fireEvent.click(screen.getByRole('button', { name: 'Search' }));
   const result = await screen.findByRole('link', { name: 'Transaction matching-deploy' });
   expect(result).toHaveAttribute('href', '/transaction/matching-deploy');

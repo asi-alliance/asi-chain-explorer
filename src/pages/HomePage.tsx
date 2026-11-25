@@ -12,6 +12,7 @@ import { formatLocalTime, formatRelativeTime } from "../utils/time";
 import { calculateAverageBlockTime } from "../utils/calculateBlockTime";
 import RealtimeActivityFeed from "../components/RealtimeActivityFeed";
 import RecentDataExporter, { ExportEntities } from "../components/RecentDataExporter";
+import SearchField from "../components/SearchField";
 import { getBlockPath } from "../utils/blockPath";
 import { heightInput } from "../utils/blockHeight";
 import { searchPattern } from "../utils/search";
@@ -292,14 +293,9 @@ const HomePage: React.FC = () => {
                     </div>
                     <div className="section-controls">
                         <div className="search-box">
-                            <input
-                                className="text-3"
-                                type="text"
-                                placeholder="Filter by height or hash"
-                                style={{
-                                    flex: "0 1 300px",
-                                    marginRight: "0.5rem",
-                                }}
+                            <SearchField
+                                placeholder="Height or hash"
+                                aria-label="Filter blocks by height or hash"
                                 value={searchQuery}
                                 onChange={(e) => setSearchQuery(e.target.value)}
                                 onKeyUp={handleSearch}

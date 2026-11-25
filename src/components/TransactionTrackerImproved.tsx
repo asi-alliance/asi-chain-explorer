@@ -20,6 +20,7 @@ import {
 import { formatLocalTime, formatRelativeTime, toMillis } from '../utils/time';
 import { CURRENT_TOKEN } from '../utils/constants';
 import RecentDataExporter, { ExportEntities } from "./RecentDataExporter";
+import SearchField from "./SearchField";
 
 // GraphQL Queries
 const GET_TRANSACTION_COUNTS = gql`
@@ -446,23 +447,12 @@ const TransactionTrackerImproved: React.FC<TransactionTrackerImprovedProps> = ({
 
             {/* Search Bar */}
             <div style={{ marginBottom: "2rem" }}>
-                <div style={{ display: "flex", gap: "0.5rem" }}>
-                    <input
-                        className="text-3"
-                        type="text"
-                        placeholder="Search by ID, address, or block hash..."
-                        value={searchQuery}
-                        onChange={(e) => {handleSearchQueryChange(e.target.value)}}
-                        style={{
-                            flex: 1,
-                            padding: "0.75rem",
-                            borderRadius: "8px",
-                            border: "1px solid rgba(255, 255, 255, 0.2)",
-                            backgroundColor: "rgba(255, 255, 255, 0.05)",
-                            color: "#fff",
-                        }}
-                    />
-                </div>
+                <SearchField
+                    placeholder="Search by ID, address, or block hash..."
+                    aria-label="Search transactions by ID, address, or block hash"
+                    value={searchQuery}
+                    onChange={(e) => handleSearchQueryChange(e.target.value)}
+                />
             </div>
 
             {/* Transaction List */}

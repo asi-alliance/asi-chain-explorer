@@ -1,7 +1,7 @@
 import React from 'react';
 import { useQuery } from '@apollo/client';
 import { formatLocalTime, formatRelativeTime } from '../utils/time';
-import { Clock, Search } from 'lucide-react';
+import { Clock } from 'lucide-react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { GET_PENDING_DEPLOY } from '../graphql/queries';
 import { addressPath, isVaultAddress } from '../utils/addressPath';
@@ -11,6 +11,7 @@ import { useSearchResults } from '../hooks/useSearchResults';
 import { useRecentSearches } from '../hooks/useRecentSearches';
 import CopyButton from '../components/CopyButton';
 import ShareLinkButton from '../components/ShareLinkButton';
+import SearchField from '../components/SearchField';
 import '../styles/search-results.css';
 
 function looksLikeDeploySignature(value: string): boolean {
@@ -96,12 +97,14 @@ const SearchResultsPage: React.FC = () => {
       <label className="search-results__sr-only" htmlFor="search-query">
         Block height or hash, transaction ID, or address
       </label>
-      <div className="search-results__field">
-        <Search size={18} aria-hidden="true" />
-        <input id="search-query" name="query" key={query} defaultValue={query}
-          placeholder="Block height or hash, transaction ID, or address"
-          autoComplete="off" spellCheck={false} />
-      </div>
+      <SearchField
+        id="search-query"
+        name="query"
+        key={query}
+        defaultValue={query}
+        placeholder="Block height or hash, transaction ID, or address"
+        aria-label="Block height or hash, transaction ID, or address"
+      />
       <button type="submit" className="btn btn-primary search-results__submit">Search</button>
     </form>
 
