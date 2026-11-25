@@ -1,9 +1,8 @@
-import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
 import { ApolloClient, ApolloProvider } from "@apollo/client";
 import { PendingDeploysStatusProvider } from "./hooks/usePendingDeploysStatus";
 import Layout from "./components/Layout";
 import HomePage from "./pages/HomePage";
-import BlocksPage from "./pages/BlocksPage";
 import BlockDetailPage from "./pages/BlockDetailPage";
 // import TransfersPage from "./pages/TransfersPage";
 import ValidatorsPage from "./pages/ValidatorsPage";
@@ -35,7 +34,8 @@ function App({ client }: { client: ApolloClient<unknown> }) {
                 <Layout>
                     <Routes>
                         <Route path="/" element={<HomePage />} />
-                        <Route path="/blocks" element={<BlocksPage />} />
+                        {/* The legacy block list is replaced by the home page. */}
+                        <Route path="/blocks" element={<Navigate to="/" replace />} />
                         <Route
                             path="/block/:blockNumber"
                             element={<BlockDetailPage />}

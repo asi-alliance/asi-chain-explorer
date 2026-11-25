@@ -14,7 +14,9 @@ unambiguous. This file records the remaining UI work; backend blockers live in
 - `/block/{height}` sibling overview with prev/next height navigation,
   finalized/unfinalized filtering, parent/child counts and block-hash rows.
 - Recent Blocks grouping: one height cell per sibling group, block count,
-  real finalization status and a local finalized-only filter.
+  real finalization status and a local finalized-only filter. The finalized
+  filter keeps polling, while only a text search pauses it.
+- The legacy `/blocks` path redirects to the home page.
 - Search result type tabs and copy/share actions.
 - Mobile search panel and height overview.
 - A 404 page for unknown paths, with the attempted path, the chain search

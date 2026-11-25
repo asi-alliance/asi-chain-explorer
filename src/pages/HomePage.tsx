@@ -104,7 +104,9 @@ const HomePage: React.FC = () => {
         queryToUse,
         {
             variables: queryVariables,
-            pollInterval: isFiltering ? 0 : 2000, // Don't poll while a filter is active
+            // Only a text search pauses polling: its results do not change, while
+            // the finalized-only filter keeps showing new finalized blocks.
+            pollInterval: isSearching ? 0 : 2000,
         }
     );
 
