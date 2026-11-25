@@ -531,7 +531,7 @@ Exported at: ${new Date().toLocaleString()}
               </div>
             </div>
 
-            {transaction.sig && (
+            {transaction.sig && transaction.sig !== transaction.deploy_id && (
               <div style={{ marginTop: '1rem' }}>
                 <div style={{ fontSize: '0.875rem', color: '#9ca3af', marginBottom: '0.25rem' }}>
                   Signature

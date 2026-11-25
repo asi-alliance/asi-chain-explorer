@@ -206,7 +206,7 @@ test('shows the executed deploy fee in ASI using the block decimals', async () =
     details: {
       data: {
         deployments: [{
-          __typename: 'deployments', deploy_id: SIG, deployer: '04' + 'ab'.repeat(32),
+          __typename: 'deployments', deploy_id: SIG, sig: SIG, deployer: '04' + 'ab'.repeat(32),
           term: 'new x in { x!(1) }', timestamp: '1762770000000', deployment_type: 'contract_call',
           phlo_cost: '277155', phlo_price: '100000000000', phlo_limit: '1000000',
           valid_after_block_number: '903', status: 'included', errored: false,
