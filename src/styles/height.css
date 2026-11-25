@@ -191,4 +191,8 @@
     .height-sibling__status {
         margin-left: 0;
     }
+
+    .height-sibling__chevron {
+        display: none;
+    }
 }
