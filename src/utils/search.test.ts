@@ -11,6 +11,17 @@ test('searches deploy IDs and both addresses with exact precision', () => {
   expect(results[0].path).toBe('/transaction/sig');
 });
 
+test('amount range filters transfers without a text query', () => {
+  const variables = searchVariables('', 20, 'desc', 'transfers', 0, undefined,
+    { minAmount: '0.1', maxAmount: '2' });
+  expect(variables.transfers).toEqual({ _and: [
+    { amount_asi: { _gte: '0.1' } },
+    { amount_asi: { _lte: '2' } },
+  ] });
+  expect(variables.blocks).toEqual({ _or: [] });
+  expect(variables.deployments).toEqual({ _or: [] });
+});
+
 test('a numeric query is a height and does not also scan text fields', () => {
   const variables = searchVariables('42', 20, 'desc', 'all');
   expect(variables.blocks).toEqual({ _or: [

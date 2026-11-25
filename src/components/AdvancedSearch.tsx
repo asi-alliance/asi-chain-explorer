@@ -20,7 +20,7 @@ import {
 } from "lucide-react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { addressPath, isVaultAddress } from "../utils/addressPath";
-import { decimalText, groupThousands, truncateDecimal } from "../utils/amounts";
+import { compactDecimal, decimalText } from "../utils/amounts";
 import { heightInput } from "../utils/blockHeight";
 import { getBlockPath } from "../utils/blockPath";
 import { CURRENT_TOKEN } from "../utils/constants";
@@ -167,6 +167,7 @@ interface QuickResult {
     timestamp: number;
     status?: string;
     genesis?: boolean;
+    tooltip?: string;
     rank: number;
 }
 
@@ -204,7 +205,7 @@ const relativeTime = (timestamp: number): string => {
 
 const formatAmount = (value: string | number): string => {
     try {
-        return groupThousands(truncateDecimal(decimalText(value), 8));
+        return compactDecimal(decimalText(value), 8);
     } catch {
         return String(value);
     }
@@ -319,6 +320,7 @@ function buildResults(data: QuickSearchData | undefined, query: string): QuickRe
             type: "transfer",
             path: `/transaction/${encodeURIComponent(transfer.deploy_id)}`,
             title: `${formatAmount(transfer.amount_asi)} ${CURRENT_TOKEN}`,
+            tooltip: `${decimalText(transfer.amount_asi)} ${CURRENT_TOKEN}`,
             meta: [`Block #${transfer.block_number}`, `${shorten(transfer.from_address, 6, 4)} → ${shorten(transfer.to_address, 6, 4)}`]
                 .filter(Boolean)
                 .join(" · "),
@@ -817,7 +819,8 @@ const AdvancedSearch: React.FC<AdvancedSearchProps> = ({
                                                     className={`asi-search__row${active ? " is-active" : ""}`}
                                                     to={result.path}
                                                     role="option"
-                                                    aria-label={[result.title, result.meta, result.status].filter(Boolean).join(". ")}
+                                                    title={result.tooltip ?? result.title}
+                                                    aria-label={[result.tooltip ?? result.title, result.meta, result.status].filter(Boolean).join(". ")}
                                                     aria-selected={active}
                                                     tabIndex={-1}
                                                     onMouseEnter={() => setActiveIndex(index)}

@@ -31,44 +31,31 @@ const GET_RECENT_BLOCKS = gql`
 
 const HomePage: React.FC = () => {
     const [searchParams, setSearchParams] = useSearchParams();
-    const initialQuery = searchParams.get("q") ?? "";
-    const initialFinalized = searchParams.get("finalized") === "1";
+    const urlQuery = searchParams.get("q") ?? "";
+    const finalizedOnly = searchParams.get("finalized") === "1";
     const [currentPage, setCurrentPage] = useState(1);
-    const [searchQuery, setSearchQuery] = useState(initialQuery);
-    const [finalizedOnly, setFinalizedOnly] = useState(initialFinalized);
-    const [debouncedQuery, setDebouncedQuery] = useState(initialQuery);
+    const [searchQuery, setSearchQuery] = useState(urlQuery);
     const blocksPerPage = 20;
 
     useEffect(() => {
-        const query = searchParams.get("q") ?? "";
-        const finalized = searchParams.get("finalized") === "1";
-        setSearchQuery(previous => previous === query ? previous : query);
-        setDebouncedQuery(previous => previous === query ? previous : query);
-        setFinalizedOnly(previous => previous === finalized ? previous : finalized);
-    }, [searchParams]);
-
-    useEffect(() => {
-        const query = debouncedQuery.trim();
-        const urlQuery = searchParams.get("q") ?? "";
-        const urlFinalized = searchParams.get("finalized") === "1";
-        if (query === urlQuery && finalizedOnly === urlFinalized) return;
-
-        const next = new URLSearchParams(searchParams);
-        if (query) next.set("q", query);
-        else next.delete("q");
-        if (finalizedOnly) next.set("finalized", "1");
-        else next.delete("finalized");
-        setSearchParams(next, { replace: true });
-    }, [debouncedQuery, finalizedOnly, searchParams, setSearchParams]);
-
-    useEffect(() => {
-        const timer = window.setTimeout(() => setDebouncedQuery(searchQuery), 250);
-        return () => window.clearTimeout(timer);
-    }, [searchQuery]);
-
-    useEffect(() => {
+        setSearchQuery(urlQuery);
         setCurrentPage(1);
-    }, [debouncedQuery, finalizedOnly]);
+    }, [urlQuery, finalizedOnly]);
+
+    useEffect(() => {
+        const query = searchQuery.trim();
+        if (query === urlQuery) return;
+
+        const timer = window.setTimeout(() => {
+            setSearchParams(previous => {
+                const next = new URLSearchParams(previous);
+                if (query) next.set("q", query);
+                else next.delete("q");
+                return next;
+            }, { replace: true });
+        }, 250);
+        return () => window.clearTimeout(timer);
+    }, [searchQuery, urlQuery, setSearchParams]);
 
     // Get initial network statistics with polling
     const { data: statsData, loading: statsLoading } = useQuery(
@@ -84,7 +71,7 @@ const HomePage: React.FC = () => {
     });
 
     // Get paginated blocks with polling - use search query if present.
-    const searchTerm = debouncedQuery.trim();
+    const searchTerm = urlQuery.trim();
     const isSearching = searchTerm.length > 0;
     const isFiltering = isSearching || finalizedOnly;
     const isNumericSearch = /^\d+$/.test(searchTerm);
@@ -307,9 +294,11 @@ const HomePage: React.FC = () => {
                                     onClick={() => {
                                         setSearchQuery("");
                                         setCurrentPage(1);
-                                        const next = new URLSearchParams(searchParams);
-                                        next.delete("q");
-                                        setSearchParams(next);
+                                        setSearchParams(previous => {
+                                            const next = new URLSearchParams(previous);
+                                            next.delete("q");
+                                            return next;
+                                        });
                                     }}
                                 >
                                     Clear
@@ -343,11 +332,12 @@ const HomePage: React.FC = () => {
                             checked={finalizedOnly}
                             onChange={(event) => {
                                 const checked = event.target.checked;
-                                setFinalizedOnly(checked);
-                                const next = new URLSearchParams(searchParams);
-                                if (checked) next.set("finalized", "1");
-                                else next.delete("finalized");
-                                setSearchParams(next);
+                                setSearchParams(previous => {
+                                    const next = new URLSearchParams(previous);
+                                    if (checked) next.set("finalized", "1");
+                                    else next.delete("finalized");
+                                    return next;
+                                });
                             }}
                         />
                         Finalized only
@@ -357,10 +347,11 @@ const HomePage: React.FC = () => {
                             type="button"
                             className="home-filter-row__clear"
                             onClick={() => {
-                                setFinalizedOnly(false);
-                                const next = new URLSearchParams(searchParams);
-                                next.delete("finalized");
-                                setSearchParams(next);
+                                setSearchParams(previous => {
+                                    const next = new URLSearchParams(previous);
+                                    next.delete("finalized");
+                                    return next;
+                                });
                             }}
                         >
                             Clear filter

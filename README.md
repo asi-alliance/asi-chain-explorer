@@ -51,7 +51,7 @@ The system indexes blockchain data including blocks, deployments, transfers, val
 ## Core Functionality
 - **Block Explorer**: Real-time block monitoring with detailed information, grouped by DAG height
 - **Height Overview**: A height can contain several sibling blocks; `/block/{height}` lists every sibling with finalization status, parent/child links and previous/next height navigation
-- **Search**: One header omnibox for heights, block hashes, deploy IDs, indexed transfers and vault addresses, with grouped results, a `Ctrl/Cmd+K` palette and recent searches
+- **Search**: One header omnibox for heights, block hashes, deploy IDs, indexed transfers and vault addresses, with grouped results, a `Ctrl/Cmd+K` palette, recent searches and ASI amount-range filters on the Transfers tab
 - **Transaction Viewer**: Details with the executed fee in ASI (`phlo_cost × phlo_price`), one copyable transaction ID, a compact status tooltip, local absolute timestamps, relative age and `Genesis` labels for block-0 RChain mainnet records
 - **CSV Export**: An `Export CSV` action at the bottom of Recent Blocks and the transaction tables downloads up to 5000 recent rows (`recent_blocks.csv`, `recent_deployments.csv` or `recent_transfers.csv`)
 - **Pending Deploys** (optional): Deploys in the validators' deploy buffers that no indexed block includes yet, updated live over the GraphQL WebSocket (Pending page). Shown only when the indexer reads validator buffers
@@ -238,8 +238,8 @@ absolute Hasura URLs.
 `REACT_APP_NATIVE_TOKEN_DECIMALS` stays a build-time value. Indexed rows carry
 their own `token_decimals`; this fallback applies to wallet balances from nodes
 that report no `nativeTokenDecimals`, and to deploy fees or amounts whose block
-has no token metadata. Rows without it use 8. Build a separate image only when
-the fallback must change.
+has no token metadata. Rows without it use 18 on current networks. Build a
+separate image only when the fallback must change.
 
 | Variable | Description | Default |
 |----------|-------------|---------|
@@ -248,7 +248,7 @@ the fallback must change.
 | `REACT_APP_INDEXER_API_URL` | Public base path for indexer status and address balances | `/api/indexer` |
 | `REACT_APP_RCHAIN_NODE_URL` | Node HTTP API for the wallet balance lookup (not mounted in the current UI) | Same origin |
 | `INDEXER_STATUS_URL` | Server-side indexer `/status` URL for nginx (runtime, not in the bundle) | `http://host.docker.internal:9090/status` |
-| `REACT_APP_NATIVE_TOKEN_DECIMALS` | Fallback precision for balances, fees and amounts whose source row has no `token_decimals`. Build time only, also in the Docker image | `8` |
+| `REACT_APP_NATIVE_TOKEN_DECIMALS` | Fallback precision for balances, fees and amounts whose source row has no `token_decimals`. Build time only, also in the Docker image | `18` |
 | `REACT_APP_FEEDBACK_FORM_URL` | URL that receives the feedback form | Empty |
 | `REACT_APP_JSAPI_URL`, `REACT_APP_CAPTCHA_TOKEN` | AWS WAF CAPTCHA for the feedback form | Empty |
 
@@ -404,7 +404,7 @@ docker rmi asi-explorer:latest
 ## Performance Metrics
 
 - **Initial JS**: ~228 kB gzip for the shell and home page
-- **On-demand chunks**: Statistics (charts) ~135 kB gzip; the transaction detail vendor chunk (code highlighter and toast styles) ~227 kB gzip
+- **On-demand chunks**: Statistics (charts) ~135 kB gzip; the transaction detail vendor chunk (code highlighter and toast styles) ~229 kB gzip
 - **Recent Blocks**: 2 s polling, also while the finalized-only filter is on; a text search pauses it
 - **Live pending data**: WebSocket subscriptions with a 5 s HTTP fallback
 - **Home filter**: 250 ms debounce; the header omnibox uses six-row batches per result type
@@ -488,13 +488,13 @@ executed cost. A pending deploy has no executed cost yet and shows no fee.
 
 Wallet balances read `nativeTokenDecimals` from the node's `/api/status` and accept
 both legacy `ExprInt` and BigInt `ExprBigInt` responses. For older nodes without
-metadata, the build-time `REACT_APP_NATIVE_TOKEN_DECIMALS` fallback defaults to 8.
+metadata, the build-time `REACT_APP_NATIVE_TOKEN_DECIMALS` fallback defaults to 18.
 Docker builds accept the same build argument. Changing a display setting does not
 rescale tokens or upgrade a chain's denomination.
 
 Validation: `CI=true npm test -- --watchAll=false --runInBand`,
-`npx tsc --noEmit`, and `npm run build`. The suite currently has 372 tests
-in 38 suites.
+`npx tsc --noEmit`, and `npm run build`. The suite currently has 378 tests
+in 39 suites.
 The `Tests` workflow runs these checks on pull requests to `dev` and `main` and
 on pushes to `dev`. Its build runs with `CI=true`, so a lint warning fails the
 check. The Docker build does not set `CI`; run `CI=true npm run build` locally

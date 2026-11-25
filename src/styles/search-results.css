@@ -27,6 +27,53 @@
     padding: 10px 22px;
 }
 
+.search-results__amounts {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin: -0.25rem 0 1rem;
+    color: var(--text-secondary);
+    font-size: 12px;
+}
+
+.search-results__amounts-label {
+    margin-right: 2px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+
+.search-results__amounts input {
+    width: 112px;
+    padding: 8px 10px;
+    border: 1px solid var(--border-light);
+    border-radius: 8px;
+    background: var(--charcoal-700);
+    color: var(--off-white);
+    font: inherit;
+    font-size: 13px;
+}
+
+.search-results__amounts input:focus {
+    border-color: var(--asi-lime);
+    background: var(--charcoal-500);
+    outline: none;
+}
+
+.search-results__amounts .btn {
+    padding: 8px 14px;
+}
+
+.search-results__amounts-clear {
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: var(--asi-lime);
+    font: inherit;
+    cursor: pointer;
+}
+
 .search-results__wallet {
     display: inline-flex;
     align-items: center;

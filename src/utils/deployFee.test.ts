@@ -35,3 +35,9 @@ test('returns null when either phlo value is missing or malformed', () => {
 test('shows a zero fee as zero instead of hiding the row', () => {
   expect(deployFee('0', '100000000000', 18)?.display).toBe('0');
 });
+
+test('keeps a positive sub-threshold fee visible and exports it exactly', () => {
+  const fee = deployFee('1000', '1000000', 18);
+  expect(fee?.asi).toBe('0.000000001');
+  expect(fee?.display).toBe('<0.00000001');
+});

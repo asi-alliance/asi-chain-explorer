@@ -60,6 +60,9 @@ lives in
   scrolls horizontally.
 - Every route sets a descriptive browser title; unknown paths report
   `Page not found`.
+- The `/search` Transfers tab restores filter-only ASI amount ranges.
+- Source and Docker fallback precision is 18; historical rows keep their own `token_decimals`.
+- Removed unused QR, Swagger, XLSX, Workbox and intersection-observer packages, updated the syntax highlighter and pinned nginx stable.
 - Transaction tabs wrap on narrow screens instead of overflowing the page.
 
 ## Frontend-only next

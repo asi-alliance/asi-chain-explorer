@@ -50,7 +50,15 @@ const SearchResultsPage: React.FC = () => {
   const order = params.get('order') === 'asc' ? 'asc' : 'desc';
   const requestedPage = Number(params.get('page') || 1);
   const page = Number.isSafeInteger(requestedPage) && requestedPage > 0 ? requestedPage : 1;
-  const { rows, hasMore, loading, error } = useSearchResults(query, page, order, type);
+  const amountParam = (key: string) => {
+    const value = (params.get(key) || '').trim();
+    return /^\d+(?:\.\d+)?$/.test(value) ? value : '';
+  };
+  const minAmount = amountParam('min');
+  const maxAmount = amountParam('max');
+  const hasAmountFilter = type === 'transfers' && (!!minAmount || !!maxAmount);
+  const hasQuery = !!query || hasAmountFilter;
+  const { rows, hasMore, loading, error } = useSearchResults(query, page, order, type, { minAmount, maxAmount });
   const height = heightInput(query);
   const pendingResult = useQuery<{ pending_deploys: Array<{
     sig: string;
@@ -77,6 +85,15 @@ const SearchResultsPage: React.FC = () => {
     const next = new URLSearchParams(params);
     next.set(key, value);
     if (key !== 'page') next.delete('page');
+    setParams(next);
+  };
+  const updateAmounts = (min: string, max: string) => {
+    const next = new URLSearchParams(params);
+    for (const [key, value] of [['min', min], ['max', max]] as const) {
+      if (value) next.set(key, value);
+      else next.delete(key);
+    }
+    next.delete('page');
     setParams(next);
   };
   return <section className="asi-card search-results">
@@ -167,6 +184,31 @@ const SearchResultsPage: React.FC = () => {
       ))}
     </div>
 
+    {type === 'transfers' && (
+      <form
+        className="search-results__amounts"
+        key={`${minAmount}:${maxAmount}`}
+        onSubmit={event => {
+          event.preventDefault();
+          const data = new FormData(event.currentTarget);
+          updateAmounts(String(data.get('min') ?? '').trim(), String(data.get('max') ?? '').trim());
+        }}
+      >
+        <span className="search-results__amounts-label">Amount range (ASI)</span>
+        <input name="min" type="text" inputMode="decimal" pattern="[0-9]+(?:\.[0-9]+)?"
+          placeholder="Min" defaultValue={minAmount} aria-label="Minimum ASI amount" />
+        <span aria-hidden="true">to</span>
+        <input name="max" type="text" inputMode="decimal" pattern="[0-9]+(?:\.[0-9]+)?"
+          placeholder="Max" defaultValue={maxAmount} aria-label="Maximum ASI amount" />
+        <button type="submit" className="btn btn-secondary">Apply</button>
+        {(minAmount || maxAmount) && (
+          <button type="button" className="search-results__amounts-clear" onClick={() => updateAmounts('', '')}>
+            Clear
+          </button>
+        )}
+      </form>
+    )}
+
     <div className="search-results__toolbar">
       <label className="search-results__select">Order
         <select aria-label="Result order" value={order} onChange={e => update('order', e.target.value)}>
@@ -178,13 +220,13 @@ const SearchResultsPage: React.FC = () => {
       </div>
     </div>
 
-    {!query ? <p className="search-results__empty">Enter a query to search the indexed chain.</p>
+    {!hasQuery ? <p className="search-results__empty">Enter a query or an ASI amount range to search the indexed chain.</p>
       : loading ? <p className="search-results__empty" role="status">Searching…</p>
         : error ? <p className="search-results__error" role="alert">Search failed: {error.message}</p> : <>
           <p className="search-results__summary">
             {rows.length
               ? `Showing ${(page - 1) * PAGE_SIZE + 1}–${(page - 1) * PAGE_SIZE + rows.length} results`
-              : 'No results'} for “{query}”
+              : 'No results'} {query ? `for “${query}”` : 'for the selected amount range'}
           </p>
           {rows.length === 0 ? <p className="search-results__empty">
             Try a block height or hash, a transaction ID, or a wallet address.

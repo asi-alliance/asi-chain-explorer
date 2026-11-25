@@ -93,8 +93,8 @@ test('releases per-deploy subscriptions when the wait expires and resumes on req
   const { requested } = renderLookup({ pending: { data: { pending_deploys: [pending] } } });
   requested.length = 0;
   act(() => { jest.advanceTimersByTime(180_000); });
-  expect(screen.getByRole('heading', { name: 'Deploy status unavailable' })).toBeInTheDocument();
-  expect(screen.getByText(/still pending when the three-minute watch ended/)).toBeInTheDocument();
+  expect(screen.getByRole('heading', { name: 'Deploy status unconfirmed' })).toBeInTheDocument();
+  expect(screen.getByText(/seen in a validator buffer earlier/)).toBeInTheDocument();
   expect(screen.getByRole('status')).toHaveTextContent('Automatic updates stopped');
   expect(requested).not.toContain('WatchDeploymentIndexed');
   expect(requested).not.toContain('WatchPendingDeploy');

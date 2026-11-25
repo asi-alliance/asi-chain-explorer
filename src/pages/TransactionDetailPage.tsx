@@ -250,7 +250,7 @@ Height: ${transaction.block_number}
 Timestamp: ${new Date(transaction.timestamp).toLocaleString()}
 Status: ${transaction.errored ? 'Failed' : 'Success'}
 Phlo Cost: ${transaction.phlo_cost?.toLocaleString() || 'N/A'} phlo
-Fee: ${fee ? `${fee.display} ${CURRENT_TOKEN}` : 'N/A'}
+Fee: ${fee ? `${fee.asi} ${CURRENT_TOKEN}` : 'N/A'}
 Type: ${transaction.deployment_type || 'Unknown'}
 
 ${transaction.error_message ? `Error: ${transaction.error_message}\n` : ''}
@@ -318,8 +318,8 @@ Exported at: ${new Date().toLocaleString()}
           <p>Transaction {transactionId} could not be found.</p>
         </>}
         {watchExpired && seenInBuffer && <>
-          <h2>Deploy status unavailable</h2>
-          <p>The deploy was still pending when the three-minute watch ended. It may still be in a validator buffer.</p>
+          <h2>Deploy status unconfirmed</h2>
+          <p>The deploy was seen in a validator buffer earlier. The three-minute watch ended without confirmation that it was included.</p>
         </>}
         {!watchExpired && <h2>Transaction details unavailable</h2>}
         <p role="status">{watchExpired ? 'Automatic updates stopped after three minutes.' :
@@ -494,7 +494,7 @@ Exported at: ${new Date().toLocaleString()}
           {fee ? (
             <div className="deploy-fee">
               <span className="deploy-fee__label">Transaction fee</span>
-              <span className="deploy-fee__value" title={`${fee.dust} atomic units`}>
+              <span className="deploy-fee__value" title={`${fee.asi} ${CURRENT_TOKEN} (${fee.dust} atomic units)`}>
                 {fee.display} {CURRENT_TOKEN}
               </span>
               <span className="deploy-fee__note">

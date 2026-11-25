@@ -5,6 +5,10 @@ import { heightInput } from './blockHeight';
 
 export type SearchType = 'all' | 'blocks' | 'transfers' | 'deployments';
 export type SearchStream = Exclude<SearchType, 'all'>;
+export interface SearchFilters {
+  minAmount?: string;
+  maxAmount?: string;
+}
 export const SEARCH_PAGE_SIZE = 20;
 export const SEARCH_BATCH_SIZE = 200;
 const streamId = { blocks: 'block_hash', transfers: 'id', deployments: 'deploy_id' } as const;
@@ -54,7 +58,7 @@ export function textPatternFor(query: string): string {
 }
 
 export function searchVariables(query: string, limit: number, order: 'asc' | 'desc', type: SearchType,
-  offset = 0, cursor?: SearchCursor) {
+  offset = 0, cursor?: SearchCursor, filters: SearchFilters = {}) {
   const value = query.trim();
   const exactHeight = heightInput(value);
   const pattern = textPatternFor(value);
@@ -70,15 +74,25 @@ export function searchVariables(query: string, limit: number, order: 'asc' | 'de
       { timestamp: { [order === 'desc' ? '_lt' : '_gt']: cursor.timestamp } }, ...sameTime,
     ] }] };
   };
+  const amountFilters = [
+    filters.minAmount ? { amount_asi: { _gte: filters.minAmount } } : null,
+    filters.maxAmount ? { amount_asi: { _lte: filters.maxAmount } } : null,
+  ].filter(Boolean) as object[];
+  const transferText = value && (type === 'all' || type === 'transfers') ? { _or: [
+    { deploy_id: { _ilike: pattern } }, { from_address: { _like: pattern } },
+    { to_address: { _like: pattern } }, ...height
+  ] } : null;
+  const transferFilter = type === 'all' || type === 'transfers'
+    ? amountFilters.length
+      ? { _and: [...(transferText ? [transferText] : []), ...amountFilters] }
+      : transferText ?? disabled
+    : disabled;
   return {
     limit, offset, order,
     blocks: afterCursor('blocks', value && (type === 'all' || type === 'blocks') ? { _or: [
       ...height, { block_hash: { _ilike: pattern } }, { proposer: { _ilike: pattern } }
     ] } : disabled),
-    transfers: afterCursor('transfers', value && (type === 'all' || type === 'transfers') ? { _or: [
-      { deploy_id: { _ilike: pattern } }, { from_address: { _like: pattern } },
-      { to_address: { _like: pattern } }, ...height
-    ] } : disabled),
+    transfers: afterCursor('transfers', transferFilter),
     deployments: afterCursor('deployments', value && (type === 'all' || type === 'deployments') ? { _or: [
       { deploy_id: { _ilike: pattern } }, { deployer: { _ilike: pattern } },
       { deployer_address: { _like: pattern } }, ...height

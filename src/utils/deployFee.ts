@@ -1,9 +1,8 @@
 import {
   NATIVE_DECIMALS,
+  compactDecimal,
   formatRaw,
-  groupThousands,
   rawInteger,
-  truncateDecimal,
   validateDecimals,
 } from "./amounts";
 
@@ -38,7 +37,7 @@ export function deployFee(
     return {
       dust: dust.toString(),
       asi,
-      display: groupThousands(truncateDecimal(asi, FEE_FRACTION_DIGITS)),
+      display: compactDecimal(asi, FEE_FRACTION_DIGITS),
     };
   } catch {
     return null;

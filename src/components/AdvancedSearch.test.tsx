@@ -68,6 +68,20 @@ test('treats leading zeros as the canonical height', async () => {
   expect(variables.pattern).toBe(HEIGHT_ONLY_PATTERN);
 });
 
+test('shows a positive sub-threshold amount as less than and exposes the exact value', async () => {
+  const client = clientWith(new ApolloLink(() => Observable.of({ data: {
+    blocks: [], deployments: [],
+    transfers: [{ id: '7', deploy_id: 'deploy', block_number: '42', timestamp: '1700000000000',
+      from_address: address, to_address: '1111recipient', amount_asi: '0.000000001', status: 'success' }],
+  } })));
+  render(<ApolloProvider client={client}><MemoryRouter><AdvancedSearch /></MemoryRouter></ApolloProvider>);
+  fireEvent.change(screen.getByRole('combobox'), { target: { value: 'deploy' } });
+
+  const option = await screen.findByRole('option', { name: /0\.000000001 ASI/ });
+  expect(option).toHaveTextContent('<0.00000001 ASI');
+  expect(option).toHaveAttribute('title', '0.000000001 ASI');
+});
+
 test.each(['1e3', '0x12', '1.5', '-1', 'abc123'])('treats %p as text, not a coerced height', async text => {
   const variables = await search(text);
   expect(variables.height).toBe('-1');

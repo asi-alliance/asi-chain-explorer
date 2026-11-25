@@ -1,4 +1,4 @@
-import { decimalRaw, decimalText, formatRaw, groupThousands, normalizedRaw, rawInteger, percentage, truncateDecimal } from './amounts';
+import { decimalRaw, decimalText, formatRaw, groupThousands, normalizedRaw, rawInteger, percentage, truncateDecimal, compactDecimal } from './amounts';
 
 test('keeps raw units exact through display and parsing', () => {
   for (const raw of [2n**53n+1n, 2n**63n, 2n**128n, 2n**256n-1n]) {
@@ -46,6 +46,16 @@ test('cuts the displayed fraction without rounding up', () => {
   expect(truncateDecimal('0.000000000000000001')).toBe('0');
   expect(truncateDecimal('1.234', 2)).toBe('1.23');
   expect(truncateDecimal('not a number')).toBe('not a number');
+});
+
+test('shows positive amounts below the display precision as less than', () => {
+  expect(compactDecimal('0.000000001')).toBe('<0.00000001');
+  expect(compactDecimal('0.000000000000000001')).toBe('<0.00000001');
+  expect(compactDecimal('0.00000001')).toBe('0.00000001');
+  expect(compactDecimal('1.234567891')).toBe('1.23456789');
+  expect(compactDecimal('10000.5')).toBe('10,000.5');
+  expect(compactDecimal('0')).toBe('0');
+  expect(compactDecimal('0.123', 0)).toBe('<1');
 });
 
 test.each([-1, 78, 1.5, NaN])('rejects invalid decimal precision %p', decimals => {

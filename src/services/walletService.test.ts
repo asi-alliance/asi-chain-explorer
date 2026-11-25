@@ -34,9 +34,9 @@ test('retains exact uint256 raw units', async () => {
   expect(wallet.balance.asi.replace('.', '')).toBe(raw.toString());
 });
 
-test('reads legacy ExprInt and metadata-free nodes with eight decimals', async () => {
+test('reads legacy ExprInt with the eighteen-decimal fallback', async () => {
   nodeResponses({ ExprInt: { data: 123456789 } });
-  expect((await WalletService.getWalletBalance(address)).balance.asi).toBe('1.23456789');
+  expect((await WalletService.getWalletBalance(address)).balance.asi).toBe('0.000000000123456789');
   nodeResponses({ ExprInt: { data: 0 } });
   expect((await WalletService.getWalletBalance(address)).balance.dust).toBe(0n);
 });

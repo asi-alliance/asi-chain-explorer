@@ -2,7 +2,7 @@
 export const LEGACY_DECIMALS = 8;
 export const MAX_DECIMALS = 77;
 export const NATIVE_DECIMALS = validateDecimals(
-  Number(process.env.REACT_APP_NATIVE_TOKEN_DECIMALS ?? LEGACY_DECIMALS)
+  Number(process.env.REACT_APP_NATIVE_TOKEN_DECIMALS ?? 18)
 );
 
 export function validateDecimals(value: number): number {
@@ -51,6 +51,19 @@ export function truncateDecimal(text: string, decimals = 8): string {
   const [whole, fraction = ''] = text.split('.');
   const kept = fraction.slice(0, decimals).replace(/0+$/, '');
   return kept ? `${whole}.${kept}` : whole;
+}
+
+/**
+ * Cuts the displayed fraction without rounding up. A positive amount smaller
+ * than the display precision is shown as a less-than value instead of `0`.
+ */
+export function compactDecimal(text: string, decimals = 8): string {
+  validateDecimals(decimals);
+  const exact = decimalText(text);
+  const display = truncateDecimal(exact, decimals);
+  if (display !== '0') return groupThousands(display);
+  if (!/[1-9]/.test(exact)) return '0';
+  return decimals > 0 ? `<0.${'0'.repeat(decimals - 1)}1` : '<1';
 }
 
 export function decimalText(value: unknown): string {

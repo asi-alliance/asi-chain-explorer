@@ -211,9 +211,26 @@ test('filter/order changes reset pagination and clearing the query clears old ro
   const input = screen.getByLabelText('Block height or hash, transaction ID, or address');
   fireEvent.change(input, { target: { value: '' } });
   fireEvent.submit(input.closest('form')!);
-  expect(screen.getByText('Enter a query to search the indexed chain.')).toBeInTheDocument();
+  expect(screen.getByText('Enter a query or an ASI amount range to search the indexed chain.')).toBeInTheDocument();
   expect(screen.queryByRole('link')).not.toBeInTheDocument();
   expect(requests).toHaveLength(requestCount);
+});
+
+test('runs an amount-range transfer search without a text query', async () => {
+  const requests: any[] = [];
+  renderSearch('type=transfers&min=0.1&max=2', new ApolloLink(operation => {
+    requests.push(operation.variables);
+    return Observable.of({ data: { blocks: [], transfers: [], deployments: [] } });
+  }));
+
+  await waitFor(() => expect(requests.length).toBeGreaterThan(0));
+  expect(requests[0].transfers).toEqual({ _and: [
+    { amount_asi: { _gte: '0.1' } },
+    { amount_asi: { _lte: '2' } },
+  ] });
+  expect(await screen.findByText(/for the selected amount range/)).toBeInTheDocument();
+  expect(screen.getByLabelText('Minimum ASI amount')).toHaveValue('0.1');
+  expect(screen.getByLabelText('Maximum ASI amount')).toHaveValue('2');
 });
 
 test('shows request failures without retaining the previous results', async () => {
