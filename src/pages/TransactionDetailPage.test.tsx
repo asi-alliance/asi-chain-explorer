@@ -35,6 +35,7 @@ interface Lookup {
   indexedHttp?: OperationResult;
   statusHttp?: OperationResult;
   status?: OperationResult;
+  details?: OperationResult;
   enabled?: boolean;
 }
 
@@ -45,7 +46,7 @@ function renderLookup(initial: Lookup) {
   const refetch = jest.fn().mockResolvedValue({ data: { deployments: [] } });
   const statusData = () => (state.status ?? { data: { indexer_state: pendingStatusRows() } });
   const requested = mockOperations({
-    GetTransactionDetails: () => ({ data: { deployments: [] }, refetch }),
+    GetTransactionDetails: () => state.details ?? { data: { deployments: [] }, refetch },
     WatchPendingDeploysStatus: () =>
       state.enabled === false ? { data: { indexer_state: [] } } : statusData(),
     GetPendingDeploy: () => state.pendingHttp ?? {},
@@ -198,4 +199,30 @@ test('shows when the deploy was first seen and warns when the indexer status is 
   act(() => { jest.advanceTimersByTime(5000); });
 
   expect(screen.getByRole('note', { name: 'Stale snapshot' })).toBeInTheDocument();
+});
+
+test('shows the executed deploy fee in ASI using the block decimals', async () => {
+  renderLookup({
+    details: {
+      data: {
+        deployments: [{
+          __typename: 'deployments', deploy_id: SIG, deployer: '04' + 'ab'.repeat(32),
+          term: 'new x in { x!(1) }', timestamp: '1762770000000', deployment_type: 'contract_call',
+          phlo_cost: '277155', phlo_price: '100000000000', phlo_limit: '1000000',
+          valid_after_block_number: '903', status: 'included', errored: false,
+          block_number: '904', block_hash: 'b'.repeat(64), created_at: '2026-11-11T00:00:00',
+          transfers: [],
+          block: {
+            __typename: 'blocks', block_number: 904, block_hash: 'b'.repeat(64),
+            token_decimals: 18, parent_links: [], timestamp: '1762770000000',
+            proposer: 'v', deployment_count: 1, state_hash: 's', finalization_status: 'finalized',
+            justifications: [], created_at: '2026-11-11T00:00:00',
+          },
+        }],
+      },
+    },
+  });
+
+  expect(await screen.findByText('0.0277155 ASI')).toBeInTheDocument();
+  expect(screen.getByText(/precharge up to 0.1 ASI/)).toBeInTheDocument();
 });

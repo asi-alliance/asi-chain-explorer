@@ -1,0 +1,45 @@
+/* Deploy fee summary on the transaction page */
+
+.deploy-fee {
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+    margin-bottom: 1.25rem;
+    padding: 0.85rem 1rem;
+    border: 1px solid rgba(147, 226, 124, 0.3);
+    border-radius: 8px;
+    background: linear-gradient(135deg, rgba(147, 226, 124, 0.1), rgba(147, 226, 124, 0.02));
+}
+
+.deploy-fee__label {
+    color: var(--text-secondary);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.deploy-fee__value {
+    color: var(--asi-lime);
+    font-size: 1.5rem;
+    font-weight: 700;
+    line-height: 1.2;
+}
+
+.deploy-fee__note {
+    color: var(--text-tertiary);
+    font-size: 11.5px;
+    line-height: 1.45;
+}
+
+.deploy-fee__missing {
+    margin: 0 0 1rem;
+    color: var(--text-secondary);
+    font-size: 12.5px;
+}
+
+@media (max-width: 600px) {
+    .deploy-fee__value {
+        font-size: 1.3rem;
+    }
+}

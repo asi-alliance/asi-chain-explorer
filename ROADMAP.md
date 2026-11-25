@@ -26,6 +26,11 @@ unambiguous. This file records the remaining UI work; backend blockers live in
   unused `react-window`, `react-virtualized`, `react-qr-code` and `react-csv`
   dependencies.
 - Native controls and scrollbars follow the dark theme (`color-scheme: dark`).
+- Transaction pages show the executed fee in ASI
+  (`phlo_cost × phlo_price`, using the block's token decimals) plus the phlo
+  breakdown and the `phlo_limit` precharge. Pending deploys still have no fee
+  until the node reports their executed cost.
+- Transaction tabs wrap on narrow screens instead of overflowing the page.
 
 ## Frontend-only next
 

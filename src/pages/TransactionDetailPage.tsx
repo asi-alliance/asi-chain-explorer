@@ -28,6 +28,8 @@ import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import { gql } from '@apollo/client';
 import { CURRENT_TOKEN } from '../utils/constants';
 import { toMillis } from '../utils/calculateBlockTime';
+import { NATIVE_DECIMALS, groupThousands } from '../utils/amounts';
+import { deployFee } from '../utils/deployFee';
 import CopyButton from '../components/CopyButton';
 import NativeTransferLifecycle, {
   lifecycleCallLabel,
@@ -45,8 +47,18 @@ import { useLiveQuery } from '../hooks/useLiveQuery';
 import { usePendingDeploysStatus } from '../hooks/usePendingDeploysStatus';
 import PendingDeployDetails, { PendingDeployLeftBuffer } from '../components/PendingDeployDetails';
 import { transferStatusView } from '../utils/transferStatus';
+import type { Deployment } from '../types';
+import '../styles/transaction.css';
 
 const PENDING_WATCH_MS = 3 * 60_000;
+
+/** Executed fee in ASI, using the block's token decimals when the indexer has them. */
+const deploymentFee = (deployment: Deployment) =>
+  deployFee(
+    deployment.phlo_cost,
+    deployment.phlo_price,
+    deployment.block?.token_decimals ?? NATIVE_DECIMALS
+  );
 
 // Helper functions to safely parse timestamps
 const parseTimestamp = (timestamp: any): number => {
@@ -138,6 +150,7 @@ const GET_TRANSACTION_DETAILS = gql`
       block {
         block_number
         block_hash
+        token_decimals
         parent_links {
           parent_hash
           parent_index
@@ -246,6 +259,7 @@ const TransactionDetail: React.FC<{ transactionId?: string }> = ({ transactionId
   const downloadTransactionData = (format: 'json' | 'txt') => {
     if (!transaction) return;
 
+    const fee = deploymentFee(transaction);
     const data = {
       transaction,
       transfers,
@@ -271,7 +285,8 @@ Deployer: ${transaction.deployer}
 Height: ${transaction.block_number}
 Timestamp: ${new Date(transaction.timestamp).toLocaleString()}
 Status: ${transaction.errored ? 'Failed' : 'Success'}
-Phlo Cost: ${transaction.phlo_cost?.toLocaleString() || 'N/A'}
+Phlo Cost: ${transaction.phlo_cost?.toLocaleString() || 'N/A'} phlo
+Fee: ${fee ? `${fee.display} ${CURRENT_TOKEN}` : 'N/A'}
 Type: ${transaction.deployment_type || 'Unknown'}
 
 ${transaction.error_message ? `Error: ${transaction.error_message}\n` : ''}
@@ -411,6 +426,10 @@ Exported at: ${new Date().toLocaleString()}
     );
   }
 
+  const feeDecimals = transaction.block?.token_decimals ?? NATIVE_DECIMALS;
+  const fee = deploymentFee(transaction);
+  const maxFee = deployFee(transaction.phlo_limit, transaction.phlo_price, feeDecimals);
+
   const tabs = [
     { key: 'overview', label: 'Overview', icon: <Activity size={16} /> },
     { key: 'code', label: 'Code', icon: <Code size={16} /> },
@@ -545,6 +564,24 @@ Exported at: ${new Date().toLocaleString()}
             <Zap size={20} />
             Execution Details
           </h3>
+          {fee ? (
+            <div className="deploy-fee">
+              <span className="deploy-fee__label">Transaction fee</span>
+              <span className="deploy-fee__value" title={`${fee.dust} atomic units`}>
+                {fee.display} {CURRENT_TOKEN}
+              </span>
+              <span className="deploy-fee__note">
+                {groupThousands(String(transaction.phlo_cost ?? 0))} phlo ×{" "}
+                {groupThousands(String(transaction.phlo_price ?? 0))} atomic units per phlo
+                {maxFee ? ` · precharge up to ${maxFee.display} ${CURRENT_TOKEN}` : ""}
+              </span>
+            </div>
+          ) : (
+            <p className="deploy-fee__missing" role="status">
+              Fee is unavailable: the indexer has not reported both the phlo cost
+              and the phlo price for this deploy.
+            </p>
+          )}
           <div style={{ gap: '1rem' }}>
             <div style={{
               display: 'grid',
@@ -1170,6 +1207,7 @@ Exported at: ${new Date().toLocaleString()}
       {/* Tab Navigation */}
       <div style={{
         display: 'flex',
+        flexWrap: 'wrap',
         gap: '0.5rem',
         marginBottom: '2rem',
         backgroundColor: 'rgba(255, 255, 255, 0.05)',
