@@ -104,7 +104,8 @@ The system indexes blockchain data including blocks, deployments, transfers, val
 - **date-fns 3.6.0**: Date formatting
 - **lucide-react 0.536.0**: Icons
 - **papaparse 5.5.3**: CSV parsing
-- **react-window 1.8.8**: Virtual scrolling
+- **React.lazy**: Route-level code splitting; charts and the syntax highlighter
+  load only on the pages that use them
 
 ### Infrastructure
 

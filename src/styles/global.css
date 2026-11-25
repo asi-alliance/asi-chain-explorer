@@ -7,6 +7,9 @@
 
 /* Color Variables - ASI Wallet Brand Guide */
 :root {
+    /* The explorer is dark-only; keep native scrollbars and controls dark. */
+    color-scheme: dark;
+
     /* Primary Colors - Same for both themes */
     --asi-lime: #93E27C;
     --asi-lime-dark: #82C96D;
@@ -469,6 +472,20 @@ code, .code {
 @keyframes spin {
     0% { transform: rotate(0deg); }
     100% { transform: rotate(360deg); }
+}
+
+/* Lazy route placeholder: keeps the shell stable while a page chunk loads. */
+.route-fallback {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 4rem 0 5rem;
+}
+
+.route-fallback p {
+    margin: 0;
+    font-size: 13px;
 }
 
 /* Glass Morphism Effect - Dark Mode */

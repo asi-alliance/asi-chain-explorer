@@ -21,6 +21,11 @@ unambiguous. This file records the remaining UI work; backend blockers live in
 - Mobile search panel and height overview.
 - A 404 page for unknown paths, with the attempted path, the chain search
   and recovery links.
+- Route-level code splitting: the home page ships with the shell, while charts
+  and the syntax highlighter load only on the pages that use them. Removed the
+  unused `react-window`, `react-virtualized`, `react-qr-code` and `react-csv`
+  dependencies.
+- Native controls and scrollbars follow the dark theme (`color-scheme: dark`).
 
 ## Frontend-only next
 

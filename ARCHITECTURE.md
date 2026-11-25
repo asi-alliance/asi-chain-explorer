@@ -499,13 +499,13 @@ typePolicies: {
 
 #### Frontend Performance
 
-1. **Code Splitting**: Routes lazy-loaded for faster initial load
+1. **Code Splitting**: Routes lazy-loaded, so charts and the syntax highlighter
+   load only on the pages that use them
 2. **Query Batching**: Apollo batches multiple queries
 3. **Pagination**: Large lists paginated to reduce data transfer
-4. **Virtual Scrolling**: react-window used for very large lists
-5. **Memoization**: Expensive computations cached with useMemo and memo
-6. **Fragment-based Queries**: Reusable fragments reduce query complexity
-7. **Polling Optimization**: Configurable intervals based on data freshness needs
+4. **Memoization**: Expensive computations cached with useMemo and memo
+5. **Fragment-based Queries**: Reusable fragments reduce query complexity
+6. **Polling Optimization**: Configurable intervals based on data freshness needs
 
 ### Scalability
 
