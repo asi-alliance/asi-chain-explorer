@@ -177,11 +177,18 @@ const BlockDetailPage: React.FC = () => {
       .filter((timestamp) => Number.isFinite(timestamp) && timestamp > 0);
     const earliestTimestamp = timestamps.length ? Math.min(...timestamps) : null;
     const latestTimestamp = timestamps.length ? Math.max(...timestamps) : null;
-    const earliestText = earliestTimestamp === null ? null : formatDate(earliestTimestamp);
-    const latestText = latestTimestamp === null ? null : formatDate(latestTimestamp);
+    const formatClock = (timestamp: number) =>
+      new Date(timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    const earliestText = earliestTimestamp === null ? null : formatClock(earliestTimestamp);
+    const latestText = latestTimestamp === null ? null : formatClock(latestTimestamp);
     const timeRange = earliestText === null || latestText === null
       ? 'N/A'
       : earliestText === latestText ? earliestText : `${earliestText} – ${latestText}`;
+    const timeRangeTitle = earliestTimestamp === null || latestTimestamp === null
+      ? undefined
+      : earliestTimestamp === latestTimestamp
+        ? formatDate(latestTimestamp)
+        : `${formatDate(earliestTimestamp)} – ${formatDate(latestTimestamp)}`;
     const finalizedCount = matchingBlocks
       .filter((sibling) => sibling.finalization_status === 'finalized').length;
 
@@ -226,7 +233,7 @@ const BlockDetailPage: React.FC = () => {
             </div>
             <div className="asi-card glass">
               <p className="text-muted">Time range</p>
-              <strong>{timeRange}</strong>
+              <strong title={timeRangeTitle}>{timeRange}</strong>
             </div>
           </div>
 
