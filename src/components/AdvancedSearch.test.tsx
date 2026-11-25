@@ -102,6 +102,25 @@ test('shows grouped results, de-duplicates one deploy, and links to the full sea
     .toHaveAttribute('href', `/search?q=${deployId}`);
 });
 
+test('shows a pending deploy when the indexed rows are empty', async () => {
+  const sig = 'a'.repeat(128);
+  const client = clientWith(new ApolloLink(() => Observable.of({ data: {
+    blocks: [], transfers: [], deployments: [],
+    pending_deploys: [{
+      sig, deployer_address: address, timestamp: String(Date.now()),
+      is_rejected: false, included_deployment: null,
+    }],
+  } })));
+  render(<ApolloProvider client={client}><MemoryRouter><AdvancedSearch /></MemoryRouter></ApolloProvider>);
+  fireEvent.change(screen.getByRole('combobox'), { target: { value: sig } });
+
+  const listbox = await screen.findByRole('listbox');
+  expect(within(listbox).getByRole('option', { name: /Pending deploy/ })).toBeInTheDocument();
+  expect(screen.getByText('Waiting in validator buffer')).toBeInTheDocument();
+  expect(within(listbox).getByRole('option', { name: /Pending deploy/ }))
+    .toHaveAttribute('href', `/transaction/${sig}`);
+});
+
 test('a full wallet address opens the address page without querying Hasura', async () => {
   const requests: any[] = [];
   const client = clientWith(new ApolloLink(operation => {

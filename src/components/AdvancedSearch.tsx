@@ -9,6 +9,7 @@ import { gql, useApolloClient } from "@apollo/client";
 import { formatDistanceToNow } from "date-fns";
 import {
     ChevronRight,
+    Clock,
     Database,
     FileText,
     Hash,
@@ -23,11 +24,12 @@ import { decimalText, groupThousands, truncateDecimal } from "../utils/amounts";
 import { heightInput } from "../utils/blockHeight";
 import { getBlockPath } from "../utils/blockPath";
 import { CURRENT_TOKEN } from "../utils/constants";
+import { useRecentSearches } from "../hooks/useRecentSearches";
 import { HEIGHT_ONLY_PATTERN, searchPattern } from "../utils/search";
 import "../styles/search.css";
 
 const QUICK_SEARCH = gql`
-    query QuickSearch($pattern: String!, $height: bigint!) {
+    query QuickSearch($pattern: String!, $height: bigint!, $sig: String!) {
         blocks(
             where: {
                 _or: [
@@ -87,6 +89,19 @@ const QUICK_SEARCH = gql`
             deployer_address
             errored
         }
+
+        pending_deploys(where: { sig: { _eq: $sig } }, limit: 1) {
+            sig
+            deployer_address
+            timestamp
+            is_rejected
+            phlo_limit
+            phlo_price
+            expiration_timestamp
+            included_deployment {
+                deploy_id
+            }
+        }
     }
 `;
 
@@ -123,13 +138,25 @@ interface QuickDeployment {
     errored?: boolean | null;
 }
 
+interface QuickPendingDeploy {
+    sig: string;
+    deployer_address: string;
+    timestamp: string | number;
+    is_rejected: boolean;
+    phlo_limit?: string | number | null;
+    phlo_price?: string | number | null;
+    expiration_timestamp?: string | number | null;
+    included_deployment?: { deploy_id: string } | null;
+}
+
 interface QuickSearchData {
     blocks?: QuickBlock[];
     transfers?: QuickTransfer[];
     deployments?: QuickDeployment[];
+    pending_deploys?: QuickPendingDeploy[];
 }
 
-type ResultType = "height" | "block" | "transaction" | "transfer";
+type ResultType = "height" | "pending" | "block" | "transaction" | "transfer";
 
 interface QuickResult {
     key: string;
@@ -152,6 +179,10 @@ interface ResultGroup {
 interface AdvancedSearchProps {
     embedded?: boolean;
     placeholder?: string;
+    variant?: "header" | "palette";
+    autoFocus?: boolean;
+    showRecent?: boolean;
+    onNavigate?: () => void;
 }
 
 const shorten = (value: string, head = 10, tail = 6): string => {
@@ -300,11 +331,29 @@ function buildResults(data: QuickSearchData | undefined, query: string): QuickRe
             ),
         }));
 
+    const pending = data?.pending_deploys?.[0];
+    const pendingIndexed = pending !== undefined && (
+        deploymentIds.has(pending.sig) ||
+        transfers.some((transfer) => transfer.deploy_id === pending.sig) ||
+        pending.included_deployment?.deploy_id !== undefined
+    );
+    const pendingResults: QuickResult[] = pending && !pendingIndexed ? [{
+        key: `pending:${pending.sig}`,
+        type: "pending",
+        path: `/transaction/${encodeURIComponent(pending.sig)}`,
+        title: `Pending deploy ${shorten(pending.sig, 10, 8)}`,
+        meta: pending.is_rejected ? "Rejected; retrying" : "Waiting in validator buffer",
+        timestamp: timestampOf(pending.timestamp),
+        status: pending.is_rejected ? "rejected" : "pending",
+        rank: 0,
+    }] : [];
+
     const byRankThenTime = (left: QuickResult, right: QuickResult) =>
         left.rank - right.rank || right.timestamp - left.timestamp;
 
     return [
         ...heightResults,
+        ...pendingResults,
         ...blocks.sort(byRankThenTime),
         ...transactions.sort(byRankThenTime),
         ...transferResults.sort(byRankThenTime),
@@ -314,6 +363,10 @@ function buildResults(data: QuickSearchData | undefined, query: string): QuickRe
 const AdvancedSearch: React.FC<AdvancedSearchProps> = ({
     embedded = false,
     placeholder = "Search block, tx, or address",
+    variant = "header",
+    autoFocus = false,
+    showRecent = false,
+    onNavigate,
 }) => {
     const client = useApolloClient();
     const navigate = useNavigate();
@@ -329,6 +382,7 @@ const AdvancedSearch: React.FC<AdvancedSearchProps> = ({
     const [error, setError] = useState<Error | null>(null);
     const [isOpen, setIsOpen] = useState(false);
     const [activeIndex, setActiveIndex] = useState(-1);
+    const { recent, add: addRecent, clear: clearRecent } = useRecentSearches();
 
     const trimmed = query.trim();
     const wallet = isVaultAddress(trimmed);
@@ -355,6 +409,8 @@ const AdvancedSearch: React.FC<AdvancedSearchProps> = ({
                         pattern: exactHeight === null ? searchPattern(value) : HEIGHT_ONLY_PATTERN,
                         // Heights are non-negative; -1 disables the height branch for text queries.
                         height: exactHeight ?? "-1",
+                        // Exact signature lookup; the pending table is keyed by sig.
+                        sig: value.trim(),
                     },
                     fetchPolicy: "no-cache",
                     errorPolicy: "none",
@@ -438,25 +494,20 @@ const AdvancedSearch: React.FC<AdvancedSearchProps> = ({
     }, [isOpen]);
 
     useEffect(() => {
-        const focusShortcut = (event: KeyboardEvent) => {
-            if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
-                event.preventDefault();
-                inputRef.current?.focus();
-                inputRef.current?.select();
-                setIsOpen(true);
-            }
-        };
-        window.addEventListener("keydown", focusShortcut);
-        return () => window.removeEventListener("keydown", focusShortcut);
-    }, []);
+        if (!autoFocus) return;
+        inputRef.current?.focus();
+        setIsOpen(true);
+    }, [autoFocus]);
 
     const groups = useMemo<ResultGroup[]>(() => {
         const heights = results.filter((result) => result.type === "height");
+        const pending = results.filter((result) => result.type === "pending");
         const blocks = results.filter((result) => result.type === "block");
         const transactions = results.filter((result) => result.type === "transaction");
         const transfers = results.filter((result) => result.type === "transfer");
         return [
             { key: "height", label: "Height", items: heights, truncated: false },
+            { key: "pending", label: "Pending", items: pending, truncated: false },
             { key: "blocks", label: "Blocks", items: blocks.slice(0, VISIBLE_PER_GROUP), truncated: blocks.length > VISIBLE_PER_GROUP },
             { key: "transactions", label: "Transactions", items: transactions.slice(0, VISIBLE_PER_GROUP), truncated: transactions.length > VISIBLE_PER_GROUP },
             { key: "transfers", label: "Transfers", items: transfers.slice(0, VISIBLE_PER_GROUP), truncated: transfers.length > VISIBLE_PER_GROUP },
@@ -485,13 +536,17 @@ const AdvancedSearch: React.FC<AdvancedSearchProps> = ({
     };
 
     const openResult = (result: QuickResult) => {
+        addRecent(trimmed);
         close();
+        onNavigate?.();
         navigate(result.path);
     };
 
     const openSearchPage = () => {
         if (!trimmed) return;
+        addRecent(trimmed);
         close();
+        onNavigate?.();
         navigate(searchUrl);
     };
 
@@ -512,7 +567,9 @@ const AdvancedSearch: React.FC<AdvancedSearchProps> = ({
 
         if (wallet && event.key === "Enter") {
             event.preventDefault();
+            addRecent(trimmed);
             close();
+            onNavigate?.();
             navigate(addressPath(trimmed));
             return;
         }
@@ -578,6 +635,7 @@ const AdvancedSearch: React.FC<AdvancedSearchProps> = ({
 
     const iconFor = (type: ResultType) => {
         if (type === "height") return <Hash size={16} aria-hidden="true" />;
+        if (type === "pending") return <Clock size={16} aria-hidden="true" />;
         if (type === "block") return <Database size={16} aria-hidden="true" />;
         if (type === "transaction") return <FileText size={16} aria-hidden="true" />;
         return <TrendingUp size={16} aria-hidden="true" />;
@@ -588,7 +646,7 @@ const AdvancedSearch: React.FC<AdvancedSearchProps> = ({
     return (
         <div
             ref={containerRef}
-            className={`asi-search${embedded ? " asi-search--embedded" : ""}`}
+            className={`asi-search${embedded ? " asi-search--embedded" : ""}${variant === "palette" ? " asi-search--palette" : ""}`}
             onBlur={(event) => {
                 const next = event.relatedTarget as Node | null;
                 if (next && !event.currentTarget.contains(next)) close();
@@ -661,7 +719,11 @@ const AdvancedSearch: React.FC<AdvancedSearchProps> = ({
                             <Link
                                 className="asi-search__wallet"
                                 to={addressPath(trimmed)}
-                                onClick={close}
+                                onClick={() => {
+                                    addRecent(trimmed);
+                                    close();
+                                    onNavigate?.();
+                                }}
                             >
                                 <span className="asi-search__icon asi-search__icon--wallet">
                                     <Wallet size={18} aria-hidden="true" />
@@ -759,7 +821,11 @@ const AdvancedSearch: React.FC<AdvancedSearchProps> = ({
                                                     aria-selected={active}
                                                     tabIndex={-1}
                                                     onMouseEnter={() => setActiveIndex(index)}
-                                                    onClick={close}
+                                                    onClick={() => {
+                                                        addRecent(trimmed);
+                                                        close();
+                                                        onNavigate?.();
+                                                    }}
                                                 >
                                                     <span className={`asi-search__icon asi-search__icon--${result.type}`}>
                                                         {iconFor(result.type)}
@@ -792,7 +858,30 @@ const AdvancedSearch: React.FC<AdvancedSearchProps> = ({
                             </div>
                         )}
 
-                        {showIdleHint && !loading && !error && (
+                        {showRecent && !trimmed && recent.length > 0 && (
+                            <div className="asi-search__recent">
+                                <div className="asi-search__recent-head">
+                                    <span>Recent searches</span>
+                                    <button type="button" onClick={clearRecent}>Clear</button>
+                                </div>
+                                {recent.map((item) => (
+                                    <button
+                                        key={`${item.query}-${item.at}`}
+                                        type="button"
+                                        className="asi-search__recent-item"
+                                        onClick={() => {
+                                            setQuery(item.query);
+                                            setIsOpen(true);
+                                            inputRef.current?.focus();
+                                        }}
+                                    >
+                                        {item.query}
+                                    </button>
+                                ))}
+                            </div>
+                        )}
+
+                        {showIdleHint && !loading && !error && !(showRecent && recent.length > 0) && (
                             <div className="asi-search__state asi-search__state--idle">
                                 <p className="asi-search__state-title">Search the chain</p>
                                 <p>Block height or hash, transaction ID, or wallet address.</p>
@@ -808,7 +897,15 @@ const AdvancedSearch: React.FC<AdvancedSearchProps> = ({
                             <span className="asi-search__keys" aria-hidden="true">
                                 <kbd>↑</kbd><kbd>↓</kbd> navigate <kbd>↵</kbd> open <kbd>esc</kbd> close
                             </span>
-                            <Link className="asi-search__all" to={searchUrl} onClick={close}>
+                            <Link
+                                className="asi-search__all"
+                                to={searchUrl}
+                                onClick={() => {
+                                    addRecent(trimmed);
+                                    onNavigate?.();
+                                    close();
+                                }}
+                            >
                                 See all results
                             </Link>
                         </div>

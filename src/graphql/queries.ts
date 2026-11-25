@@ -88,11 +88,12 @@ export const VALIDATOR_FRAGMENT = gql`
 export const GET_LATEST_BLOCKS = gql`
   ${BLOCK_FRAGMENT}
   ${DEPLOYMENT_FRAGMENT}
-  query GetLatestBlocks($limit: Int = 10, $offset: Int = 0) {
+  query GetLatestBlocks($limit: Int = 10, $offset: Int = 0, $where: blocks_bool_exp = {}) {
     blocks(
       limit: $limit
       offset: $offset
       order_by: { block_number: desc }
+      where: $where
     ) {
       ...BlockFragment
       deployments {
@@ -104,13 +105,16 @@ export const GET_LATEST_BLOCKS = gql`
 
 export const SEARCH_BLOCKS_BY_HASH = gql`
   ${BLOCK_FRAGMENT}
-  query SearchBlocksByHash($search: String!, $limit: Int = 10, $offset: Int = 0) {
+  query SearchBlocksByHash($search: String!, $limit: Int = 10, $offset: Int = 0, $where: blocks_bool_exp = {}) {
     blocks(
       limit: $limit
       offset: $offset
       order_by: { block_number: desc }
       where: {
-        block_hash: { _ilike: $search }
+        _and: [
+          { block_hash: { _ilike: $search } }
+          $where
+        ]
       }
     ) {
       ...BlockFragment
@@ -120,16 +124,28 @@ export const SEARCH_BLOCKS_BY_HASH = gql`
 
 export const SEARCH_BLOCKS_BY_NUMBER = gql`
   ${BLOCK_FRAGMENT}
-  query SearchBlocksByNumber($blockNumber: bigint!, $limit: Int = 10, $offset: Int = 0) {
+  query SearchBlocksByNumber($blockNumber: bigint!, $limit: Int = 10, $offset: Int = 0, $where: blocks_bool_exp = {}) {
     blocks(
       limit: $limit
       offset: $offset
       order_by: { block_number: desc }
       where: {
-        block_number: { _eq: $blockNumber }
+        _and: [
+          { block_number: { _eq: $blockNumber } }
+          $where
+        ]
       }
     ) {
       ...BlockFragment
+    }
+  }
+`;
+
+export const GET_LATEST_HEIGHT = gql`
+  query GetLatestHeight {
+    blocks(limit: 1, order_by: { block_number: desc }) {
+      block_number
+      block_hash
     }
   }
 `;
@@ -141,6 +157,10 @@ export const GET_BLOCK_DETAILS = gql`
   query GetBlockDetails($blockHash: String!) {
     blocks(where: { block_hash: { _eq: $blockHash } }) {
       ...BlockFragment
+      child_links {
+        block_hash
+        parent_index
+      }
       deployments {
         ...DeploymentFragment
         transfers {
@@ -162,6 +182,10 @@ export const GET_BLOCKS_AT_HEIGHT = gql`
       limit: 100
     ) {
       ...BlockFragment
+      child_links {
+        block_hash
+        parent_index
+      }
       deployments {
         ...DeploymentFragment
         transfers {

@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, within } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import Layout from './Layout';
 import { usePendingDeploysStatus } from '../hooks/usePendingDeploysStatus';
@@ -37,6 +37,14 @@ test('marks only the Pending tab active on the pending page', () => {
 test('keeps the Pending tab available while checking indexer support', () => {
   (usePendingDeploysStatus as jest.Mock).mockReturnValue({ status: null, loading: true });
   expect(renderAt('/pending').map(tab => tab.textContent)).toContain('Pending');
+});
+
+test('opens the search palette with Ctrl+K and closes it with Escape', () => {
+  renderAt('/');
+  fireEvent.keyDown(window, { key: 'k', ctrlKey: true });
+  expect(screen.getByRole('dialog', { name: 'Search the chain' })).toBeInTheDocument();
+  fireEvent.keyDown(document, { key: 'Escape' });
+  expect(screen.queryByRole('dialog', { name: 'Search the chain' })).not.toBeInTheDocument();
 });
 
 test('hides the Pending tab when the indexer does not track pending deploys', () => {

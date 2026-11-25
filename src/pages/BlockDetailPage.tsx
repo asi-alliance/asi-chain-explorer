@@ -1,14 +1,17 @@
 import React from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useSearchParams } from 'react-router-dom';
 import { useQuery } from '@apollo/client';
 import { ChevronRight } from 'lucide-react';
-import { GET_BLOCK_DETAILS, GET_BLOCKS_AT_HEIGHT } from '../graphql/queries';
+import { GET_BLOCK_DETAILS, GET_BLOCKS_AT_HEIGHT, GET_LATEST_HEIGHT } from '../graphql/queries';
 import { Block } from '../types';
 import { formatDistanceToNow } from 'date-fns';
 import { CURRENT_TOKEN } from '../utils/constants';
 import { getParentHashes } from '../utils/blockParent';
+import { heightInput } from '../utils/blockHeight';
 import { formatRaw } from '../utils/amounts';
 import { getBlockPath } from '../utils/blockPath';
+import CopyButton from '../components/CopyButton';
+import ShareLinkButton from '../components/ShareLinkButton';
 import '../styles/height.css';
 
 const BlockDetailPage: React.FC = () => {
@@ -25,6 +28,17 @@ const BlockDetailPage: React.FC = () => {
     variables: { blockNumber: blockNumber || '0' },
     skip: !blockNumber,
   });
+  const latestHeightResult = useQuery<{ blocks: Array<{ block_number: string }> }>(GET_LATEST_HEIGHT);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const statusFilter = searchParams.get('status') === 'finalized'
+    ? 'finalized'
+    : searchParams.get('status') === 'unfinalized' ? 'unfinalized' : 'all';
+  const setStatusFilter = (value: 'all' | 'finalized' | 'unfinalized') => {
+    const next = new URLSearchParams(searchParams);
+    if (value === 'all') next.delete('status');
+    else next.set('status', value);
+    setSearchParams(next);
+  };
 
   const activeResult = blockHash ? hashResult : heightResult;
   const { data, loading, error } = activeResult;
@@ -127,20 +141,57 @@ const BlockDetailPage: React.FC = () => {
   const siblingCountLabel = siblingCount >= 100 ? '100+' : String(siblingCount);
   const isHeightView = Boolean(blockNumber) && !blockHash;
   const showHeightOverview = isHeightView && siblingCount > 1;
+  const currentHeight = heightInput(blockNumber || String(block.block_number));
+  const latestHeight = heightInput(latestHeightResult.data?.blocks?.[0]?.block_number || '');
+  const previousHeight = currentHeight !== null && BigInt(currentHeight) > 0n
+    ? (BigInt(currentHeight) - 1n).toString() : null;
+  const nextHeight = currentHeight !== null && latestHeight !== null && BigInt(currentHeight) < BigInt(latestHeight)
+    ? (BigInt(currentHeight) + 1n).toString() : null;
+  const filteredSiblings = matchingBlocks.filter((sibling) => {
+    if (statusFilter === 'finalized') return sibling.finalization_status === 'finalized';
+    if (statusFilter === 'unfinalized') return sibling.finalization_status !== 'finalized';
+    return true;
+  });
+
+  const heightNav = (
+    <div className="height-nav">
+      {previousHeight === null ? (
+        <span className="height-nav__disabled">← Previous height</span>
+      ) : (
+        <Link className="btn btn-secondary" to={`/block/${previousHeight}`}>← Height #{previousHeight}</Link>
+      )}
+      {latestHeight !== null && (
+        <Link className="height-nav__latest" to={`/block/${latestHeight}`}>Latest #{latestHeight}</Link>
+      )}
+      {nextHeight === null ? (
+        <span className="height-nav__disabled">Next height →</span>
+      ) : (
+        <Link className="btn btn-secondary" to={`/block/${nextHeight}`}>Height #{nextHeight} →</Link>
+      )}
+    </div>
+  );
 
   if (showHeightOverview) {
     const timestamps = matchingBlocks
       .map((sibling) => Number(sibling.timestamp))
       .filter((timestamp) => Number.isFinite(timestamp) && timestamp > 0);
+    const earliestTimestamp = timestamps.length ? Math.min(...timestamps) : null;
     const latestTimestamp = timestamps.length ? Math.max(...timestamps) : null;
+    const earliestText = earliestTimestamp === null ? null : formatDate(earliestTimestamp);
+    const latestText = latestTimestamp === null ? null : formatDate(latestTimestamp);
+    const timeRange = earliestText === null || latestText === null
+      ? 'N/A'
+      : earliestText === latestText ? earliestText : `${earliestText} – ${latestText}`;
     const finalizedCount = matchingBlocks
       .filter((sibling) => sibling.finalization_status === 'finalized').length;
 
     return (
       <>
-        <nav style={{ marginBottom: '2rem' }}>
+        <nav className="page-actions">
           <Link to="/" className="btn btn-secondary">← Back to home</Link>
+          <ShareLinkButton label="Copy height link" />
         </nav>
+        {heightNav}
 
         <section className="asi-card height-overview">
           <header className="height-overview__head">
@@ -148,9 +199,12 @@ const BlockDetailPage: React.FC = () => {
               <p className="height-overview__eyebrow">Block height</p>
               <h1 className="height-overview__title">#{blockNumber}</h1>
             </div>
-            <span className="height-overview__count">
-              {siblingCountLabel} sibling blocks
-            </span>
+            <div className="height-overview__actions">
+              <CopyButton dataToCopy={String(blockNumber)} label="Copy height" iconSize={14} />
+              <span className="height-overview__count">
+                {siblingCountLabel} sibling blocks
+              </span>
+            </div>
           </header>
 
           <p className="height-overview__hint">
@@ -171,8 +225,8 @@ const BlockDetailPage: React.FC = () => {
               <strong>{finalizedCount} of {matchingBlocks.length}</strong>
             </div>
             <div className="asi-card glass">
-              <p className="text-muted">Latest proposal</p>
-              <strong>{latestTimestamp === null ? 'N/A' : formatTimestamp(latestTimestamp)}</strong>
+              <p className="text-muted">Time range</p>
+              <strong>{timeRange}</strong>
             </div>
           </div>
 
@@ -182,34 +236,64 @@ const BlockDetailPage: React.FC = () => {
             </p>
           )}
 
-          <ol className="height-overview__list">
-            {matchingBlocks.map((sibling) => (
-              <li key={sibling.block_hash}>
-                <Link
-                  className="height-sibling"
-                  to={getBlockPath(sibling.block_hash, sibling.block_number)}
-                  aria-label={`Open block ${sibling.block_hash}`}
+          <div className="height-overview__legend">
+            <span><i className="is-finalized" /> Finalized</span>
+            <span><i className="is-pending" /> Unfinalized</span>
+            <span><i className="is-unknown" /> Unknown</span>
+            <div className="height-overview__filters" role="group" aria-label="Filter sibling blocks">
+              {([
+                ['all', 'All'],
+                ['finalized', 'Finalized'],
+                ['unfinalized', 'Unfinalized'],
+              ] as const).map(([value, label]) => (
+                <button
+                  key={value}
+                  type="button"
+                  className={statusFilter === value ? 'is-active' : ''}
+                  aria-pressed={statusFilter === value}
+                  onClick={() => setStatusFilter(value)}
                 >
-                  <span className="height-sibling__hash mono" title={sibling.block_hash}>
-                    {sibling.block_hash}
-                  </span>
-                  <span className="height-sibling__meta">
-                    Proposer <span className="mono">{truncateAddress(sibling.proposer)}</span>
-                  </span>
-                  <span className="height-sibling__time" title={formatDate(sibling.timestamp)}>
-                    {formatTimestamp(sibling.timestamp)}
-                  </span>
-                  <span className="height-sibling__deploys">
-                    {sibling.deployment_count || 0} deploys
-                  </span>
-                  <span className={`height-sibling__status ${finalizationClass(sibling.finalization_status)}`}>
-                    {finalizationLabel(sibling.finalization_status)}
-                  </span>
-                  <ChevronRight size={18} aria-hidden="true" className="height-sibling__chevron" />
-                </Link>
-              </li>
-            ))}
-          </ol>
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {filteredSiblings.length === 0 ? (
+            <p className="height-overview__empty">No {statusFilter} blocks at this height.</p>
+          ) : (
+            <ol className="height-overview__list">
+              {filteredSiblings.map((sibling) => (
+                <li key={sibling.block_hash}>
+                  <Link
+                    className="height-sibling"
+                    to={getBlockPath(sibling.block_hash, sibling.block_number)}
+                    aria-label={`Open block ${sibling.block_hash}`}
+                  >
+                    <span className="height-sibling__hash mono" title={sibling.block_hash}>
+                      {sibling.block_hash}
+                    </span>
+                    <span className="height-sibling__meta">
+                      Proposer <span className="mono">{truncateAddress(sibling.proposer)}</span>
+                    </span>
+                    <span className="height-sibling__links">
+                      {sibling.parent_links?.length || 0} parents · {sibling.child_links?.length || 0} children
+                    </span>
+                    <span className="height-sibling__time" title={formatDate(sibling.timestamp)}>
+                      {formatTimestamp(sibling.timestamp)}
+                    </span>
+                    <span className="height-sibling__deploys">
+                      {sibling.deployment_count || 0} deploys
+                    </span>
+                    <span className={`height-sibling__status ${finalizationClass(sibling.finalization_status)}`}>
+                      {finalizationLabel(sibling.finalization_status)}
+                    </span>
+                    <ChevronRight size={18} aria-hidden="true" className="height-sibling__chevron" />
+                  </Link>
+                </li>
+              ))}
+            </ol>
+          )}
         </section>
       </>
     );
@@ -218,9 +302,11 @@ const BlockDetailPage: React.FC = () => {
   return (
     <>
       {/* Navigation */}
-      <nav style={{ marginBottom: '2rem' }}>
+      <nav className="page-actions">
         <Link to="/" className="btn btn-secondary">← Back to home</Link>
+        <ShareLinkButton label="Copy block link" />
       </nav>
+      {heightNav}
 
       {/* Block Summary Cards */}
       <div className="summary-grid mb-3">
@@ -271,12 +357,16 @@ const BlockDetailPage: React.FC = () => {
           margin: 0 
         }}>
           <dt>Height</dt>
-          <dd className="block-number">
+          <dd className="block-number detail-copy-row">
             <Link to={getBlockPath(null, block.block_number)}>{block.block_number.toLocaleString()}</Link>
+            <CopyButton dataToCopy={String(block.block_number)} label="Copy height" iconSize={13} />
           </dd>
           
           <dt>Block Hash</dt>
-          <dd className="mono">{block.block_hash}</dd>
+          <dd className="mono detail-copy-row">
+            <span className="detail-hash">{block.block_hash}</span>
+            <CopyButton dataToCopy={block.block_hash} label="Copy block hash" iconSize={13} />
+          </dd>
           
           <dt>Parent Hash{getParentHashes(block).length > 1 ? 'es' : ''}</dt>
           <dd className="mono">
@@ -288,6 +378,18 @@ const BlockDetailPage: React.FC = () => {
                   </React.Fragment>
                 ))
               : 'N/A (genesis)'}
+          </dd>
+
+          <dt>Child Hash{(block.child_links?.length || 0) > 1 ? 'es' : ''}</dt>
+          <dd className="mono">
+            {(block.child_links?.length || 0) > 0
+              ? block.child_links?.map((child, index) => (
+                  <React.Fragment key={child.block_hash}>
+                    {index > 0 && <span style={{ display: 'block', height: '0.25rem' }} />}
+                    <Link to={getBlockPath(child.block_hash)}>{child.block_hash}</Link>
+                  </React.Fragment>
+                ))
+              : 'None indexed'}
           </dd>
           
           <dt>State Hash</dt>

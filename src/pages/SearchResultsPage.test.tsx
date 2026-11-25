@@ -66,12 +66,28 @@ test('submitting a wallet address searches deployments when that type is selecte
     expect(variables.deployments._or).toContainEqual({ deployer_address: { _like: `%${address}%` } });
     return Observable.of({ data: { blocks: [], transfers: [], deployments: [deployment] } });
   }));
-  fireEvent.change(screen.getByLabelText('Result type'), { target: { value: 'deployments' } });
+  fireEvent.click(screen.getByRole('tab', { name: 'Transactions' }));
   fireEvent.change(screen.getByRole('textbox'), { target: { value: address } });
   fireEvent.click(screen.getByRole('button', { name: 'Search' }));
   const result = await screen.findByRole('link', { name: 'Transaction matching-deploy' });
   expect(result).toHaveAttribute('href', '/transaction/matching-deploy');
-  expect(screen.getByLabelText('Result type')).toHaveValue('deployments');
+  expect(screen.getByRole('tab', { name: 'Transactions' })).toHaveAttribute('aria-selected', 'true');
+});
+
+test('shows an unindexed deploy from the pending buffer', async () => {
+  const sig = 'a'.repeat(128);
+  renderSearch(`q=${sig}`, new ApolloLink((operation) => {
+    if (operation.operationName === 'GetPendingDeploy') {
+      return Observable.of({ data: { pending_deploys: [{
+        sig, is_rejected: false, timestamp: String(Date.now()), included_deployment: null,
+      }] } });
+    }
+    return Observable.of({ data: { blocks: [], transfers: [], deployments: [] } });
+  }));
+
+  const link = await screen.findByRole('link', { name: /Pending deploy/ });
+  expect(link).toHaveAttribute('href', `/transaction/${sig}`);
+  expect(screen.getByText(/Waiting in the validator buffer/)).toBeInTheDocument();
 });
 
 test('opens a deep-linked page beyond the public row cap', async () => {
@@ -187,7 +203,7 @@ test('filter/order changes reset pagination and clearing the query clears old ro
   fireEvent.change(screen.getByLabelText('Result order'), { target: { value: 'asc' } });
   await screen.findByRole('link', { name: 'Block #0' });
   expect(requests.at(-1)).toMatchObject({ order: 'asc', offset: 0 });
-  fireEvent.change(screen.getByLabelText('Result type'), { target: { value: 'transfers' } });
+  fireEvent.click(screen.getByRole('tab', { name: 'Transfers' }));
   const link = await screen.findByRole('link', { name: '18446744073709551616.000000000000000001 ASI Transfer' });
   expect(link).toHaveAttribute('href', '/transaction/exact-transfer');
   expect(requests.at(-1).blocks).toEqual({ _or: [] });

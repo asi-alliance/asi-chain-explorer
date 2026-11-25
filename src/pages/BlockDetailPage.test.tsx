@@ -20,6 +20,7 @@ const blocks = hashes.map((block_hash, index) => ({
   deployment_count: 2,
   finalization_status: 'finalized',
   parent_links: [],
+  child_links: [],
   state_hash: null,
   pre_state_hash: null,
   state_root_hash: null,
@@ -41,11 +42,11 @@ function renderHeight() {
   const client = new ApolloClient({
     cache: new InMemoryCache(),
     link: new ApolloLink(operation => {
+      if (operation.operationName === 'GetLatestHeight') {
+        return Observable.of({ data: { blocks: [{ block_number: '72420', block_hash: 'c'.repeat(64) }] } });
+      }
       expect(operation.operationName).toBe('GetBlocksAtHeight');
-      return Observable.of({ data: {
-        blocks,
-        blocks_aggregate: { aggregate: { count: blocks.length } },
-      } });
+      return Observable.of({ data: { blocks } });
     }),
   });
   return render(
@@ -67,6 +68,8 @@ test('shows one height overview with all siblings instead of an arbitrary first 
   expect(screen.getByText('2 sibling blocks')).toBeInTheDocument();
   expect(screen.getByText('2 of 2')).toBeInTheDocument();
   expect(screen.getByRole('link', { name: /Back to home/ })).toHaveAttribute('href', '/');
+  expect(await screen.findByRole('link', { name: /Height #72417/ })).toHaveAttribute('href', '/block/72417');
+  expect(await screen.findByRole('link', { name: /Height #72419/ })).toHaveAttribute('href', '/block/72419');
   expect(screen.queryByText('Block Details')).not.toBeInTheDocument();
 
   const siblingLinks = screen.getAllByRole('link', { name: /Open block/ });

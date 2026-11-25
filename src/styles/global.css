@@ -366,6 +366,57 @@ code, .code {
 }
 
 /* Block Number Styling */
+.home-filter-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 12px;
+    margin: 0 0 1rem;
+}
+
+.home-filter-row label {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    color: var(--text-secondary);
+    font-size: 12px;
+    white-space: nowrap;
+}
+
+.home-filter-row input[type="checkbox"] {
+    width: auto;
+    margin: 0;
+    accent-color: var(--asi-lime);
+}
+
+.home-filter-row__validator input {
+    width: 220px;
+    padding: 7px 10px;
+    border-width: 1px;
+    font-size: 12px;
+}
+
+.home-filter-row__clear {
+    padding: 6px 10px;
+    border: 0;
+    background: transparent;
+    color: var(--asi-lime);
+    font: inherit;
+    font-size: 12px;
+    cursor: pointer;
+}
+
+.home-filter-row__clear:hover {
+    text-decoration: underline;
+}
+
+.home-filter-row__active {
+    color: var(--text-tertiary);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+}
+
 .height-cell {
     vertical-align: top;
 }

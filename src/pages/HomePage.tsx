@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useQuery, gql } from "@apollo/client";
 import { Link } from "react-router-dom";
 import {
@@ -31,7 +31,25 @@ const GET_RECENT_BLOCKS = gql`
 const HomePage: React.FC = () => {
     const [currentPage, setCurrentPage] = useState(1);
     const [searchQuery, setSearchQuery] = useState("");
+    const [validatorFilter, setValidatorFilter] = useState("");
+    const [unfinalizedOnly, setUnfinalizedOnly] = useState(false);
+    const [debouncedQuery, setDebouncedQuery] = useState("");
+    const [debouncedValidator, setDebouncedValidator] = useState("");
     const blocksPerPage = 20;
+
+    useEffect(() => {
+        const timer = window.setTimeout(() => setDebouncedQuery(searchQuery), 250);
+        return () => window.clearTimeout(timer);
+    }, [searchQuery]);
+
+    useEffect(() => {
+        const timer = window.setTimeout(() => setDebouncedValidator(validatorFilter), 250);
+        return () => window.clearTimeout(timer);
+    }, [validatorFilter]);
+
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [debouncedQuery, debouncedValidator, unfinalizedOnly]);
 
     // Get initial network statistics with polling
     const { data: statsData, loading: statsLoading } = useQuery(
@@ -46,10 +64,20 @@ const HomePage: React.FC = () => {
         pollInterval: 5000, // Poll every 5 seconds
     });
 
-    // Get paginated blocks with polling - use search query if present
-    const isSearching = searchQuery.trim().length > 0;
-    const searchTerm = searchQuery.trim();
+    // Get paginated blocks with polling - use search query if present.
+    const searchTerm = debouncedQuery.trim();
+    const validatorTerm = debouncedValidator.trim();
+    const isSearching = searchTerm.length > 0;
+    const isFiltering = isSearching || unfinalizedOnly || validatorTerm.length > 0;
     const isNumericSearch = /^\d+$/.test(searchTerm);
+    const filterStatements: object[] = [];
+    if (unfinalizedOnly) {
+        filterStatements.push({ finalization_status: { _neq: 'finalized' } });
+    }
+    if (validatorTerm) {
+        filterStatements.push({ proposer: { _ilike: searchPattern(validatorTerm) } });
+    }
+    const where = filterStatements.length ? { _and: filterStatements } : {};
 
     // Choose the appropriate query based on search type
     let queryToUse = GET_LATEST_BLOCKS;
@@ -58,6 +86,7 @@ const HomePage: React.FC = () => {
         // treating a DAG height as a row count.
         limit: blocksPerPage + 1,
         offset: (currentPage - 1) * blocksPerPage,
+        where,
     };
 
     if (isSearching) {
@@ -69,6 +98,7 @@ const HomePage: React.FC = () => {
                 blockNumber: exactHeight,
                 limit: blocksPerPage + 1,
                 offset: (currentPage - 1) * blocksPerPage,
+                where,
             };
         } else {
             queryToUse = SEARCH_BLOCKS_BY_HASH;
@@ -76,6 +106,7 @@ const HomePage: React.FC = () => {
                 search: searchPattern(searchTerm),
                 limit: blocksPerPage + 1,
                 offset: (currentPage - 1) * blocksPerPage,
+                where,
             };
         }
     }
@@ -84,8 +115,7 @@ const HomePage: React.FC = () => {
         queryToUse,
         {
             variables: queryVariables,
-            pollInterval: isSearching ? 0 : 2000, // Don't poll when searching
-            skip: isSearching && !searchTerm, // Skip query if searching but no term
+            pollInterval: isFiltering ? 0 : 2000, // Don't poll while a filter is active
         }
     );
 
@@ -245,6 +275,8 @@ const HomePage: React.FC = () => {
                                             "{searchQuery}"
                                         </span>
                                     </>
+                                ) : isFiltering ? (
+                                    "Filtered Blocks"
                                 ) : (
                                     "Recent Blocks"
                                 )}
@@ -268,7 +300,7 @@ const HomePage: React.FC = () => {
                                 onChange={(e) => setSearchQuery(e.target.value)}
                                 onKeyUp={handleSearch}
                             />
-                            {isSearching && (
+                            {searchQuery && (
                                 <button
                                     className="btn btn-secondary"
                                     style={{ padding: "8px 16px" }}
@@ -299,6 +331,39 @@ const HomePage: React.FC = () => {
                             </h3>
                         </div>
                     </div>
+                </div>
+
+                <div className="home-filter-row">
+                    <label className="home-filter-row__check">
+                        <input
+                            type="checkbox"
+                            checked={unfinalizedOnly}
+                            onChange={(event) => setUnfinalizedOnly(event.target.checked)}
+                        />
+                        Unfinalized only
+                    </label>
+                    <label className="home-filter-row__validator">
+                        Validator
+                        <input
+                            type="text"
+                            placeholder="Proposer contains"
+                            value={validatorFilter}
+                            onChange={(event) => setValidatorFilter(event.target.value)}
+                        />
+                    </label>
+                    {(unfinalizedOnly || validatorFilter) && (
+                        <button
+                            type="button"
+                            className="home-filter-row__clear"
+                            onClick={() => {
+                                setUnfinalizedOnly(false);
+                                setValidatorFilter("");
+                            }}
+                        >
+                            Clear filters
+                        </button>
+                    )}
+                    {isFiltering && <span className="home-filter-row__active">Filtered</span>}
                 </div>
 
                 {blocksLoading ? (

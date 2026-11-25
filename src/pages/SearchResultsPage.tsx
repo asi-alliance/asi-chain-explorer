@@ -1,18 +1,34 @@
 import React from 'react';
+import { useQuery } from '@apollo/client';
 import { formatDistanceToNow } from 'date-fns';
-import { Search } from 'lucide-react';
+import { Clock, Search } from 'lucide-react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { GET_PENDING_DEPLOY } from '../graphql/queries';
 import { addressPath, isVaultAddress } from '../utils/addressPath';
 import { heightInput } from '../utils/blockHeight';
 import { SEARCH_PAGE_SIZE as PAGE_SIZE, SearchType } from '../utils/search';
 import { useSearchResults } from '../hooks/useSearchResults';
+import { useRecentSearches } from '../hooks/useRecentSearches';
+import CopyButton from '../components/CopyButton';
+import ShareLinkButton from '../components/ShareLinkButton';
 import '../styles/search-results.css';
+
+function looksLikeDeploySignature(value: string): boolean {
+  return value.length >= 64 && value.length % 2 === 0 && /^[0-9a-f]+$/i.test(value);
+}
 
 const TYPE_LABELS: Record<string, string> = {
   block: 'Block',
   transfer: 'Transfer',
   deployment: 'Transaction',
 };
+
+const SEARCH_TYPES: Array<{ value: SearchType; label: string }> = [
+  { value: 'all', label: 'All' },
+  { value: 'blocks', label: 'Blocks' },
+  { value: 'deployments', label: 'Transactions' },
+  { value: 'transfers', label: 'Transfers' },
+];
 
 function shortHash(hash: string): string {
   return hash.length <= 18 ? hash : `${hash.slice(0, 8)}…${hash.slice(-6)}`;
@@ -30,6 +46,7 @@ function relativeTime(timestamp: number): string {
 const SearchResultsPage: React.FC = () => {
   const [params, setParams] = useSearchParams();
   const navigate = useNavigate();
+  const { add: addRecentSearch } = useRecentSearches();
   const query = (params.get('q') || '').trim();
   const type = (['blocks', 'transfers', 'deployments'].includes(params.get('type') || '')
     ? params.get('type') : 'all') as SearchType;
@@ -38,6 +55,21 @@ const SearchResultsPage: React.FC = () => {
   const page = Number.isSafeInteger(requestedPage) && requestedPage > 0 ? requestedPage : 1;
   const { rows, hasMore, loading, error } = useSearchResults(query, page, order, type);
   const height = heightInput(query);
+  const pendingResult = useQuery<{ pending_deploys: Array<{
+    sig: string;
+    is_rejected: boolean;
+    timestamp: string | number;
+    included_deployment?: { deploy_id: string } | null;
+  }> }>(GET_PENDING_DEPLOY, {
+    variables: { sig: query },
+    skip: !looksLikeDeploySignature(query),
+    fetchPolicy: 'no-cache',
+    errorPolicy: 'ignore',
+  });
+  const pending = pendingResult.data?.pending_deploys?.[0];
+  const pendingIndexed = pending
+    ? pending.included_deployment != null || rows.some((row) => row.data?.deploy_id === pending.sig)
+    : false;
   const blockHeightCounts = new Map<string, number>();
   rows.forEach((row) => {
     if (row.type === 'block') {
@@ -61,6 +93,7 @@ const SearchResultsPage: React.FC = () => {
     <form className="search-results__form" onSubmit={event => {
       event.preventDefault();
       const value = new FormData(event.currentTarget).get('query')?.toString().trim() || '';
+      addRecentSearch(value);
       if (type === 'all' && isVaultAddress(value)) navigate(addressPath(value));
       else update('q', value);
     }}>
@@ -88,19 +121,62 @@ const SearchResultsPage: React.FC = () => {
         <span aria-hidden="true">→</span>
       </Link>
     )}
+    {pending && !pendingIndexed && (
+      <Link
+        className="search-results__pending"
+        to={`/transaction/${encodeURIComponent(pending.sig)}`}
+      >
+        <Clock size={16} aria-hidden="true" />
+        <span>
+          <strong>Pending deploy</strong>
+          <small>
+            {pending.is_rejected
+              ? 'Rejected; retrying in the validator buffer'
+              : 'Waiting in the validator buffer'}
+          </small>
+        </span>
+        <span aria-hidden="true">View →</span>
+      </Link>
+    )}
+
+    <div className="search-results__tabs" role="tablist" aria-label="Result type">
+      {SEARCH_TYPES.map((item, index) => (
+        <button
+          key={item.value}
+          id={`search-type-${item.value}`}
+          type="button"
+          role="tab"
+          aria-selected={type === item.value}
+          tabIndex={type === item.value ? 0 : -1}
+          className={`search-results__tab${type === item.value ? ' is-active' : ''}`}
+          onClick={() => update('type', item.value)}
+          onKeyDown={(event) => {
+            if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
+            event.preventDefault();
+            const next = event.key === 'Home' ? 0
+              : event.key === 'End' ? SEARCH_TYPES.length - 1
+                : event.key === 'ArrowRight' ? (index + 1) % SEARCH_TYPES.length
+                  : (index - 1 + SEARCH_TYPES.length) % SEARCH_TYPES.length;
+            update('type', SEARCH_TYPES[next].value);
+            requestAnimationFrame(() => {
+              document.getElementById(`search-type-${SEARCH_TYPES[next].value}`)?.focus();
+            });
+          }}
+        >
+          {item.label}
+        </button>
+      ))}
+    </div>
 
     <div className="search-results__toolbar">
-      <label className="search-results__select">Type
-        <select aria-label="Result type" value={type} onChange={e => update('type', e.target.value)}>
-          <option value="all">All</option><option value="blocks">Blocks</option>
-          <option value="transfers">Transfers</option><option value="deployments">Transactions</option>
-        </select>
-      </label>
       <label className="search-results__select">Order
         <select aria-label="Result order" value={order} onChange={e => update('order', e.target.value)}>
           <option value="desc">Newest first</option><option value="asc">Oldest first</option>
         </select>
       </label>
+      <div className="search-results__share">
+        <ShareLinkButton label="Copy search link" />
+      </div>
     </div>
 
     {!query ? <p className="search-results__empty">Enter a query to search the indexed chain.</p>
@@ -126,10 +202,17 @@ const SearchResultsPage: React.FC = () => {
                 return <li key={row.id} className="search-results__row">
                   <span className={`search-results__badge search-results__badge--${row.type}`}>{label}</span>
                   <div className="search-results__body">
-                    <Link className="search-results__title" to={row.path}
-                      title={row.data?.deploy_id || row.data?.block_hash || row.title}>
-                      {displayTitle}
-                    </Link>
+                    <div className="search-results__title-row">
+                      <Link className="search-results__title" to={row.path}
+                        title={row.data?.deploy_id || row.data?.block_hash || row.title}>
+                        {displayTitle}
+                      </Link>
+                      <CopyButton
+                        dataToCopy={String(row.data?.deploy_id || row.data?.block_hash || row.title)}
+                        label={`Copy ${label.toLowerCase()}`}
+                        iconSize={13}
+                      />
+                    </div>
                     <p className="search-results__description">{row.description}</p>
                     <small className="search-results__meta">
                       {iso

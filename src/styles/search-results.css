@@ -110,6 +110,92 @@
     color: var(--asi-lime);
 }
 
+.search-results__pending {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 1rem;
+    padding: 10px 12px;
+    border: 1px solid rgba(255, 184, 77, 0.4);
+    border-radius: 8px;
+    background: rgba(255, 184, 77, 0.08);
+    color: var(--off-white);
+    text-decoration: none;
+}
+
+.search-results__pending svg {
+    flex: 0 0 auto;
+    color: var(--warning-orange);
+}
+
+.search-results__pending strong,
+.search-results__pending small {
+    display: block;
+}
+
+.search-results__pending strong {
+    font-size: 13px;
+}
+
+.search-results__pending small {
+    margin-top: 2px;
+    color: var(--text-secondary);
+    font-size: 11.5px;
+}
+
+.search-results__pending > span:last-child {
+    margin-left: auto;
+    color: var(--warning-orange);
+    font-size: 12px;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.search-results__pending:hover {
+    border-color: var(--warning-orange);
+}
+
+.search-results__tabs {
+    display: flex;
+    gap: 2px;
+    margin: 0 0 1rem;
+    overflow-x: auto;
+    border-bottom: 1px solid var(--border-light);
+    scrollbar-width: none;
+}
+
+.search-results__tabs::-webkit-scrollbar {
+    display: none;
+}
+
+.search-results__tab {
+    flex: 0 0 auto;
+    padding: 9px 13px;
+    border: 0;
+    border-bottom: 2px solid transparent;
+    background: transparent;
+    color: var(--text-secondary);
+    font: inherit;
+    font-size: 12.5px;
+    font-weight: 500;
+    white-space: nowrap;
+    cursor: pointer;
+}
+
+.search-results__tab:hover {
+    color: var(--off-white);
+}
+
+.search-results__tab.is-active {
+    border-bottom-color: var(--asi-lime);
+    color: var(--asi-lime);
+}
+
+.search-results__tab:focus-visible {
+    outline: 2px solid var(--asi-lime);
+    outline-offset: -2px;
+}
+
 .search-results__toolbar {
     display: flex;
     flex-wrap: wrap;
@@ -214,6 +300,32 @@
     flex-direction: column;
     gap: 4px;
     min-width: 0;
+}
+
+.search-results__title-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 6px;
+}
+
+.search-results__title-row .copy-container,
+.search-results__share .copy-container {
+    display: inline-flex;
+    flex: 0 0 auto;
+    position: static;
+    align-self: center;
+    margin-top: 1px;
+}
+
+.search-results__title-row .copy-button,
+.search-results__share .copy-button {
+    position: static;
+    top: auto;
+    right: auto;
+}
+
+.search-results__share {
+    margin-left: auto;
 }
 
 .search-results__title {
