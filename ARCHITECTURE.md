@@ -403,13 +403,18 @@ Configuration in docker-compose.yml:
 Hasura implements several optimizations:
 
 1. **Query Multiplexing**: Batches similar queries for efficiency
-2. **Polling-based Updates**: Uses periodic database queries for live data
+2. **Live updates**: Periodic queries for blocks, transactions and statistics; WebSocket subscriptions for pending deploys and indexer status
 3. **Connection Pooling**: Reuses database connections
 4. **Query Depth Limiting**: Prevents overly complex nested queries
 
 #### Real-time Updates
 
-The system provides real-time updates through Apollo Client's polling mechanism. The frontend configures appropriate polling intervals based on data freshness requirements. Database triggers (notify_new_block, notify_new_transfer) are available but polling is the primary method for updates.
+The system provides live updates in two ways. Most tables refresh through Apollo
+Client polling with intervals chosen per view. Pending deploys, indexer status
+and outgoing pending deploys use GraphQL subscriptions over the existing
+WebSocket link, with HTTP polling as a fallback when the socket is unavailable.
+Database triggers (notify_new_block, notify_new_transfer) are available but the
+explorer does not read them.
 
 ### Frontend Architecture
 
@@ -437,7 +442,6 @@ App
 │   ├── DeploymentsPage
 │   ├── SearchResultsPage
 │   ├── IndexerStatusPage
-│   ├── WalletSearch
 │   ├── AdvancedSearch
 │   └── Logo
 └── ConnectionStatus

@@ -30,9 +30,8 @@ Part of the [**Artificial Superintelligence Alliance**](https://superintelligenc
 5. [Installation](#installation)
 6. [Configuration](#configuration)
 7. [Documentation](#documentation)
-8. [Monitoring](#monitoring)
-9. [Contributing](#contributing)
-10. [License](#license)
+8. [Contributing](#contributing)
+9. [License](#license)
 
 ---
 
@@ -50,14 +49,16 @@ while the Python indexer backend runs separately to synchronize and store blockc
 The system indexes blockchain data including blocks, deployments, transfers, validators, and network statistics, making it accessible through a GraphQL API powered by Hasura.
 
 ## Core Functionality
-- **Block Explorer**: Real-time block monitoring with detailed information
-- **Transaction Viewer**: Comprehensive transaction details including deployments and transfers
+- **Block Explorer**: Real-time block monitoring with detailed information, grouped by DAG height
+- **Height Overview**: A height can contain several sibling blocks; `/block/{height}` lists every sibling with finalization status, parent/child links and previous/next height navigation
+- **Search**: One header omnibox for heights, block hashes, deploy IDs, indexed transfers and vault addresses, with grouped results, a `Ctrl/Cmd+K` palette and recent searches
+- **Transaction Viewer**: Comprehensive transaction details including deployments, transfers and the executed fee in ASI (`phlo_cost × phlo_price`)
 - **Pending Deploys** (optional): Deploys in the validators' deploy buffers that no indexed block includes yet, updated live over the GraphQL WebSocket (Pending page). Shown only when the indexer reads validator buffers
 - **Native Transfer Calls**: Calls that a deploy started or completed, with pending, completed, rejected or coalesced status (Transfers tab of a deploy)
 - **Validator Dashboard**: Current validators with stake distribution; inactive validators are listed separately and are not counted in totals
 - **Network Statistics**: Simplified Network Dashboard view
-- **Search**: Universal search for blocks, transactions, and addresses
 - **Genesis Funding**: Complete visibility of initial token distribution
+- **Route fallback**: Unknown paths render a 404 page with the attempted path, chain search and recovery links; the legacy `/blocks` path redirects to `/`
 
 ## Architecture
 
@@ -67,20 +68,20 @@ The system indexes blockchain data including blocks, deployments, transfers, val
 
 ┌─────────────────────────────────────────────────────────────┐
 │                   Hasura GraphQL + Indexer                  │
-│  - GraphQL API                                              │
-│  - Real-time queries with polling                           │
-│  - Query optimization                                       │
+│  - Hasura GraphQL Engine                                    │
+│  - GraphQL API over HTTP and WebSocket                      │
+│  - WebSocket subscriptions for pending deploys              │
 └─────────────────────┬───────────────────────────────────────┘
                       │
-                      │ GraphQL (HTTP)
+                      │ GraphQL (HTTP + WebSocket)
                       │
 ┌─────────────────────▼───────────────────────────────────────┐
 │                  React Explorer Frontend                    │
-│  - Block browser                                            │
-│  - Transaction viewer                                       │
+│  - Block browser and DAG height overview                    │
+│  - Transaction viewer with fee in ASI                       │
 │  - Validator dashboard                                      │
 │  - Network statistics                                       │
-│  - Real-time updates via polling                            │
+│  - Lazy-loaded routes                                       │
 └─────────────────────────────────────────────────────────────┘
 ```
 
@@ -90,7 +91,7 @@ The system indexes blockchain data including blocks, deployments, transfers, val
 2. **Data Processing**: Each block is processed to extract deployments, transfers, validator bonds, and network state
 3. **Database Storage**: Processed data is stored in PostgreSQL with proper relationships and indices
 4. **GraphQL Exposure**: Hasura automatically generates GraphQL API from database schema
-5. **Frontend Query**: React application queries GraphQL API with automatic polling for updates
+5. **Frontend Query**: React application queries the GraphQL API over HTTP and polls for block and statistics updates; pending deploys, indexer status and outgoing pending deploys use WebSocket subscriptions with an HTTP fallback
 6. **User Interface**: Data is rendered in the web interface with visualizations and navigation
 
 ## Technology Stack
@@ -167,7 +168,7 @@ Frontend will be available at http://localhost:3001
 
 **Note:** The indexer works independently - you can use the GraphQL API (http://localhost:8080/v1/graphql) without running the frontend.
 
-#### Or use ./deploy.sh script
+#### Or use the deploy-docker.sh script
 
 ```bash
 # Deploy with script
@@ -231,10 +232,11 @@ explorer that routes that path to Hasura, for both HTTP and WebSocket. The nginx
 in the image proxies indexer status and address balances. Without a GraphQL proxy, use
 absolute Hasura URLs.
 
-`REACT_APP_NATIVE_TOKEN_DECIMALS` stays a build-time value. It only sets the
-wallet-balance precision for nodes that report no `nativeTokenDecimals`. Indexed
-rows carry their own `token_decimals`, and rows without it use 8. Build a
-separate image only when the wallet lookup must use a different fallback.
+`REACT_APP_NATIVE_TOKEN_DECIMALS` stays a build-time value. Indexed rows carry
+their own `token_decimals`; this fallback applies to wallet balances from nodes
+that report no `nativeTokenDecimals`, and to deploy fees or amounts whose block
+has no token metadata. Rows without it use 8. Build a separate image only when
+the fallback must change.
 
 | Variable | Description | Default |
 |----------|-------------|---------|
@@ -243,7 +245,7 @@ separate image only when the wallet lookup must use a different fallback.
 | `REACT_APP_INDEXER_API_URL` | Public base path for indexer status and address balances | `/api/indexer` |
 | `REACT_APP_RCHAIN_NODE_URL` | Node HTTP API for the wallet balance lookup (not mounted in the current UI) | Same origin |
 | `INDEXER_STATUS_URL` | Server-side indexer `/status` URL for nginx (runtime, not in the bundle) | `http://host.docker.internal:9090/status` |
-| `REACT_APP_NATIVE_TOKEN_DECIMALS` | Wallet-balance precision for nodes without `nativeTokenDecimals`. Build time only, also in the Docker image | `8` |
+| `REACT_APP_NATIVE_TOKEN_DECIMALS` | Fallback precision for balances, fees and amounts whose source row has no `token_decimals`. Build time only, also in the Docker image | `8` |
 | `REACT_APP_FEEDBACK_FORM_URL` | URL that receives the feedback form | Empty |
 | `REACT_APP_JSAPI_URL`, `REACT_APP_CAPTCHA_TOKEN` | AWS WAF CAPTCHA for the feedback form | Empty |
 
@@ -347,17 +349,18 @@ resolves before nginx starts.
 ## Available Pages
 
 - `/` - Home dashboard with network overview
-- `/blocks` - Block explorer with pagination
-- `/block/:blockNumber`, `/block/hash/:blockHash` - Block details
+- `/blocks` - Redirects to `/`; the home page is the block list
+- `/block/:blockNumber`, `/block/hash/:blockHash` - Block details; a height with several DAG siblings shows the height overview
 - `/transactions` - Transaction list
 - `/pending` - Deploys in the validators' deploy buffers that no indexed block includes yet (the navigation tab appears only when the indexer tracks pending deploys)
-- `/transaction/:transactionId` - Deploy details: overview, code, transfers with native transfer calls, block. A pending deploy shows its pending state until it is indexed.
+- `/transaction/:transactionId` - Deploy details: overview with the executed fee in ASI, code, transfers with native transfer calls, block. A pending deploy shows its pending state until it is indexed.
 - `/validators` - Current validators; inactive validators in a separate table
 - `/validator-history` - Validator history
 - `/statistics` - Network Dashboard only
-- `/search` - Advanced search interface
+- `/search` - Search results for a height, hash, deploy ID or address, with type tabs and copy/share actions
 - `/address/:address` - Spendable balance at the latest finalized block and indexed transfer history
 - `/indexer-status` - Indexer health monitoring
+- Any unknown path - 404 page with the chain search and recovery links
 
 The `/transfers` and `/deployments` routes are disabled in `src/App.tsx`.
 
@@ -384,7 +387,7 @@ docker rmi asi-explorer:latest
 ### Essential Files (Production Required)
 - `src/` - React application source
 - `public/` - Static assets
-- `package.json`, `package-lock.json` - Dependencies
+- `package.json` - Dependencies; the lockfile is generated locally and is gitignored
 - `tsconfig.json` - TypeScript config
 - `Dockerfile` - Container definition
 - `docker-compose.standalone.yml` - Docker Compose config
@@ -396,12 +399,12 @@ docker rmi asi-explorer:latest
 
 ## Performance Metrics
 
-- **Initial Load**: < 2 seconds
-- **Block Updates**: Real-time via WebSocket
-- **Search Response**: < 500ms
-- **Bundle Size**: ~533KB gzipped
-- **Docker Image**: ~50MB (Alpine Linux)
-- **Memory Usage**: ~100MB
+- **Initial JS**: ~227 kB gzip for the shell and home page
+- **On-demand chunks**: Statistics (charts) ~135 kB gzip, transaction detail (code highlighter and toast styles) ~243 kB gzip
+- **Recent Blocks**: 2 s polling, also while the finalized-only filter is on; a text search pauses it
+- **Live pending data**: WebSocket subscriptions with a 5 s HTTP fallback
+- **Home filter**: 250 ms debounce; the header omnibox uses six-row batches per result type
+- **Docker Image**: ~80MB (nginx Alpine runtime)
 
 ## Troubleshooting
 
@@ -472,6 +475,12 @@ minutes. Select **Check again** to resume.
 Transfers, bonds and blocks supply their own `token_decimals`, so historical
 8-decimal rows and 18-decimal rows display with their original units. Missing
 historical metadata retains the legacy 8-decimal interpretation.
+
+Deploy fees use the same units. The transaction page shows
+`phlo_cost × phlo_price` atomic units converted with the including block's
+`token_decimals`, keeps the raw phlo counters visible, and shows
+`phlo_limit × phlo_price` as the precharge that the node refunds down to the
+executed cost. A pending deploy has no executed cost yet and shows no fee.
 
 Wallet balances read `nativeTokenDecimals` from the node's `/api/status` and accept
 both legacy `ExprInt` and BigInt `ExprBigInt` responses. For older nodes without
