@@ -157,7 +157,7 @@ const ValidatorHistoryPage: React.FC = () => {
           {blockInfo && (
             <div className="summary-grid mb-3">
               <div className="asi-card glass">
-                <p className="text-muted" style={{ marginBottom: '0.5rem' }}>Block Number</p>
+                <p className="text-muted" style={{ marginBottom: '0.5rem' }}>Height</p>
                 <h3 style={{ margin: 0 }}>{returnedHeight(blockInfo.block_number)}</h3>
               </div>
               <div className="asi-card glass">

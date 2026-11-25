@@ -150,7 +150,7 @@ const BlockDetailPage: React.FC = () => {
       {/* Block Summary Cards */}
       <div className="summary-grid mb-3">
         <div className="asi-card glass">
-          <p className="text-muted" style={{ marginBottom: '0.5rem' }}>Block Number</p>
+          <p className="text-muted" style={{ marginBottom: '0.5rem' }}>Height</p>
           <h3 className="text-success" style={{ margin: 0 }}>
             {block.block_number.toLocaleString()}
           </h3>
@@ -182,7 +182,7 @@ const BlockDetailPage: React.FC = () => {
           gap: 'var(--spacing-sm) var(--spacing-lg)',
           margin: 0 
         }}>
-          <dt>Block Number</dt>
+          <dt>Height</dt>
           <dd className="block-number">{block.block_number.toLocaleString()}</dd>
           
           <dt>Block Hash</dt>

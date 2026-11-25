@@ -79,20 +79,26 @@ export function searchVariables(query: string, limit: number, order: 'asc' | 'de
   };
 }
 
+/** Shorten a long protocol identifier for a one-line result row. */
+function shortIdentifier(value: unknown, head = 10, tail = 8): string {
+  const text = String(value ?? '');
+  return text.length <= head + tail + 1 ? text : `${text.slice(0, head)}…${text.slice(-tail)}`;
+}
+
 export function searchResults(data: any, order: 'asc' | 'desc'): SearchResult[] {
   const results: SearchResult[] = [
     ...(data?.blocks || []).map((b: any) => ({
       type: 'block', id: `block:${b.block_hash}`, title: `Block #${b.block_number}`,
-      description: b.block_hash, path: getBlockPath(b.block_hash, b.block_number), timestamp: Number(b.timestamp), data: b
+      description: shortIdentifier(b.block_hash, 12, 8), path: getBlockPath(b.block_hash, b.block_number), timestamp: Number(b.timestamp), data: b
     })),
     ...(data?.transfers || []).map((t: any) => ({
       type: 'transfer', id: `transfer:${t.id}`, title: `${decimalText(t.amount_asi)} ASI Transfer`,
-      description: `${t.from_address} → ${t.to_address} (${t.status})`,
+      description: `${shortIdentifier(t.from_address)} → ${shortIdentifier(t.to_address)} (${t.status})`,
       path: `/transaction/${encodeURIComponent(t.deploy_id)}`, timestamp: Number(t.timestamp), data: t
     })),
     ...(data?.deployments || []).map((d: any) => ({
-      type: 'deployment', id: `deployment:${d.deploy_id}`, title: `Transaction ${d.deploy_id}`,
-      description: `From ${d.deployer_address || d.deployer}${d.errored ? ' (failed)' : ''}`,
+      type: 'deployment', id: `deployment:${d.deploy_id}`, title: `Transaction ${shortIdentifier(d.deploy_id, 12, 8)}`,
+      description: `From ${shortIdentifier(d.deployer_address || d.deployer)}${d.errored ? ' (failed)' : ''}`,
       path: `/transaction/${encodeURIComponent(d.deploy_id)}`, timestamp: Number(d.timestamp), data: d
     }))
   ];

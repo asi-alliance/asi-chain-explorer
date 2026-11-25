@@ -106,7 +106,7 @@ function TransferPages({ address, direction, maxId, indexedHeight }: PageProps) 
           <table className="address-table" aria-label="Transfer history">
             <thead>
               <tr>
-                <th scope="col">Block</th>
+                <th scope="col" title="Block height">Height</th>
                 <th scope="col">From</th>
                 <th scope="col">To</th>
                 <th scope="col" className="amount-cell">Amount</th>

@@ -90,6 +90,26 @@
     background: rgba(147, 226, 124, 0.12);
 }
 
+.search-results__height {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 1rem;
+    padding: 9px 12px;
+    border: 1px solid var(--border-light);
+    border-radius: 8px;
+    background: var(--charcoal-500);
+    color: var(--off-white);
+    font-size: 12.5px;
+    font-weight: 600;
+    text-decoration: none;
+}
+
+.search-results__height:hover {
+    border-color: var(--asi-lime);
+    color: var(--asi-lime);
+}
+
 .search-results__toolbar {
     display: flex;
     flex-wrap: wrap;
@@ -259,6 +279,7 @@
 
 .search-results__page-button:focus-visible,
 .search-results__wallet:focus-visible,
+.search-results__height:focus-visible,
 .search-results__title:focus-visible {
     outline: 2px solid var(--asi-lime);
     outline-offset: 2px;

@@ -13,6 +13,7 @@ import { calculateAverageBlockTime } from "../utils/calculateBlockTime";
 import RealtimeActivityFeed from "../components/RealtimeActivityFeed";
 import RecentDataExporter, { ExportEntities } from "../components/RecentDataExporter";
 import { getBlockPath } from "../utils/blockPath";
+import { heightInput } from "../utils/blockHeight";
 import { searchPattern } from "../utils/search";
 // import { useRealtimeBlocks } from '../services/websocketService';
 
@@ -53,23 +54,27 @@ const HomePage: React.FC = () => {
     // Choose the appropriate query based on search type
     let queryToUse = GET_LATEST_BLOCKS;
     let queryVariables: any = {
-        limit: blocksPerPage,
+        // Fetch one extra row to know whether a next page exists without
+        // treating a DAG height as a row count.
+        limit: blocksPerPage + 1,
         offset: (currentPage - 1) * blocksPerPage,
     };
 
     if (isSearching) {
-        if (isNumericSearch) {
+        const exactHeight = heightInput(searchTerm);
+        if (isNumericSearch && exactHeight !== null) {
             queryToUse = SEARCH_BLOCKS_BY_NUMBER;
             queryVariables = {
-                blockNumber: parseInt(searchTerm),
-                limit: blocksPerPage,
+                // Send the exact decimal text; Number/parseInt would round large heights.
+                blockNumber: exactHeight,
+                limit: blocksPerPage + 1,
                 offset: (currentPage - 1) * blocksPerPage,
             };
         } else {
             queryToUse = SEARCH_BLOCKS_BY_HASH;
             queryVariables = {
                 search: searchPattern(searchTerm),
-                limit: blocksPerPage,
+                limit: blocksPerPage + 1,
                 offset: (currentPage - 1) * blocksPerPage,
             };
         }
@@ -85,15 +90,10 @@ const HomePage: React.FC = () => {
     );
 
     const stats = statsData?.network_stats?.[0] as NetworkStats;
-    const blocks = blocksQueryData?.blocks || [];
-    // Use the actual latest block number from blocks table for consistency
-    const latestBlockFromData =
-        blocksData?.blocks?.[0]?.block_number || blocks?.[0]?.block_number || 0;
-    const totalBlocks =
-        typeof latestBlockFromData === "string"
-            ? parseInt(latestBlockFromData)
-            : latestBlockFromData;
-    const totalPages = Math.ceil(totalBlocks / blocksPerPage);
+    // The lookahead row only decides whether Next is available.
+    const fetchedBlocks = blocksQueryData?.blocks || [];
+    const blocks = fetchedBlocks.slice(0, blocksPerPage);
+    const hasMore = fetchedBlocks.length > blocksPerPage;
 
     const formatTimestamp = (timestamp: string | number) => {
         try {
@@ -129,7 +129,7 @@ const HomePage: React.FC = () => {
     };
 
     const goToPage = (page: number) => {
-        if (page >= 1 && page <= totalPages) {
+        if (Number.isSafeInteger(page) && page >= 1) {
             setCurrentPage(page);
         }
     };
@@ -157,15 +157,16 @@ const HomePage: React.FC = () => {
                 }}
             >
                 {/* Left Column - Main Content */}
-                <div style={{ flex: "auto" }}>
+                <div style={{ flex: "1 1 0", minWidth: 0 }}>
                     {/* Summary Cards Row */}
                     <div className="summary-grid">
                         <div className="asi-card glass">
                             <h3
                                 className="text-muted"
                                 style={{ marginBottom: "0.5rem" }}
+                                title="Latest indexed block height"
                             >
-                                Latest Block
+                                Latest Height
                             </h3>
                             <h2 className="text-success" style={{ margin: 0 }}>
                                 {statsLoading ? "-" : latestBlockNumber}
@@ -258,7 +259,7 @@ const HomePage: React.FC = () => {
                             <input
                                 className="text-3"
                                 type="text"
-                                placeholder="Search by block number or hash..."
+                                placeholder="Filter by height or hash"
                                 style={{
                                     flex: "0 1 300px",
                                     marginRight: "0.5rem",
@@ -314,11 +315,11 @@ const HomePage: React.FC = () => {
                         <table>
                             <thead className="text-1">
                                 <tr>
-                                    <th>Block</th>
-                                    <th>Hash</th>
-                                    <th>Validator</th>
-                                    <th>Time</th>
-                                    <th>Status</th>
+                                    <th scope="col" title="Block height. A height can contain several DAG sibling blocks.">Height</th>
+                                    <th scope="col" title="Unique block identifier. Sibling blocks at the same height have different hashes.">Block hash</th>
+                                    <th scope="col">Validator</th>
+                                    <th scope="col">Time</th>
+                                    <th scope="col">Status</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -327,8 +328,10 @@ const HomePage: React.FC = () => {
                                         <td>
                                             <h5>
                                                 <Link
-                                                    to={getBlockPath(block.block_hash, block.block_number)}
+                                                    to={getBlockPath(null, block.block_number)}
                                                     className="block-number"
+                                                    aria-label={`Open height ${block.block_number}`}
+                                                    title="All blocks at this height"
                                                 >
                                                     {block.block_number}
                                                 </Link>
@@ -338,11 +341,13 @@ const HomePage: React.FC = () => {
                                             <Link
                                                 className="text-3"
                                                 to={getBlockPath(block.block_hash, block.block_number)}
+                                                aria-label={`Open block ${block.block_hash}`}
+                                                title={block.block_hash}
                                             >
                                                 {truncateHash(block.block_hash)}
                                             </Link>
                                         </td>
-                                        <td className="text-3 mono">
+                                        <td className="text-3 mono" title={block.proposer}>
                                             {truncateHash(block.proposer)}
                                         </td>
                                         <td className="timestamp">
@@ -359,9 +364,14 @@ const HomePage: React.FC = () => {
                         </table>
                     </div>
                 )}
+                {!blocksLoading && blocks.length > 0 && (
+                    <p className="text-muted" style={{ marginTop: "0.75rem", fontSize: "0.8rem" }}>
+                        A height can contain several DAG sibling blocks. The block hash identifies each block.
+                    </p>
+                )}
 
                 {/* Pagination Controls */}
-                {totalPages > 1 && (
+                {(currentPage > 1 || hasMore) && (
                     <>
                         <div
                             className="pagination-controls"
@@ -389,7 +399,6 @@ const HomePage: React.FC = () => {
                                     type="number"
                                     value={currentPage}
                                     min="1"
-                                    max={totalPages}
                                     style={{
                                         width: "80px",
                                         textAlign: "center",
@@ -400,8 +409,7 @@ const HomePage: React.FC = () => {
                                         const page = parseInt(value);
                                         if (
                                             !isNaN(page) &&
-                                            page >= 1 &&
-                                            page <= totalPages
+                                            page >= 1
                                         ) {
                                             goToPage(page);
                                         }
@@ -410,23 +418,18 @@ const HomePage: React.FC = () => {
                                         // Reset to current page if invalid
                                         if (
                                             e.target.value === "" ||
-                                            parseInt(e.target.value) < 1 ||
-                                            parseInt(e.target.value) >
-                                                totalPages
+                                            parseInt(e.target.value) < 1
                                         ) {
                                             e.target.value =
                                                 currentPage.toString();
                                         }
                                     }}
                                 />
-                                <span className="text-muted">
-                                    of {totalPages}
-                                </span>
                             </div>
                             <h3>
                                 <button
                                     className="btn btn-secondary text-1"
-                                    disabled={currentPage === totalPages}
+                                    disabled={!hasMore}
                                     onClick={() => goToPage(currentPage + 1)}
                                 >
                                     Next →
@@ -435,12 +438,9 @@ const HomePage: React.FC = () => {
                         </div>
                         <div style={{ marginTop: "1rem", textAlign: "center" }}>
                             <span className="text-muted">
-                                Showing {(currentPage - 1) * blocksPerPage + 1}-
-                                {Math.min(
-                                    currentPage * blocksPerPage,
-                                    totalBlocks
-                                )}{" "}
-                                of {totalBlocks} blocks
+                                {blocks.length
+                                    ? `Showing ${(currentPage - 1) * blocksPerPage + 1}-${(currentPage - 1) * blocksPerPage + blocks.length} blocks`
+                                    : "No blocks on this page"}
                             </span>
                         </div>
                     </>

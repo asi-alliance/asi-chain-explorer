@@ -11,6 +11,7 @@ import {
     ChevronRight,
     Database,
     FileText,
+    Hash,
     Search,
     TrendingUp,
     Wallet,
@@ -127,7 +128,7 @@ interface QuickSearchData {
     deployments?: QuickDeployment[];
 }
 
-type ResultType = "block" | "transaction" | "transfer";
+type ResultType = "height" | "block" | "transaction" | "transfer";
 
 interface QuickResult {
     key: string;
@@ -223,6 +224,19 @@ function buildResults(data: QuickSearchData | undefined, query: string): QuickRe
     }
     const deploymentIds = new Set(deployments.map((deployment) => deployment.deploy_id));
 
+    // A numeric query is a height, not a block identifier: one height can hold
+    // several DAG siblings, so send the user to the height page first.
+    const exactHeight = heightInput(query.trim());
+    const heightResults: QuickResult[] = exactHeight === null ? [] : [{
+        key: `height:${exactHeight}`,
+        type: "height",
+        path: `/block/${exactHeight}`,
+        title: `Height #${exactHeight}`,
+        meta: "View all blocks at this height",
+        timestamp: 0,
+        rank: 0,
+    }];
+
     const blocks: QuickResult[] = (data?.blocks ?? []).map((block) => ({
         key: `block:${block.block_hash}`,
         type: "block",
@@ -280,7 +294,12 @@ function buildResults(data: QuickSearchData | undefined, query: string): QuickRe
     const byRankThenTime = (left: QuickResult, right: QuickResult) =>
         left.rank - right.rank || right.timestamp - left.timestamp;
 
-    return [...blocks.sort(byRankThenTime), ...transactions.sort(byRankThenTime), ...transferResults.sort(byRankThenTime)];
+    return [
+        ...heightResults,
+        ...blocks.sort(byRankThenTime),
+        ...transactions.sort(byRankThenTime),
+        ...transferResults.sort(byRankThenTime),
+    ];
 }
 
 const AdvancedSearch: React.FC<AdvancedSearchProps> = ({
@@ -422,10 +441,12 @@ const AdvancedSearch: React.FC<AdvancedSearchProps> = ({
     }, []);
 
     const groups = useMemo<ResultGroup[]>(() => {
+        const heights = results.filter((result) => result.type === "height");
         const blocks = results.filter((result) => result.type === "block");
         const transactions = results.filter((result) => result.type === "transaction");
         const transfers = results.filter((result) => result.type === "transfer");
         return [
+            { key: "height", label: "Height", items: heights, truncated: false },
             { key: "blocks", label: "Blocks", items: blocks.slice(0, VISIBLE_PER_GROUP), truncated: blocks.length > VISIBLE_PER_GROUP },
             { key: "transactions", label: "Transactions", items: transactions.slice(0, VISIBLE_PER_GROUP), truncated: transactions.length > VISIBLE_PER_GROUP },
             { key: "transfers", label: "Transfers", items: transfers.slice(0, VISIBLE_PER_GROUP), truncated: transfers.length > VISIBLE_PER_GROUP },
@@ -546,6 +567,7 @@ const AdvancedSearch: React.FC<AdvancedSearchProps> = ({
     const showIdleHint = !trimmed && !wallet;
 
     const iconFor = (type: ResultType) => {
+        if (type === "height") return <Hash size={16} aria-hidden="true" />;
         if (type === "block") return <Database size={16} aria-hidden="true" />;
         if (type === "transaction") return <FileText size={16} aria-hidden="true" />;
         return <TrendingUp size={16} aria-hidden="true" />;
@@ -616,7 +638,9 @@ const AdvancedSearch: React.FC<AdvancedSearchProps> = ({
                     : error
                       ? "Search is temporarily unavailable"
                       : trimmed && !wallet
-                        ? results.length ? `${results.length} results` : "No results"
+                        ? results.length
+                            ? `${results.length} result${results.length === 1 ? "" : "s"}`
+                            : "No results"
                         : ""}
             </p>
 
@@ -721,6 +745,7 @@ const AdvancedSearch: React.FC<AdvancedSearchProps> = ({
                                                     className={`asi-search__row${active ? " is-active" : ""}`}
                                                     to={result.path}
                                                     role="option"
+                                                    aria-label={[result.title, result.meta, result.status].filter(Boolean).join(". ")}
                                                     aria-selected={active}
                                                     tabIndex={-1}
                                                     onMouseEnter={() => setActiveIndex(index)}

@@ -188,6 +188,11 @@
     border-radius: 8px;
 }
 
+.asi-search__icon--height {
+    background: rgba(147, 226, 124, 0.16);
+    color: var(--asi-lime);
+}
+
 .asi-search__icon--block {
     background: rgba(147, 226, 124, 0.12);
     color: var(--asi-lime);

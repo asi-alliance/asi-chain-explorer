@@ -114,7 +114,7 @@ test('a full wallet address opens the address page without querying Hasura', asy
   expect(requests).toHaveLength(0);
 });
 
-test('keyboard navigation opens the first result', async () => {
+test('keyboard navigation opens the height page before a sibling block', async () => {
   const client = clientWith(new ApolloLink(() => Observable.of({ data: {
     blocks: [block], transfers: [], deployments: [],
   } })));
@@ -123,6 +123,7 @@ test('keyboard navigation opens the first result', async () => {
       <MemoryRouter initialEntries={['/']}>
         <Routes>
           <Route path="/" element={<AdvancedSearch />} />
+          <Route path="/block/:blockNumber" element={<p>height page</p>} />
           <Route path="/block/hash/:blockHash" element={<p>block page</p>} />
         </Routes>
       </MemoryRouter>
@@ -131,10 +132,12 @@ test('keyboard navigation opens the first result', async () => {
   const input = screen.getByRole('combobox');
   fireEvent.change(input, { target: { value: '42' } });
   await screen.findByRole('listbox');
+  expect(within(screen.getByRole('listbox')).getByRole('option', { name: /Height #42/ }))
+    .toBeInTheDocument();
 
   fireEvent.keyDown(input, { key: 'ArrowDown' });
   fireEvent.keyDown(input, { key: 'Enter' });
-  expect(await screen.findByText('block page')).toBeInTheDocument();
+  expect(await screen.findByText('height page')).toBeInTheDocument();
 });
 
 test('clicking outside closes an open panel', async () => {

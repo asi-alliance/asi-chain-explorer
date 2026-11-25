@@ -268,7 +268,7 @@ ASI Chain Transaction Details
 
 Transaction ID: ${transaction.deploy_id}
 Deployer: ${transaction.deployer}
-Block Number: ${transaction.block_number}
+Height: ${transaction.block_number}
 Timestamp: ${new Date(transaction.timestamp).toLocaleString()}
 Status: ${transaction.errored ? 'Failed' : 'Success'}
 Phlo Cost: ${transaction.phlo_cost?.toLocaleString() || 'N/A'}
@@ -623,7 +623,7 @@ Exported at: ${new Date().toLocaleString()}
           <div style={{ gap: '1rem' }}>
             <div style={{ marginBottom: '1rem' }}>
               <div style={{ fontSize: '0.875rem', color: '#9ca3af', marginBottom: '0.25rem' }}>
-                Block Number
+                Height
               </div>
               <Link
                 to={getBlockPath(transaction.block_hash, transaction.block_number)}
@@ -996,7 +996,7 @@ Exported at: ${new Date().toLocaleString()}
         }}>
           <div>
             <div style={{ fontSize: '0.875rem', color: '#9ca3af', marginBottom: '0.25rem' }}>
-              Block Number
+              Height
             </div>
             <div style={{ fontSize: '1.5rem', fontWeight: '600', color: '#10b981' }}>
               #{block.block_number}

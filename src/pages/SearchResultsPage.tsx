@@ -3,6 +3,7 @@ import { formatDistanceToNow } from 'date-fns';
 import { Search } from 'lucide-react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { addressPath, isVaultAddress } from '../utils/addressPath';
+import { heightInput } from '../utils/blockHeight';
 import { SEARCH_PAGE_SIZE as PAGE_SIZE, SearchType } from '../utils/search';
 import { useSearchResults } from '../hooks/useSearchResults';
 import '../styles/search-results.css';
@@ -32,6 +33,7 @@ const SearchResultsPage: React.FC = () => {
   const requestedPage = Number(params.get('page') || 1);
   const page = Number.isSafeInteger(requestedPage) && requestedPage > 0 ? requestedPage : 1;
   const { rows, hasMore, loading, error } = useSearchResults(query, page, order, type);
+  const height = heightInput(query);
   const update = (key: string, value: string) => {
     const next = new URLSearchParams(params);
     next.set(key, value);
@@ -70,6 +72,12 @@ const SearchResultsPage: React.FC = () => {
         <span aria-hidden="true">→</span>
       </Link>
     )}
+    {height !== null && (
+      <Link className="search-results__height" to={`/block/${height}`}>
+        View all blocks at height #{height}
+        <span aria-hidden="true">→</span>
+      </Link>
+    )}
 
     <div className="search-results__toolbar">
       <label className="search-results__select">Type
@@ -104,7 +112,10 @@ const SearchResultsPage: React.FC = () => {
                 return <li key={row.id} className="search-results__row">
                   <span className={`search-results__badge search-results__badge--${row.type}`}>{label}</span>
                   <div className="search-results__body">
-                    <Link className="search-results__title" to={row.path}>{row.title}</Link>
+                    <Link className="search-results__title" to={row.path}
+                      title={row.data?.deploy_id || row.data?.block_hash || row.title}>
+                      {row.title}
+                    </Link>
                     <p className="search-results__description">{row.description}</p>
                     <small className="search-results__meta">
                       {iso
