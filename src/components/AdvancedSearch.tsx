@@ -45,6 +45,12 @@ const QUICK_SEARCH = gql`
             timestamp
         }
 
+        blocks_aggregate(where: { block_number: { _eq: $height } }) {
+            aggregate {
+                count
+            }
+        }
+
         transfers(
             where: {
                 _or: [
@@ -124,6 +130,7 @@ interface QuickDeployment {
 
 interface QuickSearchData {
     blocks?: QuickBlock[];
+    blocks_aggregate?: { aggregate?: { count?: number } };
     transfers?: QuickTransfer[];
     deployments?: QuickDeployment[];
 }
@@ -227,12 +234,16 @@ function buildResults(data: QuickSearchData | undefined, query: string): QuickRe
     // A numeric query is a height, not a block identifier: one height can hold
     // several DAG siblings, so send the user to the height page first.
     const exactHeight = heightInput(query.trim());
+    const siblingCount = data?.blocks_aggregate?.aggregate?.count ?? 0;
+    const heightMeta = siblingCount > 0
+        ? `${siblingCount} block${siblingCount === 1 ? "" : "s"} at this height`
+        : "View all blocks at this height";
     const heightResults: QuickResult[] = exactHeight === null ? [] : [{
         key: `height:${exactHeight}`,
         type: "height",
         path: `/block/${exactHeight}`,
         title: `Height #${exactHeight}`,
-        meta: "View all blocks at this height",
+        meta: heightMeta,
         timestamp: 0,
         rank: 0,
     }];

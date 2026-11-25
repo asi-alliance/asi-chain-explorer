@@ -232,7 +232,7 @@ export default function AddressPage() {
         <AlertTriangle size={40} aria-hidden="true" />
         <h1>Wallet address</h1>
         <p role="alert">Invalid ASI address.</p>
-        <Link to="/" className="btn btn-secondary">Back to blocks</Link>
+        <Link to="/" className="btn btn-secondary">Back to home</Link>
       </section>
     );
   }

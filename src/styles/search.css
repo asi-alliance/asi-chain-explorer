@@ -510,7 +510,12 @@
     }
 
     .asi-search__input {
-        padding-right: 68px;
+        padding: 11px 56px 11px 38px;
+        font-size: 13px;
+    }
+
+    .asi-search__leading {
+        left: 12px;
     }
 
     .asi-search__keys {

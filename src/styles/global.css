@@ -366,6 +366,19 @@ code, .code {
 }
 
 /* Block Number Styling */
+.height-cell {
+    vertical-align: top;
+}
+
+.height-group-count {
+    display: block;
+    margin-top: 4px;
+    color: var(--text-secondary);
+    font-size: 10.5px;
+    font-weight: 500;
+    white-space: nowrap;
+}
+
 .block-number {
     font-weight: 600;
     color: var(--asi-lime);

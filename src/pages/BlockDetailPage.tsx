@@ -1,6 +1,7 @@
 import React from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useQuery } from '@apollo/client';
+import { ChevronRight } from 'lucide-react';
 import { GET_BLOCK_DETAILS, GET_BLOCKS_AT_HEIGHT } from '../graphql/queries';
 import { Block } from '../types';
 import { formatDistanceToNow } from 'date-fns';
@@ -8,6 +9,7 @@ import { CURRENT_TOKEN } from '../utils/constants';
 import { getParentHashes } from '../utils/blockParent';
 import { formatRaw } from '../utils/amounts';
 import { getBlockPath } from '../utils/blockPath';
+import '../styles/height.css';
 
 const BlockDetailPage: React.FC = () => {
   const { blockHash, blockNumber } = useParams<{
@@ -117,42 +119,119 @@ const BlockDetailPage: React.FC = () => {
     return null;
   };
 
+  const finalizationLabel = (status?: string | null) =>
+    status ? status.replace(/_/g, ' ') : 'Unknown';
+  const finalizationClass = (status?: string | null) =>
+    status === 'finalized' ? 'is-finalized' : status ? 'is-pending' : 'is-unknown';
+  const countFromAggregate = Number(data?.blocks_aggregate?.aggregate?.count);
+  const siblingCount = Number.isFinite(countFromAggregate) && countFromAggregate > 0
+    ? Math.max(countFromAggregate, matchingBlocks.length)
+    : matchingBlocks.length;
+  const isHeightView = Boolean(blockNumber) && !blockHash;
+  const showHeightOverview = isHeightView && siblingCount > 1;
+
+  if (showHeightOverview) {
+    const timestamps = matchingBlocks
+      .map((sibling) => Number(sibling.timestamp))
+      .filter((timestamp) => Number.isFinite(timestamp) && timestamp > 0);
+    const latestTimestamp = timestamps.length ? Math.max(...timestamps) : null;
+    const finalizedCount = matchingBlocks
+      .filter((sibling) => sibling.finalization_status === 'finalized').length;
+
+    return (
+      <>
+        <nav style={{ marginBottom: '2rem' }}>
+          <Link to="/" className="btn btn-secondary">← Back to home</Link>
+        </nav>
+
+        <section className="asi-card height-overview">
+          <header className="height-overview__head">
+            <div>
+              <p className="height-overview__eyebrow">Block height</p>
+              <h1 className="height-overview__title">#{blockNumber}</h1>
+            </div>
+            <span className="height-overview__count">
+              {siblingCount} sibling blocks
+            </span>
+          </header>
+
+          <p className="height-overview__hint">
+            A block height is not unique in the DAG. Select a block hash to open its details.
+          </p>
+
+          <div className="height-overview__stats">
+            <div className="asi-card glass">
+              <p className="text-muted">Height</p>
+              <strong>#{blockNumber}</strong>
+            </div>
+            <div className="asi-card glass">
+              <p className="text-muted">Sibling blocks</p>
+              <strong>{siblingCount}</strong>
+            </div>
+            <div className="asi-card glass">
+              <p className="text-muted">Finalized</p>
+              <strong>{finalizedCount} of {matchingBlocks.length}</strong>
+            </div>
+            <div className="asi-card glass">
+              <p className="text-muted">Latest proposal</p>
+              <strong>{latestTimestamp === null ? 'N/A' : formatTimestamp(latestTimestamp)}</strong>
+            </div>
+          </div>
+
+          {siblingCount > matchingBlocks.length && (
+            <p className="height-overview__limit">
+              Showing the first {matchingBlocks.length} of {siblingCount} blocks at this height.
+            </p>
+          )}
+
+          <ol className="height-overview__list">
+            {matchingBlocks.map((sibling) => (
+              <li key={sibling.block_hash}>
+                <Link
+                  className="height-sibling"
+                  to={getBlockPath(sibling.block_hash, sibling.block_number)}
+                  aria-label={`Open block ${sibling.block_hash}`}
+                >
+                  <span className="height-sibling__hash mono" title={sibling.block_hash}>
+                    {sibling.block_hash}
+                  </span>
+                  <span className="height-sibling__meta">
+                    Proposer <span className="mono">{truncateAddress(sibling.proposer)}</span>
+                  </span>
+                  <span className="height-sibling__time" title={formatDate(sibling.timestamp)}>
+                    {formatTimestamp(sibling.timestamp)}
+                  </span>
+                  <span className="height-sibling__deploys">
+                    {sibling.deployment_count || 0} deploys
+                  </span>
+                  <span className={`height-sibling__status ${finalizationClass(sibling.finalization_status)}`}>
+                    {finalizationLabel(sibling.finalization_status)}
+                  </span>
+                  <ChevronRight size={18} aria-hidden="true" className="height-sibling__chevron" />
+                </Link>
+              </li>
+            ))}
+          </ol>
+        </section>
+      </>
+    );
+  }
+
   return (
     <>
       {/* Navigation */}
       <nav style={{ marginBottom: '2rem' }}>
-        <Link to="/" className="btn btn-secondary">← Back to Blocks</Link>
+        <Link to="/" className="btn btn-secondary">← Back to home</Link>
       </nav>
-
-      {blockNumber && matchingBlocks.length > 1 && (
-        <section className="asi-card" style={{ marginBottom: '1.5rem' }}>
-          <h2 style={{ marginBottom: '0.75rem' }}>
-            {matchingBlocks.length} sibling blocks at height {blockNumber}
-          </h2>
-          <p className="text-muted" style={{ marginBottom: '1rem' }}>
-            A block height is not unique in the DAG. Select a block hash.
-          </p>
-          <div style={{ display: 'grid', gap: '0.75rem' }}>
-            {matchingBlocks.map((sibling) => (
-              <Link
-                key={sibling.block_hash}
-                to={getBlockPath(sibling.block_hash, sibling.block_number)}
-                className="mono"
-                style={{ wordBreak: 'break-all' }}
-              >
-                {sibling.block_hash}
-              </Link>
-            ))}
-          </div>
-        </section>
-      )}
 
       {/* Block Summary Cards */}
       <div className="summary-grid mb-3">
         <div className="asi-card glass">
           <p className="text-muted" style={{ marginBottom: '0.5rem' }}>Height</p>
           <h3 className="text-success" style={{ margin: 0 }}>
-            {block.block_number.toLocaleString()}
+            <Link to={getBlockPath(null, block.block_number)}>
+              {block.block_number.toLocaleString()}
+            </Link>
           </h3>
         </div>
         <div className="asi-card glass">
@@ -169,9 +248,20 @@ const BlockDetailPage: React.FC = () => {
         </div>
         <div className="asi-card glass">
           <p className="text-muted" style={{ marginBottom: '0.5rem' }}>Status</p>
-          <h3 className="text-success" style={{ margin: 0 }}>✓ Confirmed</h3>
+          <h3
+            className={block.finalization_status === 'finalized' || !block.finalization_status ? 'text-success' : 'text-warning'}
+            style={{ margin: 0 }}
+          >
+            {block.finalization_status ? `✓ ${finalizationLabel(block.finalization_status)}` : '✓ Confirmed'}
+          </h3>
         </div>
       </div>
+
+      {blockHash && (
+        <p className="text-muted" style={{ margin: '-0.5rem 0 1.5rem' }}>
+          <Link to={getBlockPath(null, block.block_number)}>View all blocks at height #{block.block_number}</Link>
+        </p>
+      )}
 
       {/* Block Details */}
       <section className="asi-card">
@@ -183,7 +273,9 @@ const BlockDetailPage: React.FC = () => {
           margin: 0 
         }}>
           <dt>Height</dt>
-          <dd className="block-number">{block.block_number.toLocaleString()}</dd>
+          <dd className="block-number">
+            <Link to={getBlockPath(null, block.block_number)}>{block.block_number.toLocaleString()}</Link>
+          </dd>
           
           <dt>Block Hash</dt>
           <dd className="mono">{block.block_hash}</dd>
@@ -222,8 +314,8 @@ const BlockDetailPage: React.FC = () => {
           
           <dt>Finalization Status</dt>
           <dd>
-            <span className="text-success">
-              {block.finalization_status || 'finalized'}
+            <span className={block.finalization_status === 'finalized' || !block.finalization_status ? 'text-success' : 'text-warning'}>
+              {finalizationLabel(block.finalization_status || 'finalized')}
             </span>
           </dd>
           

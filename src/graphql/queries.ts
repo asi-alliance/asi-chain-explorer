@@ -159,6 +159,7 @@ export const GET_BLOCKS_AT_HEIGHT = gql`
     blocks(
       where: { block_number: { _eq: $blockNumber } }
       order_by: { block_hash: asc }
+      limit: 100
     ) {
       ...BlockFragment
       deployments {
@@ -166,6 +167,11 @@ export const GET_BLOCKS_AT_HEIGHT = gql`
         transfers {
           ...TransferFragment
         }
+      }
+    }
+    blocks_aggregate(where: { block_number: { _eq: $blockNumber } }) {
+      aggregate {
+        count
       }
     }
   }

@@ -323,20 +323,37 @@ const HomePage: React.FC = () => {
                                 </tr>
                             </thead>
                             <tbody>
-                                {blocks.map((block: Block) => (
+                                {blocks.map((block: Block, index: number) => {
+                                    const previous = blocks[index - 1];
+                                    const firstAtHeight = !previous || previous.block_number !== block.block_number;
+                                    let groupSize = 1;
+                                    if (firstAtHeight) {
+                                        for (let next = index + 1; next < blocks.length &&
+                                            blocks[next].block_number === block.block_number; next += 1) {
+                                            groupSize += 1;
+                                        }
+                                    }
+                                    return (
                                     <tr key={block.block_hash}>
-                                        <td>
-                                            <h5>
-                                                <Link
-                                                    to={getBlockPath(null, block.block_number)}
-                                                    className="block-number"
-                                                    aria-label={`Open height ${block.block_number}`}
-                                                    title="All blocks at this height"
-                                                >
-                                                    {block.block_number}
-                                                </Link>
-                                            </h5>
-                                        </td>
+                                        {firstAtHeight && (
+                                            <td rowSpan={groupSize} className="height-cell">
+                                                <h5>
+                                                    <Link
+                                                        to={getBlockPath(null, block.block_number)}
+                                                        className="block-number"
+                                                        aria-label={`Open height ${block.block_number}`}
+                                                        title="All blocks at this height"
+                                                    >
+                                                        {block.block_number}
+                                                    </Link>
+                                                </h5>
+                                                {groupSize > 1 && (
+                                                    <span className="height-group-count">
+                                                        {groupSize} blocks
+                                                    </span>
+                                                )}
+                                            </td>
+                                        )}
                                         <td className="hash-cell">
                                             <Link
                                                 className="text-3"
@@ -359,7 +376,8 @@ const HomePage: React.FC = () => {
                                             </h5>
                                         </td>
                                     </tr>
-                                ))}
+                                    );
+                                })}
                             </tbody>
                         </table>
                     </div>
