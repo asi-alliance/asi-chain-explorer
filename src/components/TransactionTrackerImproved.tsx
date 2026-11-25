@@ -353,9 +353,6 @@ const TransactionTrackerImproved: React.FC<TransactionTrackerImprovedProps> = ({
                     <div className="header-content-wrapper">
                         <h1 style={{ margin: "0 0 0.5rem 0" }}>{heading.title}</h1>
                     </div>
-                    <div className="export-data-container">
-                        <RecentDataExporter entityToExport={heading.exportEntity} />
-                    </div>
                 </div>
                 <p
                     style={{
@@ -653,6 +650,16 @@ const TransactionTrackerImproved: React.FC<TransactionTrackerImprovedProps> = ({
                     </div>
                 )}
             </div>
+            {!loading && !areTransactionsSearching && transactions.length > 0 && (
+                <div className="table-footer">
+                    <span className="text-muted">
+                        {searchQuery
+                            ? `${transactions.length} matching ${activeTab === "deployments" ? "deployments" : "transfers"}`
+                            : `Showing ${(currentPage - 1) * itemsPerPage + 1}-${(currentPage - 1) * itemsPerPage + transactions.length} of ${totalItemsForTab}`}
+                    </span>
+                    <RecentDataExporter entityToExport={heading.exportEntity} />
+                </div>
+            )}
         </div>
     );
 };

@@ -51,6 +51,9 @@ lives in
   the state, and an identical Signature box is no longer repeated.
 - The transaction list uses one tab row with icons and counts plus a total;
   the duplicate summary bar is gone.
+- CSV export is a labeled `Export CSV` action in the table footer for blocks
+  and deployments, with an entity-specific accessible name and the existing
+  filenames.
 - Transaction tabs wrap on narrow screens instead of overflowing the page.
 
 ## Frontend-only next

@@ -627,10 +627,50 @@ code, .code {
     gap: 1rem;
 }
 
-.recent-transactions-exporter:hover svg {
+.table-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    flex-wrap: wrap;
+    margin-top: 1rem;
+}
+
+.recent-transactions-exporter {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    padding: 0.45rem 0.7rem;
+    border: 1px solid rgba(147, 226, 124, 0.28);
+    border-radius: 6px;
+    background: rgba(147, 226, 124, 0.08);
+    color: var(--text-secondary);
     cursor: pointer;
-    transform: scale(1.2);
-    transition: transform 0.2s ease;
+    font-size: 0.78rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+
+.recent-transactions-exporter:hover {
+    color: var(--asi-lime);
+    border-color: rgba(147, 226, 124, 0.5);
+    background: rgba(147, 226, 124, 0.14);
+}
+
+.recent-transactions-exporter:disabled {
+    cursor: wait;
+    opacity: 0.75;
+}
+
+.recent-transactions-exporter svg {
+    flex: 0 0 auto;
+}
+
+.recent-transactions-exporter .loading {
+    width: 14px;
+    height: 14px;
+    border-width: 2px;
 }
 
 /* Summary Card Grid */

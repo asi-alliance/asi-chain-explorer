@@ -264,9 +264,6 @@ const HomePage: React.FC = () => {
                                 )}
                             </h1>
                         </div>
-                        <div className="export-data-container">
-                          <RecentDataExporter entityToExport={ExportEntities.BLOCKS} />
-                        </div>
                     </div>
                     <div className="section-controls">
                         <div className="search-box">
@@ -494,14 +491,15 @@ const HomePage: React.FC = () => {
                                 </button>
                             </h3>
                         </div>
-                        <div style={{ marginTop: "1rem", textAlign: "center" }}>
-                            <span className="text-muted">
-                                {blocks.length
-                                    ? `Showing ${(currentPage - 1) * blocksPerPage + 1}-${(currentPage - 1) * blocksPerPage + blocks.length} blocks`
-                                    : "No blocks on this page"}
-                            </span>
-                        </div>
                     </>
+                )}
+                {!blocksLoading && blocks.length > 0 && (
+                    <div className="table-footer">
+                        <span className="text-muted">
+                            {`Showing ${(currentPage - 1) * blocksPerPage + 1}-${(currentPage - 1) * blocksPerPage + blocks.length} blocks`}
+                        </span>
+                        <RecentDataExporter entityToExport={ExportEntities.BLOCKS} />
+                    </div>
                 )}
             </section>
         </>
