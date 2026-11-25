@@ -52,7 +52,8 @@ The system indexes blockchain data including blocks, deployments, transfers, val
 - **Block Explorer**: Real-time block monitoring with detailed information, grouped by DAG height
 - **Height Overview**: A height can contain several sibling blocks; `/block/{height}` lists every sibling with finalization status, parent/child links and previous/next height navigation
 - **Search**: One header omnibox for heights, block hashes, deploy IDs, indexed transfers and vault addresses, with grouped results, a `Ctrl/Cmd+K` palette and recent searches
-- **Transaction Viewer**: Comprehensive transaction details including deployments, transfers and the executed fee in ASI (`phlo_cost × phlo_price`)
+- **Transaction Viewer**: Details with the executed fee in ASI (`phlo_cost × phlo_price`), one copyable transaction ID, a compact status tooltip, local absolute timestamps, relative age and `Genesis` labels for block-0 RChain mainnet records
+- **CSV Export**: An `Export CSV` action at the bottom of Recent Blocks and the transaction tables downloads up to 5000 recent rows (`recent_blocks.csv`, `recent_deployments.csv` or `recent_transfers.csv`)
 - **Pending Deploys** (optional): Deploys in the validators' deploy buffers that no indexed block includes yet, updated live over the GraphQL WebSocket (Pending page). Shown only when the indexer reads validator buffers
 - **Native Transfer Calls**: Calls that a deploy started or completed, with pending, completed, rejected or coalesced status (Transfers tab of a deploy)
 - **Validator Dashboard**: Current validators with stake distribution; inactive validators are listed separately and are not counted in totals
@@ -349,12 +350,12 @@ resolves before nginx starts.
 
 ## Available Pages
 
-- `/` - Home dashboard with network overview
+- `/` - Home dashboard with network overview and Recent Blocks with a footer CSV export
 - `/blocks` - Redirects to `/`; the home page is the block list
 - `/block/:blockNumber`, `/block/hash/:blockHash` - Block details; a height with several DAG siblings shows the height overview
-- `/transactions` - Transaction list
+- `/transactions` - Transaction list with one icon tab row and a footer CSV export
 - `/pending` - Deploys in the validators' deploy buffers that no indexed block includes yet (the navigation tab appears only when the indexer tracks pending deploys)
-- `/transaction/:transactionId` - Deploy details: overview with the executed fee in ASI, code, transfers with native transfer calls, block. A pending deploy shows its pending state until it is indexed.
+- `/transaction/:transactionId` - Deploy details: executed fee in ASI, code, transfers with native transfer calls and block. Shows one copyable ID, a status tooltip, local and relative timestamps; block-0 records carry a Genesis label. A pending deploy shows its pending state until it is indexed.
 - `/validators` - Current validators; inactive validators in a separate table
 - `/validator-history` - Validator history
 - `/statistics` - Network Dashboard only
@@ -401,7 +402,7 @@ docker rmi asi-explorer:latest
 ## Performance Metrics
 
 - **Initial JS**: ~227 kB gzip for the shell and home page
-- **On-demand chunks**: Statistics (charts) ~135 kB gzip, transaction detail (code highlighter and toast styles) ~243 kB gzip
+- **On-demand chunks**: Statistics (charts) ~135 kB gzip; the transaction detail vendor chunk (code highlighter and toast styles) ~227 kB gzip
 - **Recent Blocks**: 2 s polling, also while the finalized-only filter is on; a text search pauses it
 - **Live pending data**: WebSocket subscriptions with a 5 s HTTP fallback
 - **Home filter**: 250 ms debounce; the header omnibox uses six-row batches per result type
@@ -490,7 +491,8 @@ Docker builds accept the same build argument. Changing a display setting does no
 rescale tokens or upgrade a chain's denomination.
 
 Validation: `CI=true npm test -- --watchAll=false --runInBand`,
-`npx tsc --noEmit`, and `npm run build`.
+`npx tsc --noEmit`, and `npm run build`. The suite currently has 369 tests
+in 37 suites.
 The `Tests` workflow runs these checks on pull requests to `dev` and `main` and
 on pushes to `dev`. Its build runs with `CI=true`, so a lint warning fails the
 check. The Docker build does not set `CI`; run `CI=true npm run build` locally
