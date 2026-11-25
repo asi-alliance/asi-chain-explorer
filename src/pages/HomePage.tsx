@@ -31,10 +31,8 @@ const GET_RECENT_BLOCKS = gql`
 const HomePage: React.FC = () => {
     const [currentPage, setCurrentPage] = useState(1);
     const [searchQuery, setSearchQuery] = useState("");
-    const [validatorFilter, setValidatorFilter] = useState("");
     const [finalizedOnly, setFinalizedOnly] = useState(false);
     const [debouncedQuery, setDebouncedQuery] = useState("");
-    const [debouncedValidator, setDebouncedValidator] = useState("");
     const blocksPerPage = 20;
 
     useEffect(() => {
@@ -43,13 +41,8 @@ const HomePage: React.FC = () => {
     }, [searchQuery]);
 
     useEffect(() => {
-        const timer = window.setTimeout(() => setDebouncedValidator(validatorFilter), 250);
-        return () => window.clearTimeout(timer);
-    }, [validatorFilter]);
-
-    useEffect(() => {
         setCurrentPage(1);
-    }, [debouncedQuery, debouncedValidator, finalizedOnly]);
+    }, [debouncedQuery, finalizedOnly]);
 
     // Get initial network statistics with polling
     const { data: statsData, loading: statsLoading } = useQuery(
@@ -66,16 +59,12 @@ const HomePage: React.FC = () => {
 
     // Get paginated blocks with polling - use search query if present.
     const searchTerm = debouncedQuery.trim();
-    const validatorTerm = debouncedValidator.trim();
     const isSearching = searchTerm.length > 0;
-    const isFiltering = isSearching || finalizedOnly || validatorTerm.length > 0;
+    const isFiltering = isSearching || finalizedOnly;
     const isNumericSearch = /^\d+$/.test(searchTerm);
     const filterStatements: object[] = [];
     if (finalizedOnly) {
         filterStatements.push({ finalization_status: { _eq: 'finalized' } });
-    }
-    if (validatorTerm) {
-        filterStatements.push({ proposer: { _ilike: searchPattern(validatorTerm) } });
     }
     const where = filterStatements.length ? { _and: filterStatements } : {};
 
@@ -342,28 +331,15 @@ const HomePage: React.FC = () => {
                         />
                         Finalized only
                     </label>
-                    <label className="home-filter-row__validator">
-                        Validator
-                        <input
-                            type="text"
-                            placeholder="Proposer contains"
-                            value={validatorFilter}
-                            onChange={(event) => setValidatorFilter(event.target.value)}
-                        />
-                    </label>
-                    {(finalizedOnly || validatorFilter) && (
+                    {finalizedOnly && (
                         <button
                             type="button"
                             className="home-filter-row__clear"
-                            onClick={() => {
-                                setFinalizedOnly(false);
-                                setValidatorFilter("");
-                            }}
+                            onClick={() => setFinalizedOnly(false)}
                         >
-                            Clear filters
+                            Clear filter
                         </button>
                     )}
-                    {isFiltering && <span className="home-filter-row__active">Filtered</span>}
                 </div>
 
                 {blocksLoading ? (

@@ -389,13 +389,6 @@ code, .code {
     accent-color: var(--asi-lime);
 }
 
-.home-filter-row__validator input {
-    width: 220px;
-    padding: 7px 10px;
-    border-width: 1px;
-    font-size: 12px;
-}
-
 .home-filter-row__clear {
     padding: 6px 10px;
     border: 0;
@@ -408,13 +401,6 @@ code, .code {
 
 .home-filter-row__clear:hover {
     text-decoration: underline;
-}
-
-.home-filter-row__active {
-    color: var(--text-tertiary);
-    font-size: 11px;
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
 }
 
 .height-cell {
