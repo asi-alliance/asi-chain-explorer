@@ -256,6 +256,7 @@ For detailed technical documentation, see:
 - **[ARCHITECTURE.md](ARCHITECTURE.md)** - System architecture, component interactions, database schema, and performance considerations
 - **[API_REFERENCE.md](API_REFERENCE.md)** - Complete GraphQL API reference with query examples and best practices
 - **[DEVELOPER_GUIDE.md](DEVELOPER_GUIDE.md)** - Development setup, debugging, and optimization guidelines
+- **[ROADMAP.md](ROADMAP.md)** - Scope shipped in the current PR and remaining explorer work
 
 ## Support
 

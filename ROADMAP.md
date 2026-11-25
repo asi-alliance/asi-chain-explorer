@@ -1,11 +1,20 @@
 # Explorer roadmap
 
-Current focus: keep the universal search convenient while making DAG heights
-unambiguous. This file records the remaining UI work; backend blockers live in
+Current focus: the frontend polish tracked in
+[asi-chain-explorer#83](https://github.com/asi-alliance/asi-chain-explorer/issues/83).
+This file records what PR #79 ships and what remains; backend-dependent scope
+lives in
 [asi-chain-indexer#66](https://github.com/asi-alliance/asi-chain-indexer/issues/66).
 
 ## Shipped in PR #79
 
+- Optional live pending deploys: one shared status subscription checks the
+  indexer capability, the list and detail pages update over the GraphQL
+  WebSocket with an HTTP fallback, and a per-signature watch follows a deploy
+  until it is indexed or expires.
+- Wallet address page: finalized spendable balance with an exact-value tooltip,
+  indexed transfer history with a direction filter and keyset pagination, and
+  outgoing pending deploys while tracking is enabled.
 - One header omnibox for heights, block hashes, transaction IDs, transfers and
   wallet addresses, with grouped results and `Ctrl/Cmd+K` palette.
 - Recent searches in local storage.
@@ -44,6 +53,10 @@ Tracked in
       links restore it.
 - [ ] Add a compact status legend to Recent Blocks (Confirmed / Unfinalized).
 - [ ] Revisit the home filter row on narrow screens after the mobile table work.
+
+Also planned:
+
+- [ ] Per-page `document.title`; every route currently reports `Explorer`.
 
 ## Blocked by the indexer / Hasura
 
