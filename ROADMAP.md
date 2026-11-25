@@ -17,6 +17,8 @@ unambiguous. This file records the remaining UI work; backend blockers live in
   real finalization status and a local finalized-only filter.
 - Search result type tabs and copy/share actions.
 - Mobile search panel and height overview.
+- A 404 page for unknown paths, with the attempted path, the chain search
+  and recovery links.
 
 ## Frontend-only next
 

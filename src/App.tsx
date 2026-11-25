@@ -16,6 +16,7 @@ import AddressPage from "./pages/AddressPage";
 import TransactionDetailPage from "./pages/TransactionDetailPage";
 import TransactionsPage from "./pages/TransactionsPage";
 import PendingPage from "./pages/PendingPage";
+import NotFoundPage from "./pages/NotFoundPage";
 import FeedbackForm from "./components/community/FeedbackForm";
 
 import "./styles/global.css";
@@ -78,6 +79,7 @@ function App({ client }: { client: ApolloClient<unknown> }) {
                             path="/transaction/:transactionId"
                             element={<TransactionDetailPage />}
                         />
+                        <Route path="*" element={<NotFoundPage />} />
                     </Routes>
                 </Layout>
             </Router>
