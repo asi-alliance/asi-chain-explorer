@@ -123,10 +123,8 @@ const BlockDetailPage: React.FC = () => {
     status ? status.replace(/_/g, ' ') : 'Unknown';
   const finalizationClass = (status?: string | null) =>
     status === 'finalized' ? 'is-finalized' : status ? 'is-pending' : 'is-unknown';
-  const countFromAggregate = Number(data?.blocks_aggregate?.aggregate?.count);
-  const siblingCount = Number.isFinite(countFromAggregate) && countFromAggregate > 0
-    ? Math.max(countFromAggregate, matchingBlocks.length)
-    : matchingBlocks.length;
+  const siblingCount = matchingBlocks.length;
+  const siblingCountLabel = siblingCount >= 100 ? '100+' : String(siblingCount);
   const isHeightView = Boolean(blockNumber) && !blockHash;
   const showHeightOverview = isHeightView && siblingCount > 1;
 
@@ -151,7 +149,7 @@ const BlockDetailPage: React.FC = () => {
               <h1 className="height-overview__title">#{blockNumber}</h1>
             </div>
             <span className="height-overview__count">
-              {siblingCount} sibling blocks
+              {siblingCountLabel} sibling blocks
             </span>
           </header>
 
@@ -166,7 +164,7 @@ const BlockDetailPage: React.FC = () => {
             </div>
             <div className="asi-card glass">
               <p className="text-muted">Sibling blocks</p>
-              <strong>{siblingCount}</strong>
+              <strong>{siblingCountLabel}</strong>
             </div>
             <div className="asi-card glass">
               <p className="text-muted">Finalized</p>
@@ -178,9 +176,9 @@ const BlockDetailPage: React.FC = () => {
             </div>
           </div>
 
-          {siblingCount > matchingBlocks.length && (
+          {matchingBlocks.length === 100 && (
             <p className="height-overview__limit">
-              Showing the first {matchingBlocks.length} of {siblingCount} blocks at this height.
+              Showing the first 100 blocks at this height.
             </p>
           )}
 

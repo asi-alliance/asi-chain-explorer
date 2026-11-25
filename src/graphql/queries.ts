@@ -169,11 +169,6 @@ export const GET_BLOCKS_AT_HEIGHT = gql`
         }
       }
     }
-    blocks_aggregate(where: { block_number: { _eq: $blockNumber } }) {
-      aggregate {
-        count
-      }
-    }
   }
 `;
 

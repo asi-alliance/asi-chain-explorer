@@ -23,7 +23,7 @@ import { decimalText, groupThousands, truncateDecimal } from "../utils/amounts";
 import { heightInput } from "../utils/blockHeight";
 import { getBlockPath } from "../utils/blockPath";
 import { CURRENT_TOKEN } from "../utils/constants";
-import { searchPattern } from "../utils/search";
+import { HEIGHT_ONLY_PATTERN, searchPattern } from "../utils/search";
 import "../styles/search.css";
 
 const QUICK_SEARCH = gql`
@@ -45,11 +45,6 @@ const QUICK_SEARCH = gql`
             timestamp
         }
 
-        blocks_aggregate(where: { block_number: { _eq: $height } }) {
-            aggregate {
-                count
-            }
-        }
 
         transfers(
             where: {
@@ -130,7 +125,6 @@ interface QuickDeployment {
 
 interface QuickSearchData {
     blocks?: QuickBlock[];
-    blocks_aggregate?: { aggregate?: { count?: number } };
     transfers?: QuickTransfer[];
     deployments?: QuickDeployment[];
 }
@@ -234,9 +228,13 @@ function buildResults(data: QuickSearchData | undefined, query: string): QuickRe
     // A numeric query is a height, not a block identifier: one height can hold
     // several DAG siblings, so send the user to the height page first.
     const exactHeight = heightInput(query.trim());
-    const siblingCount = data?.blocks_aggregate?.aggregate?.count ?? 0;
-    const heightMeta = siblingCount > 0
-        ? `${siblingCount} block${siblingCount === 1 ? "" : "s"} at this height`
+    // The public schema does not expose blocks_aggregate. The quick query asks
+    // for six rows, so a full batch means "six or more", not an exact count.
+    const loadedBlocks = data?.blocks?.length ?? 0;
+    const heightMeta = loadedBlocks > 0
+        ? loadedBlocks >= 6
+            ? "6+ blocks at this height"
+            : `${loadedBlocks} block${loadedBlocks === 1 ? "" : "s"} at this height`
         : "View all blocks at this height";
     const heightResults: QuickResult[] = exactHeight === null ? [] : [{
         key: `height:${exactHeight}`,
@@ -350,12 +348,13 @@ const AdvancedSearch: React.FC<AdvancedSearchProps> = ({
             setError(null);
 
             try {
+                const exactHeight = heightInput(value);
                 const { data } = await client.query<QuickSearchData>({
                     query: QUICK_SEARCH,
                     variables: {
-                        pattern: searchPattern(value),
+                        pattern: exactHeight === null ? searchPattern(value) : HEIGHT_ONLY_PATTERN,
                         // Heights are non-negative; -1 disables the height branch for text queries.
-                        height: heightInput(value) ?? "-1",
+                        height: exactHeight ?? "-1",
                     },
                     fetchPolicy: "no-cache",
                     errorPolicy: "none",

@@ -14,6 +14,10 @@ const TYPE_LABELS: Record<string, string> = {
   deployment: 'Transaction',
 };
 
+function shortHash(hash: string): string {
+  return hash.length <= 18 ? hash : `${hash.slice(0, 8)}…${hash.slice(-6)}`;
+}
+
 function relativeTime(timestamp: number): string {
   if (!Number.isFinite(timestamp) || timestamp <= 0) return '';
   try {
@@ -34,6 +38,12 @@ const SearchResultsPage: React.FC = () => {
   const page = Number.isSafeInteger(requestedPage) && requestedPage > 0 ? requestedPage : 1;
   const { rows, hasMore, loading, error } = useSearchResults(query, page, order, type);
   const height = heightInput(query);
+  const blockHeightCounts = new Map<string, number>();
+  rows.forEach((row) => {
+    if (row.type === 'block') {
+      blockHeightCounts.set(row.title, (blockHeightCounts.get(row.title) || 0) + 1);
+    }
+  });
   const update = (key: string, value: string) => {
     const next = new URLSearchParams(params);
     next.set(key, value);
@@ -109,12 +119,16 @@ const SearchResultsPage: React.FC = () => {
                 const label = TYPE_LABELS[row.type] || row.type;
                 const iso = Number.isFinite(row.timestamp) && row.timestamp > 0
                   ? new Date(row.timestamp).toISOString() : undefined;
+                const duplicateHeight = row.type === 'block' && (blockHeightCounts.get(row.title) || 0) > 1;
+                const displayTitle = duplicateHeight && row.data?.block_hash
+                  ? `${row.title} · ${shortHash(String(row.data.block_hash))}`
+                  : row.title;
                 return <li key={row.id} className="search-results__row">
                   <span className={`search-results__badge search-results__badge--${row.type}`}>{label}</span>
                   <div className="search-results__body">
                     <Link className="search-results__title" to={row.path}
                       title={row.data?.deploy_id || row.data?.block_hash || row.title}>
-                      {row.title}
+                      {displayTitle}
                     </Link>
                     <p className="search-results__description">{row.description}</p>
                     <small className="search-results__meta">

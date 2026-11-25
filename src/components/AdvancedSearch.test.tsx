@@ -3,6 +3,7 @@ import { ApolloClient, ApolloLink, ApolloProvider, InMemoryCache, Observable } f
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import AdvancedSearch from './AdvancedSearch';
+import { HEIGHT_ONLY_PATTERN } from '../utils/search';
 
 jest.mock('react-router-dom', () => {
   Object.assign(global, { TextEncoder: require('util').TextEncoder });
@@ -51,7 +52,8 @@ test.each([
 ])('sends exact height %s without Number rounding (issue #62)', async text => {
   const variables = await search(text);
   expect(variables.height).toBe(text);
-  expect(variables.pattern).toBe(`%${text}%`);
+  // Numeric input is a height, so it must not also scan hashes and IDs.
+  expect(variables.pattern).toBe(HEIGHT_ONLY_PATTERN);
 });
 
 test('rejects out-of-range heights instead of substituting another block', async () => {
@@ -60,10 +62,10 @@ test('rejects out-of-range heights instead of substituting another block', async
   expect(variables.pattern).toBe('%9223372036854775808%');
 });
 
-test('keeps leading zeros for text matches while querying the canonical height', async () => {
+test('treats leading zeros as the canonical height', async () => {
   const variables = await search('0012');
   expect(variables.height).toBe('12');
-  expect(variables.pattern).toBe('%0012%');
+  expect(variables.pattern).toBe(HEIGHT_ONLY_PATTERN);
 });
 
 test.each(['1e3', '0x12', '1.5', '-1', 'abc123'])('treats %p as text, not a coerced height', async text => {

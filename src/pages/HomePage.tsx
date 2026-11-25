@@ -371,9 +371,15 @@ const HomePage: React.FC = () => {
                                             {formatTimestamp(block.timestamp)}
                                         </td>
                                         <td>
-                                            <h5 className="text-success">
-                                                ✓ Confirmed
-                                            </h5>
+                                            {(() => {
+                                                const status = block.finalization_status;
+                                                const finalized = !status || status === 'finalized';
+                                                return (
+                                                    <h5 className={finalized ? 'text-success' : 'text-warning'} style={{ textTransform: 'capitalize' }}>
+                                                        {finalized ? '✓ Confirmed' : `• ${status?.replace(/_/g, ' ')}`}
+                                                    </h5>
+                                                );
+                                            })()}
                                         </td>
                                     </tr>
                                     );

@@ -37,6 +37,9 @@ export const SEARCH_INDEX = gql`
   }
 `;
 
+/** A numeric query is a height, not a text fragment; this cannot match an indexed hash, address or ID. */
+export const HEIGHT_ONLY_PATTERN = '%zzzzzzzzzzzz%';
+
 /** Escape LIKE metacharacters so a user's % and _ are matched literally. */
 export function escapeLikePattern(text: string): string {
   return text.replace(/[\\%_]/g, '\\$&');
@@ -46,12 +49,16 @@ export function searchPattern(query: string): string {
   return `%${escapeLikePattern(query.trim())}%`;
 }
 
+export function textPatternFor(query: string): string {
+  return heightInput(query) === null ? searchPattern(query) : HEIGHT_ONLY_PATTERN;
+}
+
 export function searchVariables(query: string, limit: number, order: 'asc' | 'desc', type: SearchType,
   offset = 0, cursor?: SearchCursor) {
   const value = query.trim();
-  const pattern = searchPattern(value);
-  const disabled = { _or: [] };
   const exactHeight = heightInput(value);
+  const pattern = textPatternFor(value);
+  const disabled = { _or: [] };
   const height = exactHeight === null ? [] : [{ block_number: { _eq: exactHeight } }];
   const afterCursor = (stream: SearchStream, filter: object) => {
     if (!cursor || type !== stream) return filter;
