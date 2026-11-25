@@ -6,7 +6,7 @@ import React, {
     useState,
 } from "react";
 import { gql, useApolloClient } from "@apollo/client";
-import { formatDistanceToNow } from "date-fns";
+import { formatLocalTime, formatRelativeTime, toMillis } from "../utils/time";
 import {
     ChevronRight,
     Clock,
@@ -166,6 +166,7 @@ interface QuickResult {
     meta: string;
     timestamp: number;
     status?: string;
+    genesis?: boolean;
     rank: number;
 }
 
@@ -192,17 +193,13 @@ const shorten = (value: string, head = 10, tail = 6): string => {
 };
 
 const timestampOf = (value: string | number): number => {
-    const timestamp = Number(value);
+    const timestamp = toMillis(value);
     return Number.isFinite(timestamp) && timestamp > 0 ? timestamp : 0;
 };
 
 const relativeTime = (timestamp: number): string => {
     if (!timestamp) return "";
-    try {
-        return formatDistanceToNow(new Date(timestamp), { addSuffix: true });
-    } catch {
-        return "";
-    }
+    return formatRelativeTime(timestamp);
 };
 
 const formatAmount = (value: string | number): string => {
@@ -284,6 +281,7 @@ function buildResults(data: QuickSearchData | undefined, query: string): QuickRe
         title: `Block #${block.block_number}`,
         meta: shorten(block.block_hash, 12, 8),
         timestamp: timestampOf(block.timestamp),
+        genesis: String(block.block_number) === "0",
         rank: rankOf([String(block.block_number), block.block_hash, block.proposer], needle),
     }));
 
@@ -300,6 +298,7 @@ function buildResults(data: QuickSearchData | undefined, query: string): QuickRe
             meta: [`Block #${deployment.block_number}`, counterparties].filter(Boolean).join(" · "),
             timestamp: timestampOf(deployment.timestamp),
             status: deployment.errored ? "failed" : undefined,
+            genesis: String(deployment.block_number) === "0",
             rank: rankOf(
                 [
                     String(deployment.block_number),
@@ -325,6 +324,7 @@ function buildResults(data: QuickSearchData | undefined, query: string): QuickRe
                 .join(" · "),
             timestamp: timestampOf(transfer.timestamp),
             status: transfer.status && transfer.status !== "success" ? transfer.status : undefined,
+            genesis: String(transfer.block_number) === "0",
             rank: rankOf(
                 [String(transfer.block_number), transfer.deploy_id, transfer.from_address, transfer.to_address],
                 needle
@@ -845,8 +845,11 @@ const AdvancedSearch: React.FC<AdvancedSearchProps> = ({
                                                             </span>
                                                         )}
                                                         {result.timestamp > 0 && (
-                                                            <time dateTime={new Date(result.timestamp).toISOString()}>
-                                                                {relativeTime(result.timestamp)}
+                                                            <time
+                                                                dateTime={new Date(result.timestamp).toISOString()}
+                                                                title={formatLocalTime(result.timestamp)}
+                                                            >
+                                                                {result.genesis ? "Genesis" : relativeTime(result.timestamp)}
                                                             </time>
                                                         )}
                                                     </span>

@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { format, formatDistanceToNow } from 'date-fns';
+import { formatLocalTime, formatRelativeTime } from '../utils/time';
 import { AlertTriangle, ArrowUpRight, Clock3 } from 'lucide-react';
 import { GET_ADDRESS_PENDING_DEPLOYS, WATCH_ADDRESS_PENDING_DEPLOYS } from '../graphql/queries';
 import { useLiveQuery } from '../hooks/useLiveQuery';
@@ -99,8 +99,8 @@ export default function AddressPendingDeploys({ address }: { address: string }) 
                     {shortSignature(deploy.sig)} <ArrowUpRight size={13} aria-hidden="true" />
                   </Link>
                 </td>
-                <td className="text-3" title={submitted ? format(submitted, 'yyyy-MM-dd HH:mm:ss') : undefined}>
-                  {submitted ? formatDistanceToNow(submitted, { addSuffix: true }) : '--'}
+                <td className="text-3" title={submitted ? formatLocalTime(submitted) : undefined}>
+                  {submitted ? formatRelativeTime(submitted) : '--'}
                 </td>
                 <td className="amount-cell text-3">{deploy.phlo_limit ?? '--'}</td>
                 <td className="amount-cell text-3">{deploy.phlo_price ?? '--'}</td>

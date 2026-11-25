@@ -4,7 +4,7 @@ import { useQuery } from '@apollo/client';
 import { ChevronRight } from 'lucide-react';
 import { GET_BLOCK_DETAILS, GET_BLOCKS_AT_HEIGHT, GET_LATEST_HEIGHT } from '../graphql/queries';
 import { Block } from '../types';
-import { formatDistanceToNow } from 'date-fns';
+import { formatRelativeTime } from '../utils/time';
 import { CURRENT_TOKEN } from '../utils/constants';
 import { getParentHashes } from '../utils/blockParent';
 import { heightInput } from '../utils/blockHeight';
@@ -72,16 +72,7 @@ const BlockDetailPage: React.FC = () => {
     );
   }
 
-  const formatTimestamp = (timestamp: string | number) => {
-    try {
-      const ts = parseInt(timestamp.toString());
-      const date = new Date(ts);
-      if (isNaN(date.getTime())) return 'Invalid date';
-      return formatDistanceToNow(date, { addSuffix: true });
-    } catch (e) {
-      return 'Invalid date';
-    }
-  };
+  const formatTimestamp = (timestamp: string | number) => formatRelativeTime(timestamp);
 
   const formatDate = (timestamp: string | number) => {
     try {

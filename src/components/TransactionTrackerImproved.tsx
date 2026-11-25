@@ -15,7 +15,7 @@ import {
   CheckCircle,
   XCircle,
 } from 'lucide-react';
-import { formatDistanceToNow } from 'date-fns';
+import { formatLocalTime, formatRelativeTime, toMillis } from '../utils/time';
 import { CURRENT_TOKEN } from '../utils/constants';
 import RecentDataExporter, { ExportEntities } from "./RecentDataExporter";
 
@@ -214,37 +214,6 @@ const TransactionTrackerImproved: React.FC<TransactionTrackerImprovedProps> = ({
       setSearchQuery(value);
       debouncedSearch(value);
     }
-    /** Normalize any time-like value to epoch milliseconds. */
-    const toMillis = (input: string | number | undefined | null): number => {
-        if (input == null) return NaN;
-
-        if (typeof input === 'number' && Number.isFinite(input)) {
-            // Detect seconds vs milliseconds by magnitude
-            return input > 1e12 ? input : input * 1000;
-        }
-
-        if (typeof input === 'string') {
-            const s = input.trim();
-
-            // Pure digits → numeric epoch (seconds or milliseconds)
-            if (/^\d+$/.test(s)) {
-                const n = Number(s);
-                return n > 1e12 ? n : n * 1000;
-            }
-
-            // ISO-like string: trim microseconds to milliseconds
-            let normalized = s.replace(/(\.\d{3})\d+/, '$1'); // "....350416" → "....350"
-            // If there's time but no timezone, assume UTC
-            if (/[T ]\d{2}:\d{2}:\d{2}/.test(normalized) && !/[zZ]$/.test(normalized) && !/[+-]\d{2}:\d{2}$/.test(normalized)) {
-                normalized += 'Z';
-            }
-
-            const ms = Date.parse(normalized); // returns ms
-            return Number.isNaN(ms) ? NaN : ms;
-        }
-
-        return NaN;
-    };
 
     const searchResults = useMemo(() => {
 
@@ -281,8 +250,8 @@ const TransactionTrackerImproved: React.FC<TransactionTrackerImprovedProps> = ({
         }
 
       return results.sort((a, b) => {
-            const timeA = parseInt(a.displayTime);
-            const timeB = parseInt(b.displayTime);
+            const timeA = toMillis(a.displayTime);
+            const timeB = toMillis(b.displayTime);
             return timeB - timeA;
       });
     }, [transactionsSearchData, activeTab])
@@ -331,8 +300,8 @@ const TransactionTrackerImproved: React.FC<TransactionTrackerImprovedProps> = ({
         }
 
         return results.sort((a, b) => {
-            const timeA = parseInt(a.displayTime);
-            const timeB = parseInt(b.displayTime);
+            const timeA = toMillis(a.displayTime);
+            const timeB = toMillis(b.displayTime);
             return timeB - timeA;
         });
     }, [searchQuery, searchResults, transactionData, activeTab]);
@@ -586,10 +555,11 @@ const TransactionTrackerImproved: React.FC<TransactionTrackerImprovedProps> = ({
                                         }}
                                     >
                                         Block #{tx.block_number} •{" "}
-                                        {formatDistanceToNow(
-                                            new Date(toMillis(tx.displayTime)),
-                                            { addSuffix: true }
-                                        )}
+                                        <span title={formatLocalTime(tx.displayTime)}>
+                                            {String(tx.block_number) === "0"
+                                                ? "Genesis"
+                                                : formatRelativeTime(tx.displayTime)}
+                                        </span>
                                     </div>
                                 </div>
 

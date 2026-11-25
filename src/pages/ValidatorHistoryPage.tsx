@@ -2,7 +2,7 @@ import { normalizedRaw, formatRaw, percentage } from "../utils/amounts";
 import React, { useState } from 'react';
 import { useQuery } from '@apollo/client';
 import { gql } from '@apollo/client';
-import { formatDistanceToNow } from 'date-fns';
+import { formatRelativeTime } from '../utils/time';
 import { CURRENT_TOKEN } from '../utils/constants';
 import { blockHeight, heightInput } from '../utils/blockHeight';
 
@@ -66,16 +66,7 @@ const ValidatorHistoryPage: React.FC = () => {
     return `${key.slice(0, 16)}...${key.slice(-16)}`;
   };
 
-  const formatTimestamp = (timestamp: string | number) => {
-    try {
-      const ts = parseInt(timestamp.toString());
-      const date = new Date(ts);
-      if (isNaN(date.getTime())) return 'Invalid date';
-      return formatDistanceToNow(date, { addSuffix: true });
-    } catch (e) {
-      return 'Invalid date';
-    }
-  };
+  const formatTimestamp = (timestamp: string | number) => formatRelativeTime(timestamp);
 
   const calculateStake = (stake: unknown, decimals?: number): string => formatRaw(stake, decimals);
 

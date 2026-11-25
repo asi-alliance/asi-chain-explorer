@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { formatDistanceToNow } from 'date-fns';
+import { formatRelativeTime } from '../utils/time';
 import { motion, useReducedMotion } from 'framer-motion';
 import { AnimatePresence } from './AnimatePresenceWrapper';
 import { GET_PENDING_DEPLOYS, WATCH_PENDING_DEPLOYS } from '../graphql/queries';
@@ -95,7 +95,7 @@ const PendingDeploysPanel: React.FC = () => {
                             {shortKey(deploy.deployer_address)}
                           </td>
                           <td className="text-3">
-                            {submitted ? formatDistanceToNow(submitted, { addSuffix: true }) : '--'}
+                            {submitted ? formatRelativeTime(submitted) : '--'}
                           </td>
                           <td className="text-3">{deploy.phlo_limit ?? '--'}</td>
                           <td className="text-3">{deploy.phlo_price ?? '--'}</td>

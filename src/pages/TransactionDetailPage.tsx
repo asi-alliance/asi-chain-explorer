@@ -21,13 +21,12 @@ import {
   Download,
   Eye,
 } from 'lucide-react';
-import { format, formatDistanceToNow } from 'date-fns';
+import { formatLocalTime, formatRelativeTime } from '../utils/time';
 import { toast } from 'react-toastify';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import { gql } from '@apollo/client';
 import { CURRENT_TOKEN } from '../utils/constants';
-import { toMillis } from '../utils/calculateBlockTime';
 import { NATIVE_DECIMALS, groupThousands } from '../utils/amounts';
 import { deployFee } from '../utils/deployFee';
 import CopyButton from '../components/CopyButton';
@@ -59,62 +58,6 @@ const deploymentFee = (deployment: Deployment) =>
     deployment.phlo_price,
     deployment.block?.token_decimals ?? NATIVE_DECIMALS
   );
-
-// Helper functions to safely parse timestamps
-const parseTimestamp = (timestamp: any): number => {
-  if (!timestamp) return Date.now();
-  
-  // If it's already a number
-  if (typeof timestamp === 'number') {
-    // Check if it's in seconds (< 10 digits) or milliseconds
-    return timestamp < 10000000000 ? timestamp * 1000 : timestamp;
-  }
-  
-  // If it's a string
-  if (typeof timestamp === 'string') {
-    // Try parsing as number first (epoch timestamp)
-    const parsed = parseInt(timestamp);
-    if (!isNaN(parsed)) {
-      // Check if it's in seconds or milliseconds
-      return parsed < 10000000000 ? parsed * 1000 : parsed;
-    }
-    
-    // Try parsing as date string
-    const date = new Date(timestamp);
-    if (!isNaN(date.getTime())) {
-      return date.getTime();
-    }
-  }
-  
-  // Fallback to current time
-  return Date.now();
-};
-
-const formatTimestamp = (timestamp: any): string => {
-  try {
-    const time = parseTimestamp(timestamp);
-    const date = new Date(time);
-    if (isNaN(date.getTime())) {
-      return 'Unknown time';
-    }
-    return format(date, 'PPpp');
-  } catch (error) {
-    return 'Unknown time';
-  }
-};
-
-const formatTimestampDistance = (timestamp: any): string => {
-  try {
-    const time = parseTimestamp(timestamp);
-    const date = new Date(time);
-    if (isNaN(date.getTime())) {
-      return 'Unknown time';
-    }
-    return formatDistanceToNow(date, { addSuffix: true });
-  } catch (error) {
-    return 'Unknown time';
-  }
-};
 
 const GET_TRANSACTION_DETAILS = gql`
   query GetTransactionDetails($deployId: String!) {
@@ -542,11 +485,18 @@ Exported at: ${new Date().toLocaleString()}
               </div>
               <div>
                 <div style={{ fontWeight: '500' }}>
-                  {formatTimestamp(transaction.timestamp)}
+                  {formatLocalTime(transaction.timestamp)}
                 </div>
                 <div style={{ fontSize: '0.875rem', color: '#9ca3af' }}>
-                  {formatTimestampDistance(transaction.timestamp)}
+                  {String(transaction.block_number) === '0'
+                    ? 'Genesis deployment'
+                    : formatRelativeTime(transaction.timestamp)}
                 </div>
+                {String(transaction.block_number) === '0' && (
+                  <div style={{ fontSize: '0.8rem', color: '#9ca3af', marginTop: '0.35rem', lineHeight: 1.45 }}>
+                    Imported from RChain mainnet with its original timestamp; the testnet included it in block 0.
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -982,7 +932,7 @@ Exported at: ${new Date().toLocaleString()}
               }}>
                 <div>
                   <Clock size={14} style={{ marginRight: '0.25rem' }} />
-                  {formatTimestampDistance(toMillis(transfer.created_at))}
+                  {formatRelativeTime(transfer.created_at)}
                 </div>
                 {transfer.amount_dust && (
                   <div>
@@ -1045,7 +995,7 @@ Exported at: ${new Date().toLocaleString()}
               Timestamp
             </div>
             <div style={{ fontSize: '1rem', fontWeight: '500' }}>
-              {formatTimestamp(block.timestamp)}
+              {formatLocalTime(block.timestamp)}
             </div>
           </div>
 

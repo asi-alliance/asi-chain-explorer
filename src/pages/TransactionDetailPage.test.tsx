@@ -226,3 +226,30 @@ test('shows the executed deploy fee in ASI using the block decimals', async () =
   expect(await screen.findByText('0.0277155 ASI')).toBeInTheDocument();
   expect(screen.getByText(/precharge up to 0.1 ASI/)).toBeInTheDocument();
 });
+
+test('labels RChain mainnet deployments in the genesis block', async () => {
+  renderLookup({
+    details: {
+      data: {
+        deployments: [{
+          __typename: 'deployments', deploy_id: SIG, deployer: '04' + 'ab'.repeat(32),
+          term: 'new x in { x!(1) }', timestamp: '1559156071321', deployment_type: 'registry_lookup',
+          phlo_cost: '0', phlo_price: '0', phlo_limit: '0',
+          valid_after_block_number: '0', status: 'included', errored: false,
+          block_number: '0', block_hash: 'a'.repeat(64), created_at: '2019-05-29T18:54:31',
+          transfers: [],
+          block: {
+            __typename: 'blocks', block_number: 0, block_hash: 'a'.repeat(64),
+            token_decimals: 18, parent_links: [], timestamp: '1795610867000',
+            proposer: 'v', deployment_count: 10, state_hash: 's', finalization_status: 'finalized',
+            justifications: [], created_at: '2026-11-25T12:47:47',
+          },
+        }],
+      },
+    },
+  });
+
+  expect(await screen.findByText('Genesis deployment')).toBeInTheDocument();
+  expect(screen.getByText(/Imported from RChain mainnet/)).toBeInTheDocument();
+  expect(screen.queryByText(/over 7 years ago/)).not.toBeInTheDocument();
+});

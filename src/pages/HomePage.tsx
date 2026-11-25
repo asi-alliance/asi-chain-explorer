@@ -8,7 +8,7 @@ import {
     SEARCH_BLOCKS_BY_NUMBER,
 } from "../graphql/queries";
 import { Block, NetworkStats } from "../types";
-import { formatDistanceToNow } from "date-fns";
+import { formatLocalTime, formatRelativeTime } from "../utils/time";
 import { calculateAverageBlockTime } from "../utils/calculateBlockTime";
 import RealtimeActivityFeed from "../components/RealtimeActivityFeed";
 import RecentDataExporter, { ExportEntities } from "../components/RecentDataExporter";
@@ -116,16 +116,7 @@ const HomePage: React.FC = () => {
     const blocks = fetchedBlocks.slice(0, blocksPerPage);
     const hasMore = fetchedBlocks.length > blocksPerPage;
 
-    const formatTimestamp = (timestamp: string | number) => {
-        try {
-            const ts = parseInt(timestamp.toString());
-            const date = new Date(ts);
-            if (isNaN(date.getTime())) return "Invalid date";
-            return formatDistanceToNow(date, { addSuffix: true });
-        } catch (e) {
-            return "Invalid date";
-        }
-    };
+    const formatTimestamp = (timestamp: string | number) => formatRelativeTime(timestamp);
 
     const truncateHash = (hash: string) => {
         if (!hash || hash.length < 16) return hash;
@@ -410,7 +401,7 @@ const HomePage: React.FC = () => {
                                         <td className="text-3 mono" title={block.proposer}>
                                             {truncateHash(block.proposer)}
                                         </td>
-                                        <td className="timestamp">
+                                        <td className="timestamp" title={formatLocalTime(block.timestamp)}>
                                             {formatTimestamp(block.timestamp)}
                                         </td>
                                         <td>

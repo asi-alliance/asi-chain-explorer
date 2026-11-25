@@ -1,6 +1,6 @@
 import React from 'react';
 import { useQuery } from '@apollo/client';
-import { formatDistanceToNow } from 'date-fns';
+import { formatLocalTime, formatRelativeTime } from '../utils/time';
 import { Clock, Search } from 'lucide-react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { GET_PENDING_DEPLOY } from '../graphql/queries';
@@ -36,11 +36,7 @@ function shortHash(hash: string): string {
 
 function relativeTime(timestamp: number): string {
   if (!Number.isFinite(timestamp) || timestamp <= 0) return '';
-  try {
-    return formatDistanceToNow(new Date(timestamp), { addSuffix: true });
-  } catch {
-    return '';
-  }
+  return formatRelativeTime(timestamp);
 }
 
 const SearchResultsPage: React.FC = () => {
@@ -216,7 +212,9 @@ const SearchResultsPage: React.FC = () => {
                     <p className="search-results__description">{row.description}</p>
                     <small className="search-results__meta">
                       {iso
-                        ? <time dateTime={iso} title={iso}>{relativeTime(row.timestamp)}</time>
+                        ? <time dateTime={iso} title={formatLocalTime(row.timestamp)}>
+                            {String(row.data?.block_number) === '0' ? 'Genesis' : relativeTime(row.timestamp)}
+                          </time>
                         : <span>Time unavailable</span>}
                       <span aria-hidden="true">·</span>
                       <span>{label}</span>

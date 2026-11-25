@@ -41,6 +41,11 @@ lives in
   (`phlo_cost × phlo_price`, using the block's token decimals) plus the phlo
   breakdown and the `phlo_limit` precharge. Pending deploys still have no fee
   until the node reports their executed cost.
+- Relative times read `just now` below 20 seconds and `a minute ago` below a
+  minute, then fall back to date-fns. Absolute timestamps use the browser's
+  local timezone and include its zone.
+- Deployments in block 0 are labelled `Genesis`; their original RChain mainnet
+  timestamp is available on hover instead of reading as the testnet's age.
 - Transaction tabs wrap on narrow screens instead of overflowing the page.
 
 ## Frontend-only next
