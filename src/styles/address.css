@@ -188,6 +188,14 @@
     position: relative;
     display: inline-block;
     cursor: help;
+    text-decoration: underline dotted var(--text-tertiary);
+    text-decoration-thickness: 1px;
+    text-underline-offset: 0.18em;
+}
+
+.address-precision:hover,
+.address-precision:focus {
+    text-decoration-color: var(--asi-lime);
 }
 
 .address-precision::after {

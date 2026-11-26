@@ -326,7 +326,8 @@ same direction filter. A refresh keeps the previous balance visible while the
 lookup runs; if the lookup fails, the page reports the error and labels the block
 as the last loaded one. The balance keeps at most eight decimals, truncated
 without rounding up; a positive balance below that precision reads
-`<0.00000001 ASI`. Hover or focus it to see the exact amount in a tooltip. A
+`<0.00000001 ASI`. A dotted underline marks a truncated balance; hover or focus
+it to see the exact amount in a tooltip. A
 failed read is retried twice; the warning offers **Retry**, and leaving the page
 does not cancel a read that is still in flight. A back/forward-cache restore
 refreshes the snapshot. When the indexer tracks pending deploys, the page also
@@ -494,7 +495,7 @@ Docker builds accept the same build argument. Changing a display setting does no
 rescale tokens or upgrade a chain's denomination.
 
 Validation: `CI=true npm test -- --watchAll=false --runInBand`,
-`npx tsc --noEmit`, and `npm run build`. The suite currently has 380 tests
+`npx tsc --noEmit`, and `npm run build`. The suite currently has 381 tests
 in 39 suites.
 The `Tests` workflow runs these checks on pull requests to `dev` and `main` and
 on pushes to `dev`. Its build runs with `CI=true`, so a lint warning fails the

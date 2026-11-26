@@ -69,7 +69,9 @@ lives in
 
 - A positive wallet balance below the eight-decimal display precision reads
   `<0.00000001 ASI`; the exact amount stays in the hover/focus tooltip and the
-  accessible description.
+  accessible description. A dotted underline marks a truncated balance.
+- Live Activity identifies DAG sibling blocks by hash, so blocks at one height
+  no longer share a React key or read as duplicate rows.
 
 ## Frontend-only next
 

@@ -60,13 +60,15 @@ const RealtimeActivityFeed: React.FC<RealtimeActivityFeedProps> = ({
   useEffect(() => {
     const newActivities: ActivityItem[] = [];
 
-    // Add latest blocks
+    // Add latest blocks. A DAG height can contain several sibling blocks, so
+    // the hash, not the height, identifies the activity row.
     blocks.slice(0, 5).forEach((block: any) => {
+      const hash = block.block_hash ? String(block.block_hash) : '';
       newActivities.push({
-        id: `block-${block.block_number}`,
+        id: `block-${hash || block.block_number}`,
         type: 'block',
         title: `Block #${block.block_number}`,
-        description: `Proposed by ${block.proposer?.slice(0, 8) || 'Unknown'}... with ${block.deployment_count || 0} deployments`,
+        description: `${hash ? `${hash.slice(0, 8)}… · ` : ''}Proposed by ${block.proposer?.slice(0, 8) || 'Unknown'}... with ${block.deployment_count || 0} deployments`,
         timestamp: parseInt(block.timestamp) || Date.now(),
         data: block,
         icon: <Database size={16} />,
