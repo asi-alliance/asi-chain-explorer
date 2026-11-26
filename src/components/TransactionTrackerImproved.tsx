@@ -199,10 +199,16 @@ const TransactionTrackerImproved: React.FC<TransactionTrackerImprovedProps> = ({
     const transferDeployments = countsData?.transfer_deployments?.aggregate?.count || 0;
     const totalTransfers = countsData?.transfers_aggregate?.aggregate?.count || 0;
 
-    const allSearchDeployments = transactionsSearchData?.deployments ?? [];
-    const searchDeployments = activeTab === "contract"
-        ? allSearchDeployments.filter((deployment: any) => !deployment.transfers?.length)
-        : allSearchDeployments;
+    const allSearchDeployments = useMemo(
+        () => transactionsSearchData?.deployments ?? [],
+        [transactionsSearchData]
+    );
+    const searchDeployments = useMemo(
+        () => activeTab === "contract"
+            ? allSearchDeployments.filter((deployment: any) => !deployment.transfers?.length)
+            : allSearchDeployments,
+        [allSearchDeployments, activeTab]
+    );
 
     const totalSearchDeployments = searchQuery ? searchDeployments.length : totalDeployments;
     const totalSearchContract = searchQuery
@@ -296,7 +302,7 @@ const TransactionTrackerImproved: React.FC<TransactionTrackerImprovedProps> = ({
             const timeB = toMillis(b.displayTime);
             return timeB - timeA;
       });
-    }, [transactionsSearchData, activeTab])
+    }, [transactionsSearchData, activeTab, searchDeployments])
 
     const transactions = useMemo(() => {
 
