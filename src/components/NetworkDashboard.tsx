@@ -5,6 +5,7 @@ import {
     formatDate,
     formatTime,
 } from "../utils/calculateBlockTime";
+import { groupThousands } from "../utils/amounts";
 import {
     Database,
     Zap,
@@ -187,6 +188,11 @@ const NetworkDashboard: React.FC = () => {
         const lastRecord = buckets[buckets.length - 1] ?? {};
         const network = stats?.network_stats[0];
         const blockNumber = lastBlock.block_number;
+        // Heights are Hasura bigints; format the string exactly instead of
+        // passing it through Number, which would round above 2^53.
+        const blockNumberLabel = blockNumber === undefined || blockNumber === null || blockNumber === ""
+            ? "—"
+            : groupThousands(String(blockNumber));
         const blockTime = lastRecord.avg_block_time_seconds;
         const activeValidators = network?.active_validators;
         const totalValidators = network?.total_validators;
@@ -197,7 +203,7 @@ const NetworkDashboard: React.FC = () => {
         return [
             {
                 title: "Latest Height",
-                value: formatMetric(blockNumber),
+                value: blockNumberLabel,
                 icon: <Database size={20} />,
                 color: "#f59e0b",
                 description: "Most recent block height",

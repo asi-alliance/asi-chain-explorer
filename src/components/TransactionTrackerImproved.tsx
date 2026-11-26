@@ -210,7 +210,7 @@ const TransactionTrackerImproved: React.FC<TransactionTrackerImprovedProps> = ({
         [allSearchDeployments, activeTab]
     );
 
-    const totalSearchDeployments = searchQuery ? searchDeployments.length : totalDeployments;
+    const totalSearchDeployments = searchQuery ? allSearchDeployments.length : totalDeployments;
     const totalSearchContract = searchQuery
         ? allSearchDeployments.filter((deployment: any) => !deployment.transfers?.length).length
         : contractDeployments;

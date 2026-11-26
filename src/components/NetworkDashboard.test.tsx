@@ -171,3 +171,20 @@ test('marks a range without activity instead of drawing an empty chart', () => {
 
   expect(screen.getByText('No activity in this range')).toBeInTheDocument();
 });
+
+test('keeps a height above 2^53 exact in the card and its link', () => {
+  (useQuery as jest.Mock).mockReturnValue(
+    queryResult({
+      data: statsData({
+        blocks: [{ block_number: '9007199254740993', block_hash: 'abc' }],
+      }),
+      loading: false,
+    })
+  );
+  renderPage();
+
+  expect(screen.getByRole('link', { name: '9,007,199,254,740,993' })).toHaveAttribute(
+    'href',
+    '/height/9007199254740993'
+  );
+});
