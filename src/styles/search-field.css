@@ -53,6 +53,15 @@
     outline: none;
 }
 
+/* Keep the input transparent inside the rounded surface when it receives
+   focus; the wrapper owns the focus border and shadow. */
+.search-field__input:focus,
+.search-field__input:focus-visible {
+    border: 0;
+    border-radius: 10px;
+    background: transparent;
+}
+
 .search-field__input::placeholder {
     color: rgba(247, 249, 250, 0.58);
     opacity: 1;
