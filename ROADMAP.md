@@ -21,7 +21,8 @@ backend-dependent scope lives in
 - Exact pending-deploy lookup by signature in the header and on `/search`.
 - Height-first numeric search; a numeric query no longer scans hashes and IDs.
 - `/block/{height}` sibling overview with prev/next height navigation,
-  finalized/unfinalized filtering, parent/child counts and block-hash rows.
+  finalized/unfinalized filtering, parent/child counts and block-hash rows
+  (moved to `/height/{height}` in #84).
 - Recent Blocks grouping: one height cell per sibling group, block count,
   real finalization status and a local finalized-only filter. The finalized
   filter keeps polling, while only a text search pauses it.

@@ -422,30 +422,35 @@ explorer does not read them.
 
 ```
 App
-├── Layout (Navigation, Header)
-│   ├── HomePage
-│   │   ├── NetworkDashboard
-│   │   ├── RecentTransactionsExporter
-│   │   └── RealtimeActivityFeed
-│   ├── BlocksPage
-│   │   └── BlockCard (list)
-│   ├── BlockDetailPage
-│   │   └── BlockVisualization
-│   ├── TransactionsPage
-│   │   └── TransactionTrackerImproved
-│   ├── TransactionDetailPage
-│   ├── TransfersPage
-│   ├── ValidatorsPage
-│   │   └── StatsCard (list)
-│   ├── ValidatorHistoryPage
-│   ├── StatisticsPage
-│   ├── DeploymentsPage
-│   ├── SearchResultsPage
-│   ├── IndexerStatusPage
-│   ├── AdvancedSearch
-│   └── Logo
-└── ConnectionStatus
+└── Layout (Navigation, Header)
+    ├── HomePage
+    │   ├── SearchField
+    │   ├── RealtimeActivityFeed
+    │   └── RecentDataExporter
+    ├── BlockDetailPage
+    ├── TransactionsPage
+    │   └── TransactionTrackerImproved
+    ├── TransactionDetailPage
+    ├── ValidatorsPage
+    ├── ValidatorHistoryPage
+    ├── StatisticsPage
+    │   └── NetworkDashboard
+    ├── SearchResultsPage
+    ├── AddressPage
+    │   ├── AddressPendingDeploys
+    │   └── AddressTransferHistory
+    ├── PendingPage
+    │   └── PendingDeploysPanel
+    ├── IndexerStatusPage
+    ├── NotFoundPage
+    ├── AdvancedSearch
+    └── Logo
 ```
+
+Routes use `/height/:height` for the DAG height overview and
+`/block/hash/:blockHash` for one specific block. The legacy
+`/block/:blockNumber` path redirects to `/height/:blockNumber` and preserves the
+query string; `/blocks` redirects to `/`.
 
 #### State Management
 

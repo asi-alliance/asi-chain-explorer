@@ -89,7 +89,7 @@ explorer/src/
 │   ├── BlockVisualization.tsx
 │   ├── TransactionTrackerImproved.tsx
 │   ├── AdvancedSearch.tsx
-│   ├── RecentTransactionsExporter.tsx
+│   ├── RecentDataExporter.tsx
 │   ├── AnimatePresenceWrapper.tsx
 │   ├── ConnectionStatus.tsx
 │   ├── RealtimeActivityFeed.tsx
@@ -97,17 +97,17 @@ explorer/src/
 │
 ├── pages/              # Route components
 │   ├── HomePage.tsx
-│   ├── BlocksPage.tsx
 │   ├── BlockDetailPage.tsx
 │   ├── TransactionsPage.tsx
 │   ├── TransactionDetailPage.tsx
-│   ├── TransfersPage.tsx
 │   ├── ValidatorsPage.tsx
 │   ├── ValidatorHistoryPage.tsx
 │   ├── StatisticsPage.tsx
-│   ├── DeploymentsPage.tsx
 │   ├── SearchResultsPage.tsx
-│   └── IndexerStatusPage.tsx
+│   ├── AddressPage.tsx
+│   ├── PendingPage.tsx
+│   ├── IndexerStatusPage.tsx
+│   └── NotFoundPage.tsx
 │
 ├── graphql/            # GraphQL operations
 │   └── queries.ts      # Query and subscription definitions
