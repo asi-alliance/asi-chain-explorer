@@ -57,9 +57,9 @@ The system indexes blockchain data including blocks, deployments, transfers, val
 - **Pending Deploys** (optional): Deploys in the validators' deploy buffers that no indexed block includes yet, updated live over the GraphQL WebSocket (Pending page). Shown only when the indexer reads validator buffers
 - **Native Transfer Calls**: Calls that a deploy started or completed, with pending, completed, rejected or coalesced status (Transfers tab of a deploy)
 - **Validator Dashboard**: Current validators with stake distribution; inactive validators are listed separately and are not counted in totals
-- **Network Statistics**: Simplified Network Dashboard view
+- **Network Statistics**: Network Dashboard with latest height, block time, TPS, validator and consensus cards, links into the height and validators pages, and explicit loading, retry and empty-range states
 - **Genesis Funding**: Complete visibility of initial token distribution
-- **Shareable views**: Home filters (`?q=`, `?finalized=0` for all blocks), the `/transactions` tab (`?tab=transfers`) and transaction detail tabs (`?tab=code`, `?tab=transfers`, `?tab=block`) live in the URL; every route also sets a descriptive browser title
+- **Shareable views**: Home filters (`?q=`, `?finalized=0` for all blocks), the `/transactions` tabs (`?tab=contract`, `?tab=transfers`) and transaction detail tabs (`?tab=code`, `?tab=transfers`, `?tab=block`) live in the URL; every route also sets a descriptive browser title
 - **Finalized by default**: Recent Blocks starts with Finalized only checked; `?finalized=0` explicitly shows all blocks, and the browser title follows the selected view
 - **Validator links**: proposer addresses in Recent Blocks open the Validators page with the full public key in the tooltip and accessible name
 - **Mobile Recent Blocks**: below 600 px the Height column stays pinned while the table scrolls horizontally; the search, Clear and Finalized-only controls stack without horizontal overflow
@@ -363,12 +363,12 @@ resolves before nginx starts.
 - `/height/:height` - Height overview; a height with several DAG siblings lists every sibling
 - `/block/hash/:blockHash` - Details for one specific block
 - `/block/:blockNumber` - Legacy height URL; redirects to `/height/:blockNumber` and preserves the query string
-- `/transactions` - Transaction list with one icon tab row and a footer CSV export; `?tab=transfers` opens the Transfers tab
+- `/transactions` - Non-overlapping All deploys, Contract deploys (no transfer events) and Transfers tabs with a footer CSV export; `?tab=contract` and `?tab=transfers` open a tab directly
 - `/pending` - Deploys in the validators' deploy buffers that no indexed block includes yet (the navigation tab appears only when the indexer tracks pending deploys)
 - `/transaction/:transactionId` - Deploy details: executed fee in ASI, code, transfers with native transfer calls and block. Shows one copyable ID, a status tooltip, local and relative timestamps; block-0 records carry a Genesis label. `?tab=code`, `?tab=transfers` and `?tab=block` open a tab directly. A pending deploy shows its pending state until it is indexed.
 - `/validators` - Current validators; inactive validators in a separate table
 - `/validator-history` - Validator history
-- `/statistics` - Network Dashboard only
+- `/statistics` - Network Dashboard with height, block time, TPS, validators and consensus health
 - `/search` - Search results for a height, hash, deploy ID or address, with type tabs and copy/share actions
 - `/address/:address` - Spendable balance at the latest finalized block and indexed transfer history
 - `/indexer-status` - Indexer health monitoring

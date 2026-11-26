@@ -50,12 +50,13 @@ backend-dependent scope lives in
 - Transaction details keep one transaction ID with its copy action; the
   inclusion banner is replaced by a compact status icon whose tooltip explains
   the state, and an identical Signature box is no longer repeated.
-- The transaction list uses one tab row with icons and counts plus a total;
-  the duplicate summary bar is gone.
+- The transaction list splits deploys into non-overlapping All deploys,
+  Contract deploys and Transfers tabs, so the counts add up instead of
+  double-counting deploys that emitted a transfer.
 - CSV export is a labeled `Export CSV` action in the table footer for blocks,
   deployments and transfers, with an entity-specific accessible name and the
   existing filenames.
-- Home search and finalized-only filters, the `/transactions` tab and
+- Home search and finalized-only filters, the `/transactions` tabs and
   transaction detail tabs are URL-backed and survive copy/share.
 - Below 600 px the Recent Blocks Height column stays pinned while the table
   scrolls horizontally.
@@ -65,6 +66,10 @@ backend-dependent scope lives in
 - Source and Docker fallback precision is 18; historical rows keep their own `token_decimals`.
 - Removed unused QR, Swagger, XLSX, Workbox and intersection-observer packages, updated the syntax highlighter and pinned nginx stable.
 - Transaction tabs wrap on narrow screens instead of overflowing the page.
+- The Statistics dashboard adds a consensus health card with participation,
+  links the latest height and validator count, shows skeletons, a Retry state
+  and a range-without-activity message, and keeps small rates readable instead
+  of rounding them to zero.
 
 ## After PR #79
 

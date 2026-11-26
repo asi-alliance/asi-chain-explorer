@@ -51,7 +51,9 @@ export function routeTitle(pathname: string, search = ''): string {
     }
 
     if (segments[0] === 'transactions') {
-        return params.get('tab') === 'transfers' ? 'Transfers' : 'Deployments';
+        if (params.get('tab') === 'transfers') return 'Transfers';
+        if (params.get('tab') === 'contract') return 'Contract deploys';
+        return 'All deploys';
     }
 
     const staticTitles: Record<string, string> = {

@@ -22,7 +22,8 @@ test('builds route-specific titles', () => {
   expect(routeTitle('/', '?finalized=1')).toBe('Finalized blocks');
   expect(routeTitle('/', '?finalized=0')).toBe('Latest blocks');
   expect(routeTitle('/transactions', '?tab=transfers')).toBe('Transfers');
-  expect(routeTitle('/transactions')).toBe('Deployments');
+  expect(routeTitle('/transactions', '?tab=contract')).toBe('Contract deploys');
+  expect(routeTitle('/transactions')).toBe('All deploys');
   expect(routeTitle('/height/2045')).toBe('Height #2045');
   expect(routeTitle('/block/2045')).toBe('Height #2045');
   expect(routeTitle(`/block/hash/${HASH}`)).toBe(`Block ${HASH.slice(0, 8)}…${HASH.slice(-6)}`);
