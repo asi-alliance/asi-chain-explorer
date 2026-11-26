@@ -51,9 +51,9 @@ function renderHeight() {
   });
   return render(
     <ApolloProvider client={client}>
-      <MemoryRouter initialEntries={['/block/72418']}>
+      <MemoryRouter initialEntries={['/height/72418']}>
         <Routes>
-          <Route path="/block/:blockNumber" element={<BlockDetailPage />} />
+          <Route path="/height/:height" element={<BlockDetailPage />} />
           <Route path="/" element={<p>home</p>} />
         </Routes>
       </MemoryRouter>
@@ -68,8 +68,8 @@ test('shows one height overview with all siblings instead of an arbitrary first 
   expect(screen.getByText('2 sibling blocks')).toBeInTheDocument();
   expect(screen.getByText('2 of 2')).toBeInTheDocument();
   expect(screen.getByRole('link', { name: /Back to home/ })).toHaveAttribute('href', '/');
-  expect(await screen.findByRole('link', { name: /Height #72417/ })).toHaveAttribute('href', '/block/72417');
-  expect(await screen.findByRole('link', { name: /Height #72419/ })).toHaveAttribute('href', '/block/72419');
+  expect(await screen.findByRole('link', { name: /Height #72417/ })).toHaveAttribute('href', '/height/72417');
+  expect(await screen.findByRole('link', { name: /Height #72419/ })).toHaveAttribute('href', '/height/72419');
   expect(screen.queryByText('Block Details')).not.toBeInTheDocument();
 
   const siblingLinks = screen.getAllByRole('link', { name: /Open block/ });

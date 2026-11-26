@@ -136,7 +136,7 @@ const SearchResultsPage: React.FC = () => {
       </Link>
     )}
     {height !== null && (
-      <Link className="search-results__height" to={`/block/${height}`}>
+      <Link className="search-results__height" to={`/height/${height}`}>
         View all blocks at height #{height}
         <span aria-hidden="true">→</span>
       </Link>

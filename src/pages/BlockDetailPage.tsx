@@ -15,18 +15,20 @@ import ShareLinkButton from '../components/ShareLinkButton';
 import '../styles/height.css';
 
 const BlockDetailPage: React.FC = () => {
-  const { blockHash, blockNumber } = useParams<{
+  const { blockHash, blockNumber, height } = useParams<{
     blockHash?: string;
     blockNumber?: string;
+    height?: string;
   }>();
+  const routeHeight = height ?? blockNumber;
 
   const hashResult = useQuery(GET_BLOCK_DETAILS, {
     variables: { blockHash: blockHash || '' },
     skip: !blockHash,
   });
   const heightResult = useQuery(GET_BLOCKS_AT_HEIGHT, {
-    variables: { blockNumber: blockNumber || '0' },
-    skip: !blockNumber,
+    variables: { blockNumber: routeHeight || '0' },
+    skip: !routeHeight,
   });
   const latestHeightResult = useQuery<{ blocks: Array<{ block_number: string }> }>(GET_LATEST_HEIGHT);
   const [searchParams, setSearchParams] = useSearchParams();
@@ -62,7 +64,7 @@ const BlockDetailPage: React.FC = () => {
 
   const matchingBlocks = (data?.blocks || []) as Block[];
   const block = matchingBlocks[0];
-  const requestedBlock = blockHash || blockNumber;
+  const requestedBlock = blockHash || routeHeight;
 
   if (!block) {
     return (
@@ -130,9 +132,9 @@ const BlockDetailPage: React.FC = () => {
     status === 'finalized' ? 'is-finalized' : status ? 'is-pending' : 'is-unknown';
   const siblingCount = matchingBlocks.length;
   const siblingCountLabel = siblingCount >= 100 ? '100+' : String(siblingCount);
-  const isHeightView = Boolean(blockNumber) && !blockHash;
+  const isHeightView = Boolean(routeHeight) && !blockHash;
   const showHeightOverview = isHeightView && siblingCount > 1;
-  const currentHeight = heightInput(blockNumber || String(block.block_number));
+  const currentHeight = heightInput(routeHeight || String(block.block_number));
   const latestHeight = heightInput(latestHeightResult.data?.blocks?.[0]?.block_number || '');
   const previousHeight = currentHeight !== null && BigInt(currentHeight) > 0n
     ? (BigInt(currentHeight) - 1n).toString() : null;
@@ -149,15 +151,15 @@ const BlockDetailPage: React.FC = () => {
       {previousHeight === null ? (
         <span className="height-nav__disabled">← Previous height</span>
       ) : (
-        <Link className="btn btn-secondary" to={`/block/${previousHeight}`}>← Height #{previousHeight}</Link>
+        <Link className="btn btn-secondary" to={`/height/${previousHeight}`}>← Height #{previousHeight}</Link>
       )}
       {latestHeight !== null && (
-        <Link className="height-nav__latest" to={`/block/${latestHeight}`}>Latest #{latestHeight}</Link>
+        <Link className="height-nav__latest" to={`/height/${latestHeight}`}>Latest #{latestHeight}</Link>
       )}
       {nextHeight === null ? (
         <span className="height-nav__disabled">Next height →</span>
       ) : (
-        <Link className="btn btn-secondary" to={`/block/${nextHeight}`}>Height #{nextHeight} →</Link>
+        <Link className="btn btn-secondary" to={`/height/${nextHeight}`}>Height #{nextHeight} →</Link>
       )}
     </div>
   );
@@ -195,10 +197,10 @@ const BlockDetailPage: React.FC = () => {
           <header className="height-overview__head">
             <div>
               <p className="height-overview__eyebrow">Block height</p>
-              <h1 className="height-overview__title">#{blockNumber}</h1>
+              <h1 className="height-overview__title">#{routeHeight}</h1>
             </div>
             <div className="height-overview__actions">
-              <CopyButton dataToCopy={String(blockNumber)} label="Copy height" iconSize={14} />
+              <CopyButton dataToCopy={String(routeHeight)} label="Copy height" iconSize={14} />
               <span className="height-overview__count">
                 {siblingCountLabel} sibling blocks
               </span>
@@ -212,7 +214,7 @@ const BlockDetailPage: React.FC = () => {
           <div className="height-overview__stats">
             <div className="asi-card glass">
               <p className="text-muted">Height</p>
-              <strong>#{blockNumber}</strong>
+              <strong>#{routeHeight}</strong>
             </div>
             <div className="asi-card glass">
               <p className="text-muted">Sibling blocks</p>

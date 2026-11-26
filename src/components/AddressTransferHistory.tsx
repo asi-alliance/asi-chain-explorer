@@ -117,7 +117,7 @@ function TransferPages({ address, direction, maxId, indexedHeight }: PageProps) 
               const kind = transferDirection(row, address);
               return <tr key={row.id}>
                 <td className="block-cell">
-                  <Link to={`/block/${encodeURIComponent(String(row.block_number))}`}>#{row.block_number}</Link>
+                  <Link to={`/height/${encodeURIComponent(String(row.block_number))}`}>#{row.block_number}</Link>
                 </td>
                 <td className="mono"><WalletAddressLink address={row.from_address} short /></td>
                 <td className="mono"><WalletAddressLink address={row.to_address} short /></td>

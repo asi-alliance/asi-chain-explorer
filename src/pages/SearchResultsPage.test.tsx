@@ -216,6 +216,15 @@ test('filter/order changes reset pagination and clearing the query clears old ro
   expect(requests).toHaveLength(requestCount);
 });
 
+test('links a numeric query to the height overview', async () => {
+  renderSearch('q=2045&type=blocks', new ApolloLink(() => Observable.of({ data: {
+    blocks: [{ block_hash: 'one', block_number: '2045', timestamp: '1700000000000', proposer: 'p' }],
+    transfers: [], deployments: [],
+  } })));
+  expect(await screen.findByRole('link', { name: /View all blocks at height #2045/ }))
+    .toHaveAttribute('href', '/height/2045');
+});
+
 test('uses a singular result count for one match', async () => {
   renderSearch('q=hash&type=blocks', new ApolloLink(() => Observable.of({ data: {
     blocks: [{ block_hash: 'one', block_number: '1', timestamp: '1700000000000', proposer: 'p' }],

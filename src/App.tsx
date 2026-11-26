@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-d
 import { ApolloClient, ApolloProvider } from "@apollo/client";
 import { PendingDeploysStatusProvider } from "./hooks/usePendingDeploysStatus";
 import Layout from "./components/Layout";
+import LegacyBlockRedirect from "./components/LegacyBlockRedirect";
 import RouteFallback from "./components/RouteFallback";
 import RouteTitle from "./components/RouteTitle";
 import HomePage from "./pages/HomePage";
@@ -42,12 +43,16 @@ function App({ client }: { client: ApolloClient<unknown> }) {
                             {/* The legacy block list is replaced by the home page. */}
                             <Route path="/blocks" element={<Navigate to="/" replace />} />
                             <Route
-                                path="/block/:blockNumber"
+                                path="/height/:height"
                                 element={<BlockDetailPage />}
                             />
                             <Route
                                 path="/block/hash/:blockHash"
                                 element={<BlockDetailPage />}
+                            />
+                            <Route
+                                path="/block/:blockNumber"
+                                element={<LegacyBlockRedirect />}
                             />
                             <Route
                                 path="/validators"

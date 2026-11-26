@@ -158,7 +158,7 @@ test('keyboard navigation opens the height page before a sibling block', async (
       <MemoryRouter initialEntries={['/']}>
         <Routes>
           <Route path="/" element={<AdvancedSearch />} />
-          <Route path="/block/:blockNumber" element={<p>height page</p>} />
+          <Route path="/height/:height" element={<p>height page</p>} />
           <Route path="/block/hash/:blockHash" element={<p>block page</p>} />
         </Routes>
       </MemoryRouter>

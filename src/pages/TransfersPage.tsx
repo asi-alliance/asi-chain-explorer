@@ -165,7 +165,7 @@ const TransfersPage: React.FC = () => {
                                                 {formatGenesisFunding(funding.amount_asi)}
                                             </h4>
                                             <Link
-                                                to="/block/0"
+                                                to="/height/0"
                                                 className="btn btn-secondary"
                                                 style={{ padding: '4px 12px', fontSize: '13px' }}
                                             >

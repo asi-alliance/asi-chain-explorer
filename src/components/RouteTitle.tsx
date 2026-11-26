@@ -38,7 +38,7 @@ export function routeTitle(pathname: string, search = ''): string {
         return `Block ${shorten(decode(segments[2]))}`;
     }
 
-    if (segments[0] === 'block' && segments[1]) {
+    if ((segments[0] === 'height' || segments[0] === 'block') && segments[1]) {
         return `Height #${decode(segments[1])}`;
     }
 

@@ -50,7 +50,7 @@ The system indexes blockchain data including blocks, deployments, transfers, val
 
 ## Core Functionality
 - **Block Explorer**: Real-time block monitoring with detailed information, grouped by DAG height
-- **Height Overview**: A height can contain several sibling blocks; `/block/{height}` lists every sibling with finalization status, parent/child links and previous/next height navigation
+- **Height Overview**: A height can contain several sibling blocks; `/height/{height}` lists every sibling with finalization status, parent/child links and previous/next height navigation
 - **Search**: One header omnibox for heights, block hashes, deploy IDs, indexed transfers and vault addresses, with grouped results, a `Ctrl/Cmd+K` palette, recent searches and ASI amount-range filters on the Transfers tab
 - **Transaction Viewer**: Details with the executed fee in ASI (`phlo_cost × phlo_price`), one copyable transaction ID, a compact status tooltip, local absolute timestamps, relative age and `Genesis` labels for block-0 RChain mainnet records
 - **CSV Export**: An `Export CSV` action at the bottom of Recent Blocks and the transaction tables downloads up to 5000 recent rows (`recent_blocks.csv`, `recent_deployments.csv` or `recent_transfers.csv`)
@@ -356,7 +356,9 @@ resolves before nginx starts.
 
 - `/` - Home dashboard with network overview and Recent Blocks with a footer CSV export; `?q=` and `?finalized=1` preserve the filters
 - `/blocks` - Redirects to `/`; the home page is the block list
-- `/block/:blockNumber`, `/block/hash/:blockHash` - Block details; a height with several DAG siblings shows the height overview
+- `/height/:height` - Height overview; a height with several DAG siblings lists every sibling
+- `/block/hash/:blockHash` - Details for one specific block
+- `/block/:blockNumber` - Legacy height URL; redirects to `/height/:blockNumber` and preserves the query string
 - `/transactions` - Transaction list with one icon tab row and a footer CSV export; `?tab=transfers` opens the Transfers tab
 - `/pending` - Deploys in the validators' deploy buffers that no indexed block includes yet (the navigation tab appears only when the indexer tracks pending deploys)
 - `/transaction/:transactionId` - Deploy details: executed fee in ASI, code, transfers with native transfer calls and block. Shows one copyable ID, a status tooltip, local and relative timestamps; block-0 records carry a Genesis label. `?tab=code`, `?tab=transfers` and `?tab=block` open a tab directly. A pending deploy shows its pending state until it is indexed.
@@ -495,8 +497,8 @@ Docker builds accept the same build argument. Changing a display setting does no
 rescale tokens or upgrade a chain's denomination.
 
 Validation: `CI=true npm test -- --watchAll=false --runInBand`,
-`npx tsc --noEmit`, and `npm run build`. The suite currently has 383 tests
-in 39 suites.
+`npx tsc --noEmit`, and `npm run build`. The suite currently has 386 tests
+in 40 suites.
 The `Tests` workflow runs these checks on pull requests to `dev` and `main` and
 on pushes to `dev`. Its build runs with `CI=true`, so a lint warning fails the
 check. The Docker build does not set `CI`; run `CI=true npm run build` locally

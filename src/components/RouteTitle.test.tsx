@@ -22,6 +22,7 @@ test('builds route-specific titles', () => {
   expect(routeTitle('/', '?finalized=1')).toBe('Finalized blocks');
   expect(routeTitle('/transactions', '?tab=transfers')).toBe('Transfers');
   expect(routeTitle('/transactions')).toBe('Deployments');
+  expect(routeTitle('/height/2045')).toBe('Height #2045');
   expect(routeTitle('/block/2045')).toBe('Height #2045');
   expect(routeTitle(`/block/hash/${HASH}`)).toBe(`Block ${HASH.slice(0, 8)}…${HASH.slice(-6)}`);
   expect(routeTitle(`/transaction/${ID}`)).toBe(`Transaction ${ID.slice(0, 8)}…${ID.slice(-6)}`);
@@ -32,7 +33,7 @@ test('builds route-specific titles', () => {
 
 test('sets document.title from the current location', () => {
   render(
-    <MemoryRouter initialEntries={['/block/2045']}>
+    <MemoryRouter initialEntries={['/height/2045']}>
       <RouteTitle />
     </MemoryRouter>
   );

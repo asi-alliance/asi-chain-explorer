@@ -74,6 +74,8 @@ lives in
   no longer share a React key or read as duplicate rows.
 - A single search match reads `Showing 1 result`; later pages keep the absolute
   result position.
+- The DAG height overview moved to `/height/{height}`; legacy `/block/{number}`
+  links redirect there and keep the `?status=` filter.
 
 ## Frontend-only next
 

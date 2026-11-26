@@ -6,5 +6,5 @@ export const getBlockPath = (
     return `/block/hash/${encodeURIComponent(blockHash)}`;
   }
 
-  return `/block/${blockNumber ?? ''}`;
+  return `/height/${blockNumber ?? ''}`;
 };

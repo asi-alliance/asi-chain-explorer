@@ -214,7 +214,7 @@ function bondStakes(): string[] {
 }
 
 test('genesis block bonds use the recorded 18 decimals exactly', async () => {
-  mount('/block/0', '/block/:blockNumber', <BlockDetailPage />,
+  mount('/height/0', '/height/:height', <BlockDetailPage />,
     op => (op === 'GetBlocksAtHeight' ? json({ blocks: [block()] }) : undefined));
   await screen.findByRole('heading', { name: 'Validator Bonds Map' });
   expect(bondStakes()).toEqual([
@@ -225,7 +225,7 @@ test('genesis block bonds use the recorded 18 decimals exactly', async () => {
 });
 
 test('a historical 8-decimal block keeps its recorded precision', async () => {
-  mount('/block/12', '/block/:blockNumber', <BlockDetailPage />, op => (op === 'GetBlocksAtHeight'
+  mount('/height/12', '/height/:height', <BlockDetailPage />, op => (op === 'GetBlocksAtHeight'
     ? json({ blocks: [block({ block_number: '12', token_decimals: 8, bonds_map: [{ validator: 'v', stake: '100000000' }] })] })
     : undefined));
   await screen.findByRole('heading', { name: 'Validator Bonds Map' });
@@ -233,7 +233,7 @@ test('a historical 8-decimal block keeps its recorded precision', async () => {
 });
 
 test('a block height beyond 2^53 is requested exactly', async () => {
-  mount(`/block/${TWO_POW_53_PLUS_1}`, '/block/:blockNumber', <BlockDetailPage />,
+  mount(`/height/${TWO_POW_53_PLUS_1}`, '/height/:height', <BlockDetailPage />,
     op => (op === 'GetBlocksAtHeight' ? json({ blocks: [] }) : undefined));
   await screen.findByText(/Block Not Found/);
   expect(requests.find(r => r.operation === 'GetBlocksAtHeight')?.variables).toEqual({ blockNumber: TWO_POW_53_PLUS_1 });
@@ -300,7 +300,7 @@ test.each([
   ['an HTTP 500 response', () => ({ status: 500, body: '{"error":"upstream unavailable"}' }), /Response not successful|status code 500/i],
   ['an HTTP-200 GraphQL error envelope', () => ({ body: JSON.stringify({ errors: [{ message: 'statement timeout' }] }) }), /statement timeout/],
 ])('a block view shows %s as an error, not a missing block', async (_name, reply, message) => {
-  mount('/block/0', '/block/:blockNumber', <BlockDetailPage />, op => (op === 'GetBlocksAtHeight' ? reply() : undefined));
+  mount('/height/0', '/height/:height', <BlockDetailPage />, op => (op === 'GetBlocksAtHeight' ? reply() : undefined));
   expect(await screen.findByText(message)).toBeInTheDocument();
   expect(screen.queryByText(/Block Not Found/)).not.toBeInTheDocument();
   expect(screen.queryByText(/ ASI$/)).not.toBeInTheDocument();
