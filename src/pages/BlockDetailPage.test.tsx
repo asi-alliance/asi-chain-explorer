@@ -1,8 +1,9 @@
 import React from 'react';
 import { ApolloClient, ApolloLink, ApolloProvider, InMemoryCache, Observable } from '@apollo/client';
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import BlockDetailPage from './BlockDetailPage';
+import { Deployment } from '../types';
 
 jest.mock('react-router-dom', () => {
   Object.assign(global, { TextEncoder: require('util').TextEncoder });
@@ -62,6 +63,59 @@ function renderHeight() {
   }));
 }
 
+type DeploymentFixture = Deployment & { __typename: 'deployments' };
+
+function deployment(overrides: Partial<Deployment> = {}): DeploymentFixture {
+  return {
+    __typename: 'deployments',
+    deploy_id: 'a'.repeat(130),
+    deployer: `04${'1'.repeat(128)}`,
+    term: 'Nil',
+    timestamp: Date.now() - 30_000,
+    deployment_type: 'Contract Deployment',
+    phlo_cost: '1',
+    phlo_price: '1',
+    phlo_limit: '1000000',
+    valid_after_block_number: 0,
+    status: 'included',
+    block_number: 72418,
+    block_hash: hashes[0],
+    seq_num: 1,
+    shard_id: 'root',
+    sig: 'sig',
+    sig_algorithm: 'secp256k1',
+    errored: false,
+    error_message: '',
+    created_at: new Date().toISOString(),
+    transfers: [],
+    ...overrides,
+  };
+}
+
+function renderBlockWithDeployments(deployments: DeploymentFixture[]) {
+  const block = { ...blocks[0], deployments };
+  const client = new ApolloClient({
+    cache: new InMemoryCache(),
+    link: new ApolloLink(operation => {
+      if (operation.operationName === 'GetLatestHeight') {
+        return Observable.of({ data: { blocks: [{ block_number: '72420', block_hash: 'c'.repeat(64) }] } });
+      }
+      expect(operation.operationName).toBe('GetBlockDetails');
+      return Observable.of({ data: { blocks: [block] } });
+    }),
+  });
+  return render(
+    <ApolloProvider client={client}>
+      <MemoryRouter initialEntries={[`/block/hash/${hashes[0]}`]}>
+        <Routes>
+          <Route path="/block/hash/:blockHash" element={<BlockDetailPage />} />
+          <Route path="/" element={<p>home</p>} />
+        </Routes>
+      </MemoryRouter>
+    </ApolloProvider>
+  );
+}
+
 test('shows one height overview with all siblings instead of an arbitrary first block', async () => {
   renderHeight();
 
@@ -112,4 +166,27 @@ test('shows a retryable error when block details fail to load', async () => {
   expect(await screen.findByRole('heading', { name: 'Block details unavailable' })).toBeInTheDocument();
   expect(screen.getByRole('button', { name: /Retry/ })).toBeInTheDocument();
   expect(screen.getByRole('link', { name: /Back to home/ })).toHaveAttribute('href', '/');
+});
+
+test('hides empty deployment sequence and shard fields but keeps populated values', async () => {
+  renderBlockWithDeployments([
+    deployment({ deploy_id: 'a'.repeat(130), deployment_type: 'Indexed deployment', seq_num: null, shard_id: null }),
+    deployment({ deploy_id: 'b'.repeat(130), deployment_type: 'Populated deployment', seq_num: 7, shard_id: 'root' }),
+  ]);
+
+  expect(await screen.findByRole('heading', { name: 'Block Details' })).toBeInTheDocument();
+
+  const emptyCard = screen
+    .getByRole('heading', { name: 'Indexed deployment', level: 4 })
+    .closest('.deployment-item') as HTMLElement;
+  expect(within(emptyCard).queryByText('Sequence')).not.toBeInTheDocument();
+  expect(within(emptyCard).queryByText('Shard ID')).not.toBeInTheDocument();
+
+  const populatedCard = screen
+    .getByRole('heading', { name: 'Populated deployment', level: 4 })
+    .closest('.deployment-item') as HTMLElement;
+  expect(within(populatedCard).getByText('Sequence')).toBeInTheDocument();
+  expect(within(populatedCard).getByText('7')).toBeInTheDocument();
+  expect(within(populatedCard).getByText('Shard ID')).toBeInTheDocument();
+  expect(within(populatedCard).getByText('root')).toBeInTheDocument();
 });

@@ -722,7 +722,7 @@ const BlockDetailPage: React.FC = () => {
                         </>
                       )}
                       
-                      {deploy.seq_num !== undefined && (
+                      {deploy.seq_num != null && (
                         <>
                           <dt style={{ fontSize: '13px', color: 'var(--text-tertiary)', margin: 0 }}>
                             Sequence
