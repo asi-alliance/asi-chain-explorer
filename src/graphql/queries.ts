@@ -26,7 +26,6 @@ export const BLOCK_FRAGMENT = gql`
     sig_algorithm
     version
     extra_bytes
-    block_size
     created_at
   }
 `;
@@ -166,6 +165,17 @@ export const GET_BLOCK_DETAILS = gql`
           ...TransferFragment
         }
       }
+    }
+  }
+`;
+
+// Separate query so an older indexer without blocks.block_size does not break
+// the main block page. errorPolicy: ignore leaves the size as N/A.
+export const GET_BLOCK_SIZE = gql`
+  query GetBlockSize($blockHash: String!) {
+    blocks(where: { block_hash: { _eq: $blockHash } }, limit: 1) {
+      block_hash
+      block_size
     }
   }
 `;

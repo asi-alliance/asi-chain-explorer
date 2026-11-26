@@ -63,6 +63,9 @@ function renderHeight() {
     if (operation.operationName === 'GetLatestHeight') {
       return Observable.of({ data: { blocks: [{ block_number: '72420', block_hash: 'c'.repeat(64) }] } });
     }
+    if (operation.operationName === 'GetBlockSize') {
+      return Observable.of({ data: { blocks: [{ block_hash: hashes[0], block_size: '2048' }] } });
+    }
     expect(operation.operationName).toBe('GetBlocksAtHeight');
     return Observable.of({ data: { blocks } });
   }));
@@ -108,6 +111,9 @@ function renderBlockWithDeployments(deployments: DeploymentFixture[]) {
     link: new ApolloLink(operation => {
       if (operation.operationName === 'GetLatestHeight') {
         return Observable.of({ data: { blocks: [{ block_number: '72420', block_hash: 'c'.repeat(64) }] } });
+      }
+      if (operation.operationName === 'GetBlockSize') {
+        return Observable.of({ data: { blocks: [{ block_hash: block.block_hash, block_size: block.block_size }] } });
       }
       expect(operation.operationName).toBe('GetBlockDetails');
       return Observable.of({ data: { blocks: [block] } });

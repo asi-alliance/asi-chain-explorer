@@ -2,7 +2,7 @@ import React from 'react';
 import { useParams, Link, useSearchParams } from 'react-router-dom';
 import { useQuery } from '@apollo/client';
 import { AlertTriangle, ChevronRight, RefreshCw } from 'lucide-react';
-import { GET_BLOCK_DETAILS, GET_BLOCKS_AT_HEIGHT, GET_LATEST_HEIGHT } from '../graphql/queries';
+import { GET_BLOCK_DETAILS, GET_BLOCKS_AT_HEIGHT, GET_LATEST_HEIGHT, GET_BLOCK_SIZE } from '../graphql/queries';
 import { Block, Deployment } from '../types';
 import { formatRelativeTime } from '../utils/time';
 import { CURRENT_TOKEN } from '../utils/constants';
@@ -81,6 +81,15 @@ const BlockDetailPage: React.FC = () => {
 
   const activeResult = blockHash ? hashResult : heightResult;
   const { data, loading, error } = activeResult;
+  const activeBlockForSize = (data?.blocks || [])[0] as Block | undefined;
+  const { data: blockSizeData } = useQuery<{
+    blocks: Array<{ block_hash: string; block_size?: number | string | null }>;
+  }>(GET_BLOCK_SIZE, {
+    variables: { blockHash: activeBlockForSize?.block_hash || '' },
+    skip: !activeBlockForSize?.block_hash,
+    errorPolicy: 'ignore',
+    fetchPolicy: 'cache-first',
+  });
 
   if (loading && !data) {
     return <HeightSkeleton />;
@@ -115,6 +124,7 @@ const BlockDetailPage: React.FC = () => {
   }
 
   const deploymentCount = block.deployments?.length ?? block.deployment_count ?? 0;
+  const blockSize = blockSizeData?.blocks?.[0]?.block_size ?? block.block_size;
 
   const staleNotice = error ? (
     <div className="data-state data-state--warning" role="status">
@@ -511,7 +521,7 @@ const BlockDetailPage: React.FC = () => {
           <dd>{block.fault_tolerance !== undefined ? block.fault_tolerance : 'N/A'}</dd>
 
           <dt>Block Size</dt>
-          <dd>{formatBlockSize(block.block_size)}</dd>
+          <dd>{formatBlockSize(blockSize)}</dd>
           
           <dt>Deployment Count</dt>
           <dd>{deploymentCount}</dd>
