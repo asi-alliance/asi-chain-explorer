@@ -9,11 +9,11 @@ evidence stays **partial** until that evidence exists.
 
 | Component | Revision | Notes |
 |---|---|---|
-| Explorer | `dev` at `69af4e5`, plus the change that adds this record | Includes #58 (exact amounts) and #64 (#61, #62 and GraphQL errors). Record the `dev` merge commit of this change after it merges |
+| Explorer | `fix/sub-threshold-wallet-balance` at `38ee9af` (PR #84) | Includes #58 (exact amounts), #64 (#61, #62 and GraphQL errors) and the PR #84 changes. Record the `dev` merge commit of this change after it merges |
 | Indexer schema | `asi-chain-indexer` `dev` at `99aef72` | Migrations 000 to 006. The fixtures follow this contract (see below) |
 | Hasura | Not run | Fixtures assume `HASURA_GRAPHQL_STRINGIFY_NUMERIC_TYPES=true` |
 | Node | Not selected | The node #896 profile, node #947 and indexer #22 are not part of this run |
-| Images | None | No image was built or deployed for this record |
+| Images | Local preview only | `asi-explorer:pr84-preview` built from `38ee9af`; no release image was built or deployed |
 
 Producer contract at indexer `99aef72`. The fixtures do not assert more than this contract:
 
@@ -57,7 +57,7 @@ evidence.
 | Historical stakes (validator history) | Passed (fixtures), with two fixes | Acceptance fixture. See "Fixes" |
 | Header search with exact heights | Unit test only | `AdvancedSearch.test.tsx` checks the query variables |
 | CSV export | Unit test only | `RecentDataExporter.test.tsx` |
-| Transfers list, search results, pending deploys | Unit test only | `TransfersPage.test.tsx`, `SearchResultsPage.test.tsx`, `PendingPage.test.tsx` |
+| Transfers list, search results, pending deploys | Unit test only | `TransactionTrackerImproved.test.tsx`, `SearchResultsPage.test.tsx`, `PendingPage.test.tsx` |
 | Sorting and filtering of amounts | Not covered | No test sorts or filters by an amount |
 
 ### Row 6 breakdown
@@ -90,25 +90,34 @@ height.
 
 ## Commands and results
 
-Local run on the branch that adds this record. Node 18.19.1. CI uses Node 22.
+Local run on the PR #84 branch head `38ee9af`. Node 24.22.3. CI uses Node 22.
 `package-lock.json` is in `.gitignore`, so a local run does not pin the
 dependency resolution. The CI run of each head is the reproducible anchor.
 
 | Command | Result |
 |---|---|
-| `CI=true npx react-scripts test --watchAll=false src/acceptance` | 26 tests passed |
-| `CI=true npx react-scripts test --watchAll=false --runInBand` | 23 suites, 183 tests passed |
+| `CI=true npx react-scripts test --watchAll=false src/acceptance` | 28 tests passed |
+| `CI=true npx react-scripts test --watchAll=false --runInBand` | 39 suites, 414 tests passed |
 | `npx tsc --noEmit` | Passed |
-| `CI=true npm run build` | Passed. Only the existing `waf-captcha-frontend` source-map warnings |
+| `CI=true npm run build` | Passed |
 
-CI runs:
+CI runs on `38ee9af` (PR #84):
 
-- First head `76c9b39`: `Tests` run [43203577531](https://github.com/asi-alliance/asi-chain-explorer/actions/runs/43203577531), 23 suites and 175 tests.
-- Later heads: the `Tests` check of the pull request. A record cannot name the CI run of its own commit.
+- `Tests` run [45894454599](https://github.com/asi-alliance/asi-chain-explorer/actions/runs/45894454599): `test` and `docker-image` passed.
+- `GraphQL Schema` run [45894454499](https://github.com/asi-alliance/asi-chain-explorer/actions/runs/45894454499): passed.
+- `Sonar Analysis` run [45894454924](https://github.com/asi-alliance/asi-chain-explorer/actions/runs/45894454924): passed.
+
+A docs-only commit after that head changes the PR head without changing this
+record's code evidence; the PR check on the final head remains authoritative.
 
 Negative controls: with the page before the fixes, the exact-height test and the
 four latest-block failure tests fail. Before the first fix, the request had
 `blockNumber: 9007199254740992`.
+
+A headless Chrome check at `38ee9af` confirmed that `/indexer-status` redirects
+to `/statistics`, the eight dashboard cards render (`Synced`, `100.00%`,
+`0 blocks behind node #10,450`, `Last indexed ... ago`) and the Indexer
+navigation tab is absent. This is local preview evidence, not release evidence.
 
 ## Not run
 

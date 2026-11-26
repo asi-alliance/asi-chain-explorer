@@ -2,7 +2,7 @@
 
 Current focus: PR #84 carries the frontend polish tracked in
 [asi-chain-explorer#83](https://github.com/asi-alliance/asi-chain-explorer/issues/83).
-This file records what PR #79 and PR #84 ship and what remains;
+This file records what PR #79 and PR #84 ship and what remains; indexer health is now part of the Statistics dashboard.
 backend-dependent scope lives in
 [asi-chain-indexer#66](https://github.com/asi-alliance/asi-chain-indexer/issues/66).
 
@@ -116,6 +116,19 @@ Tracked in
 - [x] Removed the unrouted BlocksPage, TransfersPage and DeploymentsPage, the
       unused BlockVisualization, BlockCard, LoadingSpinner and genesis-funding
       utility, and their tests. ConnectionStatus remains live in Layout.
+- [x] Indexer health moved into the Statistics dashboard: eight cards in two
+      rows show the indexer status, sync progress and last indexed block with
+      its lag. `/indexer-status` redirects to `/statistics`, and the separate
+      Indexer navigation tab is gone.
+- [x] The last indexed block time is labelled as block time, not as the status
+      refresh time; the status card states that it polls every five seconds.
+- [x] The SPA entry HTML revalidates (`Cache-Control: no-cache`) while hashed
+      assets keep their long expiry, and the docker-image check asserts both
+      the entry HTML and a deep route.
+- [x] A missing `valid_after_block_number` no longer renders an empty row on a
+      block deployment card; zero still renders.
+- [x] CI uses `actions/checkout@v7` and `actions/setup-node@v7`; the suite has
+      414 tests in 39 suites.
 
 ## Blocked by the indexer / Hasura
 
@@ -123,6 +136,15 @@ Tracked in
 [asi-chain-indexer#66](https://github.com/asi-alliance/asi-chain-indexer/issues/66):
 
 - Exact height counts and grouped-by-height pagination across pages.
-- Counts on `/search` type tabs.
+- Counts on `/search` type tabs (currently capped at the 30-row search limit).
 - `pg_trgm` indexes and a ranked unified search surface for `%term%` queries.
 - Removing the `6+`/`100+` count caps once public aggregates are available.
+
+## Next
+
+- [Explorer #85](https://github.com/asi-alliance/asi-chain-explorer/issues/85):
+  explain the earliest possible proposal height on pending deploy details. The
+  long pending-list explainer stays removed; this is a separate, factual note
+  on the detail page.
+- [Explorer #80](https://github.com/asi-alliance/asi-chain-explorer/issues/80):
+  move the remaining polling pages to GraphQL subscriptions.
