@@ -72,6 +72,8 @@ lives in
   accessible description. A dotted underline marks a truncated balance.
 - Live Activity identifies DAG sibling blocks by hash, so blocks at one height
   no longer share a React key or read as duplicate rows.
+- A single search match reads `Showing 1 result`; later pages keep the absolute
+  result position.
 
 ## Frontend-only next
 

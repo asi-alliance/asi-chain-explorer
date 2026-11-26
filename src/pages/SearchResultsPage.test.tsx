@@ -216,6 +216,23 @@ test('filter/order changes reset pagination and clearing the query clears old ro
   expect(requests).toHaveLength(requestCount);
 });
 
+test('uses a singular result count for one match', async () => {
+  renderSearch('q=hash&type=blocks', new ApolloLink(() => Observable.of({ data: {
+    blocks: [{ block_hash: 'one', block_number: '1', timestamp: '1700000000000', proposer: 'p' }],
+    transfers: [], deployments: [],
+  } })));
+  expect(await screen.findByText(/Showing 1 result/)).toBeInTheDocument();
+  expect(screen.queryByText(/1–1 results/)).not.toBeInTheDocument();
+});
+
+test('keeps the absolute result position for a single row on a later page', async () => {
+  renderSearch('q=hash&type=blocks&page=2', new ApolloLink(() => Observable.of({ data: {
+    blocks: [{ block_hash: 'later', block_number: '21', timestamp: '1700000000000', proposer: 'p' }],
+    transfers: [], deployments: [],
+  } })));
+  expect(await screen.findByText(/Showing result 21/)).toBeInTheDocument();
+});
+
 test('runs an amount-range transfer search without a text query', async () => {
   const requests: any[] = [];
   renderSearch('type=transfers&min=0.1&max=2', new ApolloLink(operation => {

@@ -75,6 +75,10 @@ const SearchResultsPage: React.FC = () => {
   const pendingIndexed = pending
     ? pending.included_deployment != null || rows.some((row) => row.data?.deploy_id === pending.sig)
     : false;
+  const firstResult = (page - 1) * PAGE_SIZE + 1;
+  const resultSummary = rows.length === 1
+    ? page === 1 ? 'Showing 1 result' : `Showing result ${firstResult}`
+    : `Showing ${firstResult}–${firstResult + rows.length - 1} results`;
   const blockHeightCounts = new Map<string, number>();
   rows.forEach((row) => {
     if (row.type === 'block') {
@@ -224,9 +228,7 @@ const SearchResultsPage: React.FC = () => {
       : loading ? <p className="search-results__empty" role="status">Searching…</p>
         : error ? <p className="search-results__error" role="alert">Search failed: {error.message}</p> : <>
           <p className="search-results__summary">
-            {rows.length
-              ? `Showing ${(page - 1) * PAGE_SIZE + 1}–${(page - 1) * PAGE_SIZE + rows.length} results`
-              : 'No results'} {query ? `for “${query}”` : 'for the selected amount range'}
+            {rows.length ? resultSummary : 'No results'} {query ? `for “${query}”` : 'for the selected amount range'}
           </p>
           {rows.length === 0 ? <p className="search-results__empty">
             Try a block height or hash, a transaction ID, or a wallet address.
