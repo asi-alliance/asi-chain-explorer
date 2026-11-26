@@ -357,9 +357,8 @@ const NetworkDashboard: React.FC = () => {
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: index * 0.1 }}
-                        className={`asi-card${metric.to ? " hoverable" : ""}`}
+                        className="asi-card"
                         style={{
-                            cursor: metric.to ? "pointer" : "default",
                             transition: "all 0.2s ease",
                         }}
                     >
