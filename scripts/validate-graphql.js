@@ -25,6 +25,11 @@ const OPTIONAL_SCHEMA_FIELDS = [
     type: 'blocks',
     field: 'block_size',
   },
+  {
+    operation: 'GetHeightCounts',
+    type: 'query_root',
+    field: 'blocks_aggregate',
+  },
 ];
 
 function sourceFiles(dir) {

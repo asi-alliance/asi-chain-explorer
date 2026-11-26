@@ -134,7 +134,8 @@ Tracked in
       `N/A` on an indexer without migration 008.
 - [x] The height overview applies `?status=finalized` and
       `?status=unfinalized` in GraphQL before the 100-sibling limit and reads
-      exact sibling and finalized totals from `blocks_aggregate`.
+      exact sibling and finalized totals from `blocks_aggregate` when the
+      indexer exposes that public aggregate, with a loaded-sibling fallback.
 - [x] Search on the Contract deploys tab applies `_not: { transfers: {} }`
       before its 30-row limit, so newer transfer deploys cannot hide matching
       contract deploys.
@@ -142,7 +143,7 @@ Tracked in
       snapshot, because the indexer writes a row for each block even when stake
       is unchanged.
 - [x] CI uses `actions/checkout@v7` and `actions/setup-node@v7`; the suite has
-      416 tests in 39 suites.
+      417 tests in 39 suites.
 
 ## Blocked by the indexer / Hasura
 

@@ -187,7 +187,7 @@ export const GET_BLOCKS_AT_HEIGHT = gql`
   ${BLOCK_FRAGMENT}
   ${DEPLOYMENT_FRAGMENT}
   ${TRANSFER_FRAGMENT}
-  query GetBlocksAtHeight($blockNumber: bigint!, $filter: blocks_bool_exp!) {
+  query GetBlocksAtHeight($filter: blocks_bool_exp!) {
     blocks(
       where: $filter
       order_by: { block_hash: asc }
@@ -205,6 +205,14 @@ export const GET_BLOCKS_AT_HEIGHT = gql`
         }
       }
     }
+  }
+`;
+
+// Optional aggregate: only an indexer with the public blocks aggregate
+// permission can answer this. It stays discoverable for schema validation and
+// the height page falls back to the loaded sibling list on an older schema.
+export const GET_HEIGHT_COUNTS = gql`
+  query GetHeightCounts($blockNumber: bigint!) {
     height_total: blocks_aggregate(
       where: { block_number: { _eq: $blockNumber } }
     ) {

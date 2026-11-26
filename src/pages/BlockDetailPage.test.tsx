@@ -66,6 +66,14 @@ function renderHeight() {
     if (operation.operationName === 'GetBlockSize') {
       return Observable.of({ data: { blocks: [{ block_hash: hashes[0], block_size: '2048' }] } });
     }
+    if (operation.operationName === 'GetHeightCounts') {
+      return Observable.of({
+        data: {
+          height_total: { aggregate: { count: 2 } },
+          height_finalized: { aggregate: { count: 2 } },
+        },
+      });
+    }
     expect(operation.operationName).toBe('GetBlocksAtHeight');
     return Observable.of({ data: { blocks } });
   }));
@@ -177,6 +185,14 @@ test('shows the height overview when the height has a single sibling', async () 
     if (operation.operationName === 'GetLatestHeight') {
       return Observable.of({ data: { blocks: [{ block_number: '72420', block_hash: 'c'.repeat(64) }] } });
     }
+    if (operation.operationName === 'GetHeightCounts') {
+      return Observable.of({
+        data: {
+          height_total: { aggregate: { count: 1 } },
+          height_finalized: { aggregate: { count: 1 } },
+        },
+      });
+    }
     return Observable.of({ data: { blocks: [blocks[0]] } });
   }));
 
@@ -203,12 +219,18 @@ test('applies the finalization filter before the sibling limit and uses aggregat
       if (operation.operationName === 'GetBlockSize') {
         return Observable.of({ data: { blocks: [{ block_hash: 'finalized-block', block_size: '2048' }] } });
       }
+      if (operation.operationName === 'GetHeightCounts') {
+        return Observable.of({
+          data: {
+            height_total: { aggregate: { count: 101 } },
+            height_finalized: { aggregate: { count: 1 } },
+          },
+        });
+      }
       seenFilter = operation.variables.filter;
       return Observable.of({
         data: {
           blocks: [finalized],
-          height_total: { aggregate: { count: 101 } },
-          height_finalized: { aggregate: { count: 1 } },
         },
       });
     }),
@@ -226,6 +248,26 @@ test('applies the finalization filter before the sibling limit and uses aggregat
     'href',
     '/block/hash/finalized-block'
   );
+});
+
+
+test('falls back to the loaded siblings when height aggregates are unavailable', async () => {
+  renderHeightWith(new ApolloLink(operation => {
+    if (operation.operationName === 'GetLatestHeight') {
+      return Observable.of({ data: { blocks: [{ block_number: '72420', block_hash: 'c'.repeat(64) }] } });
+    }
+    if (operation.operationName === 'GetBlockSize') {
+      return Observable.of({ data: { blocks: [] } });
+    }
+    if (operation.operationName === 'GetHeightCounts') {
+      return Observable.of({ errors: [{ message: 'blocks_aggregate is not available' }] });
+    }
+    return Observable.of({ data: { blocks } });
+  }));
+
+  expect(await screen.findByRole('heading', { name: '#72418' })).toBeInTheDocument();
+  expect(screen.getByText('2 sibling blocks')).toBeInTheDocument();
+  expect(screen.getByText('2 of 2')).toBeInTheDocument();
 });
 
 

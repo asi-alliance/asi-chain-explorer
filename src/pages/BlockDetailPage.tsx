@@ -2,7 +2,7 @@ import React from 'react';
 import { useParams, Link, useSearchParams } from 'react-router-dom';
 import { useQuery } from '@apollo/client';
 import { AlertTriangle, ChevronRight, RefreshCw } from 'lucide-react';
-import { GET_BLOCK_DETAILS, GET_BLOCKS_AT_HEIGHT, GET_LATEST_HEIGHT, GET_BLOCK_SIZE } from '../graphql/queries';
+import { GET_BLOCK_DETAILS, GET_BLOCKS_AT_HEIGHT, GET_HEIGHT_COUNTS, GET_LATEST_HEIGHT, GET_BLOCK_SIZE } from '../graphql/queries';
 import { Block, Deployment } from '../types';
 import { formatRelativeTime } from '../utils/time';
 import { CURRENT_TOKEN } from '../utils/constants';
@@ -83,10 +83,18 @@ const BlockDetailPage: React.FC = () => {
     skip: !blockHash,
   });
   const heightResult = useQuery(GET_BLOCKS_AT_HEIGHT, {
-    variables: { blockNumber: routeHeight || '0', filter: heightFilter },
+    variables: { filter: heightFilter },
     skip: !routeHeight,
   });
   const latestHeightResult = useQuery<{ blocks: Array<{ block_number: string }> }>(GET_LATEST_HEIGHT);
+  const heightCountsResult = useQuery<{
+    height_total?: { aggregate?: { count?: number } };
+    height_finalized?: { aggregate?: { count?: number } };
+  }>(GET_HEIGHT_COUNTS, {
+    variables: { blockNumber: routeHeight || '0' },
+    skip: !routeHeight,
+    errorPolicy: 'ignore',
+  });
 
   const activeResult = blockHash ? hashResult : heightResult;
   const { data, loading, error } = activeResult;
@@ -121,10 +129,7 @@ const BlockDetailPage: React.FC = () => {
   }
 
   const matchingBlocks = (data?.blocks || []) as Block[];
-  const heightData = data as {
-    height_total?: { aggregate?: { count?: number } };
-    height_finalized?: { aggregate?: { count?: number } };
-  } | undefined;
+  const heightData = heightCountsResult.data;
   const heightTotal = heightData?.height_total?.aggregate?.count ?? matchingBlocks.length;
   const finalizedTotal = heightData?.height_finalized?.aggregate?.count
     ?? matchingBlocks.filter((sibling) => sibling.finalization_status === 'finalized').length;

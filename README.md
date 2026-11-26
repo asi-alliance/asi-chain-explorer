@@ -366,7 +366,7 @@ resolves before nginx starts.
 
 - `/` - Home dashboard with network overview and Recent Blocks with a footer CSV export; finalized-only is the default, `?q=` preserves the search and `?finalized=0` shows all blocks
 - `/blocks` - Redirects to `/`; the home page is the block list
-- `/height/:height` - Height overview with exact sibling and finalized counts; the `?status=finalized` and `?status=unfinalized` filters run in GraphQL before the 100-sibling sample, so one finalized sibling is never hidden by 100 unfinalized ones
+- `/height/:height` - Height overview; the `?status=finalized` and `?status=unfinalized` filters run in GraphQL before the 100-sibling sample, and exact sibling/finalized totals come from public `blocks` aggregates when the indexer exposes them (older indexers fall back to the loaded sample)
 - `/block/hash/:blockHash` - Details for one specific block, including its size when the indexer exposes `blocks.block_size` (older indexers show `N/A`), deployments and transfers; deploy IDs and transfer rows link to `/transaction/:id`
 - `/block/:blockNumber` - Legacy height URL; redirects to `/height/:blockNumber` and preserves the query string
 - `/transactions` - Non-overlapping All deploys, Contract deploys (no transfer events) and Transfers tabs with a footer CSV export; `?tab=contract` and `?tab=transfers` open a tab directly
@@ -507,7 +507,7 @@ Docker builds accept the same build argument. Changing a display setting does no
 rescale tokens or upgrade a chain's denomination.
 
 Validation: `CI=true npm test -- --watchAll=false --runInBand`,
-`npx tsc --noEmit`, and `npm run build`. The suite currently has 416 tests
+`npx tsc --noEmit`, and `npm run build`. The suite currently has 417 tests
 in 39 suites.
 The `Tests` workflow runs these checks on pull requests to `dev` and `main` and
 on pushes to `dev`. Its build runs with `CI=true`, so a lint warning fails the
@@ -521,10 +521,11 @@ operation under `src/` against the schema that Hasura exposes to the public role
 The check reports unknown fields, wrong argument and variable types, and
 aggregates that the public role cannot read. It does not run the queries.
 
-`GetBlockSize` probes the optional `blocks.block_size` field. The operation stays
-discoverable, so a schema that exposes the field validates the full document. On
-an older schema the validator skips only the documented unknown-field error and
-reports it as a skip. Pass `--require-optional-fields` to make that skip fail:
+`GetBlockSize` probes the optional `blocks.block_size` field. `GetHeightCounts`
+probes the optional public `blocks_aggregate` root field. Both operations stay
+discoverable, so a schema that exposes them validates the full documents. On an
+older schema the validator skips only the documented unknown-field errors and
+reports them as skips. Pass `--require-optional-fields` to make a skip fail:
 
 ```bash
 npm run validate:graphql -- http://127.0.0.1:8080/v1/graphql --require-optional-fields
