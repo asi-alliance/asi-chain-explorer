@@ -42,7 +42,7 @@ test('one status subscription enables and disables the Pending tab and panel tog
   await screen.findByText(/does not track pending deploys/);
   expect(screen.queryByRole('link', { name: 'Pending' })).toBeNull();
   await act(async () => publishStatus(pendingStatusRows()));
-  expect(await screen.findByText(/Updates live/)).toBeInTheDocument();
+  expect(await screen.findByText('No deploys are waiting for a block.')).toBeInTheDocument();
   expect(screen.getByRole('link', { name: 'Pending' })).toBeInTheDocument();
   await act(async () => publishStatus([]));
   expect(await screen.findByText(/does not track pending deploys/)).toBeInTheDocument();
