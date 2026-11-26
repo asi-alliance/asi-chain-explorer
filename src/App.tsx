@@ -1,6 +1,7 @@
 import { lazy, Suspense } from "react";
 import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
 import { ApolloClient, ApolloProvider } from "@apollo/client";
+import { ToastContainer } from "react-toastify";
 import { PendingDeploysStatusProvider } from "./hooks/usePendingDeploysStatus";
 import Layout from "./components/Layout";
 import LegacyBlockRedirect from "./components/LegacyBlockRedirect";
@@ -8,6 +9,7 @@ import RouteFallback from "./components/RouteFallback";
 import RouteTitle from "./components/RouteTitle";
 import HomePage from "./pages/HomePage";
 import FeedbackForm from "./components/community/FeedbackForm";
+import "react-toastify/dist/ReactToastify.css";
 import "./styles/global.css";
 
 // Home ships with the shell; the heavier routes load on first visit.
@@ -87,6 +89,14 @@ function App({ client }: { client: ApolloClient<unknown> }) {
                 </Layout>
             </Router>
             <FeedbackForm />
+            <ToastContainer
+                position="bottom-right"
+                autoClose={2500}
+                newestOnTop
+                closeOnClick
+                pauseOnFocusLoss={false}
+                theme="dark"
+            />
         </ExplorerProviders>
     );
 }

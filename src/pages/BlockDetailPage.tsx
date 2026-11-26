@@ -232,7 +232,7 @@ const BlockDetailPage: React.FC = () => {
         {staleNotice}
         <nav className="page-actions">
           <Link to="/" className="btn btn-secondary">← Back to home</Link>
-          <ShareLinkButton label="Copy height link" />
+          <ShareLinkButton label="Copy link" text="Copy link" />
         </nav>
         {heightNav}
 
@@ -240,14 +240,22 @@ const BlockDetailPage: React.FC = () => {
           <header className="height-overview__head">
             <div>
               <p className="height-overview__eyebrow">Block height</p>
-              <h1 className="height-overview__title">#{routeHeight}</h1>
+              <div className="height-overview__title-row">
+                <h1 className="height-overview__title">#{routeHeight}</h1>
+                <CopyButton
+                  dataToCopy={String(routeHeight)}
+                  label={`Copy height ${routeHeight}`}
+                  iconSize={14}
+                  toastMessage={`Copied height ${routeHeight}`}
+                />
+              </div>
             </div>
-            <div className="height-overview__actions">
-              <CopyButton dataToCopy={String(routeHeight)} label="Copy height" iconSize={14} />
-              <span className="height-overview__count">
-                {siblingCountLabel} {siblingNoun}
-              </span>
-            </div>
+            <span
+              className="height-overview__count"
+              title="A DAG height can contain multiple sibling blocks"
+            >
+              {siblingCountLabel} {siblingNoun}
+            </span>
           </header>
 
           <p className="height-overview__hint">
@@ -307,32 +315,40 @@ const BlockDetailPage: React.FC = () => {
           ) : (
             <ol className="height-overview__list">
               {filteredSiblings.map((sibling) => (
-                <li key={sibling.block_hash}>
-                  <Link
-                    className="height-sibling"
-                    to={getBlockPath(sibling.block_hash, sibling.block_number)}
-                    aria-label={`Open block ${sibling.block_hash}`}
-                  >
-                    <span className="height-sibling__hash mono" title={sibling.block_hash}>
-                      {sibling.block_hash}
-                    </span>
-                    <span className="height-sibling__meta">
-                      Proposer <span className="mono">{truncateAddress(sibling.proposer)}</span>
-                    </span>
-                    <span className="height-sibling__links">
-                      {sibling.parent_links?.length || 0} parents · {sibling.child_links?.length || 0} children
-                    </span>
-                    <span className="height-sibling__time" title={formatDate(sibling.timestamp)}>
-                      {formatTimestamp(sibling.timestamp)}
-                    </span>
-                    <span className="height-sibling__deploys">
-                      {sibling.deployment_count || 0} deploys
-                    </span>
-                    <span className={`height-sibling__status ${finalizationClass(sibling.finalization_status)}`}>
-                      {finalizationLabel(sibling.finalization_status)}
-                    </span>
-                    <ChevronRight size={18} aria-hidden="true" className="height-sibling__chevron" />
-                  </Link>
+                <li key={sibling.block_hash} className="height-sibling-item">
+                  <div className="height-sibling">
+                    <Link
+                      className="height-sibling__link"
+                      to={getBlockPath(sibling.block_hash, sibling.block_number)}
+                      aria-label={`Open block ${sibling.block_hash}`}
+                    >
+                      <span className="height-sibling__hash mono" title={sibling.block_hash}>
+                        {sibling.block_hash}
+                      </span>
+                      <span className="height-sibling__meta">
+                        Proposer <span className="mono">{truncateAddress(sibling.proposer)}</span>
+                      </span>
+                      <span className="height-sibling__links">
+                        {sibling.parent_links?.length || 0} parents · {sibling.child_links?.length || 0} children
+                      </span>
+                      <span className="height-sibling__time" title={formatDate(sibling.timestamp)}>
+                        {formatTimestamp(sibling.timestamp)}
+                      </span>
+                      <span className="height-sibling__deploys">
+                        {sibling.deployment_count || 0} deploys
+                      </span>
+                      <span className={`height-sibling__status ${finalizationClass(sibling.finalization_status)}`}>
+                        {finalizationLabel(sibling.finalization_status)}
+                      </span>
+                      <ChevronRight size={18} aria-hidden="true" className="height-sibling__chevron" />
+                    </Link>
+                    <CopyButton
+                      dataToCopy={sibling.block_hash}
+                      label={`Copy block hash ${sibling.block_hash}`}
+                      iconSize={14}
+                      toastMessage="Block hash copied"
+                    />
+                  </div>
                 </li>
               ))}
             </ol>
@@ -348,7 +364,7 @@ const BlockDetailPage: React.FC = () => {
       {/* Navigation */}
       <nav className="page-actions">
         <Link to="/" className="btn btn-secondary">← Back to home</Link>
-        <ShareLinkButton label="Copy block link" />
+        <ShareLinkButton label="Copy link" text="Copy link" />
       </nav>
       {heightNav}
 

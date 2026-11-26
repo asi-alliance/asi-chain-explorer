@@ -1,4 +1,5 @@
 import { type ReactElement, useState, useRef, useEffect } from "react";
+import { toast } from "react-toastify";
 
 export interface ICopyButtonProps {
     icon?: ReactElement;
@@ -7,6 +8,8 @@ export interface ICopyButtonProps {
     iconSize?: number;
     className?: string;
     label?: string;
+    text?: string;
+    toastMessage?: string;
 }
 
 export interface IIconProps {
@@ -68,6 +71,8 @@ const CopyButton = ({
     iconSize,
     className = "",
     label = "Copy",
+    text,
+    toastMessage,
 }: ICopyButtonProps) => {
     const [isCopied, setIsCopied] = useState<boolean>(false);
     const timeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -85,6 +90,9 @@ const CopyButton = ({
             }
 
             setIsCopied(true);
+            if (toastMessage) {
+                toast.success(toastMessage);
+            }
 
             if (timeoutRef.current) {
                 clearTimeout(timeoutRef.current);
@@ -108,7 +116,7 @@ const CopyButton = ({
         <span className="copy-container">
             <button
                 onClick={runAction}
-                className={`copy-button ${className}`}
+                className={`copy-button ${text ? "copy-button--labeled" : ""} ${className}`}
                 aria-label={isCopied ? "Copied" : label}
                 title={isCopied ? "Copied" : label}
             >
@@ -117,6 +125,7 @@ const CopyButton = ({
                 ) : (
                     <CopyIcon icon={icon} iconSize={iconSize} />
                 )}
+                {text && <span className="copy-button__text">{isCopied ? "Copied" : text}</span>}
             </button>
         </span>
     );

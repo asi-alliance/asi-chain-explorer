@@ -64,7 +64,7 @@
     font-size: 12px;
 }
 
-.height-overview__actions {
+.height-overview__title-row {
     display: flex;
     align-items: center;
     gap: 10px;
@@ -233,7 +233,7 @@
 }
 
 .page-actions .copy-container,
-.height-overview__actions .copy-container,
+.height-overview__title-row .copy-container,
 .detail-copy-row .copy-container {
     display: inline-flex;
     position: static;
@@ -241,11 +241,12 @@
 }
 
 .page-actions .copy-button,
-.height-overview__actions .copy-button,
+.height-overview__title-row .copy-button,
 .detail-copy-row .copy-button {
     position: static;
     top: auto;
     right: auto;
+    transform: none !important;
 }
 
 .height-overview__list {
@@ -259,15 +260,12 @@
 
 .height-sibling {
     display: flex;
-    flex-wrap: wrap;
     align-items: center;
-    gap: 8px 16px;
+    gap: 8px;
     padding: 12px 14px;
     border: 1px solid var(--border-light);
     border-radius: 9px;
     background: var(--charcoal-500);
-    color: inherit;
-    text-decoration: none;
     transition: background-color 0.15s ease, border-color 0.15s ease;
 }
 
@@ -276,7 +274,45 @@
     background: rgba(147, 226, 124, 0.06);
 }
 
-.height-sibling:focus-visible {
+.height-sibling__link {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px 16px;
+    flex: 1 1 auto;
+    min-width: 0;
+    color: inherit;
+    text-decoration: none;
+}
+
+.height-sibling__link:focus-visible {
+    outline: 2px solid var(--asi-lime);
+    outline-offset: 2px;
+}
+
+.height-sibling > .copy-container {
+    display: inline-flex;
+    align-self: center;
+    position: static;
+    flex: 0 0 auto;
+}
+
+.height-sibling > .copy-container .copy-button {
+    position: static;
+    top: auto;
+    right: auto;
+    transform: none !important;
+    padding: 6px;
+    border-radius: 6px;
+    color: var(--text-tertiary);
+}
+
+.height-sibling > .copy-container .copy-button:hover {
+    background: rgba(147, 226, 124, 0.12);
+    color: var(--asi-lime);
+}
+
+.height-sibling > .copy-container .copy-button:focus-visible {
     outline: 2px solid var(--asi-lime);
     outline-offset: 2px;
 }
@@ -363,10 +399,6 @@
 
     .height-sibling__chevron {
         display: none;
-    }
-
-    .height-overview__actions {
-        align-self: flex-start;
     }
 
     .height-overview__filters {

@@ -1147,6 +1147,30 @@ input::-webkit-inner-spin-button {
     transform: translateX(115%) !important;
 }
 
+.copy-button.copy-button--labeled {
+    position: static;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 14px;
+    border: 1px solid var(--border-light);
+    border-radius: 8px;
+    transform: none !important;
+    color: var(--text-secondary);
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.copy-button.copy-button--labeled:hover {
+    border-color: var(--asi-lime);
+    color: var(--asi-lime);
+}
+
+.copy-button.copy-button--labeled:focus-visible {
+    outline: 2px solid var(--asi-lime);
+    outline-offset: 2px;
+}
+
 .share-button {
     position: initial;
     padding: 0.5rem;

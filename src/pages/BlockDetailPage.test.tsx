@@ -1,9 +1,13 @@
 import React from 'react';
 import { ApolloClient, ApolloLink, ApolloProvider, InMemoryCache, Observable } from '@apollo/client';
-import { render, screen, within } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
+import { toast } from 'react-toastify';
 import BlockDetailPage from './BlockDetailPage';
 import { Deployment } from '../types';
+
+jest.mock('react-toastify', () => ({ toast: { success: jest.fn() } }));
+const mockToastSuccess = toast.success as jest.Mock;
 
 jest.mock('react-router-dom', () => {
   Object.assign(global, { TextEncoder: require('util').TextEncoder });
@@ -135,6 +139,30 @@ test('shows one height overview with all siblings instead of an arbitrary first 
   expect(siblingLinks.map((link) => link.getAttribute('href'))).toEqual(
     hashes.map((hash) => `/block/hash/${hash}`)
   );
+});
+
+test('copies the height and each sibling hash with feedback', async () => {
+  const writeText = jest.fn().mockResolvedValue(undefined);
+  Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });
+  mockToastSuccess.mockClear();
+  renderHeight();
+
+  await screen.findByRole('heading', { name: '#72418' });
+  expect(screen.getByText('2 sibling blocks')).toHaveAttribute(
+    'title',
+    'A DAG height can contain multiple sibling blocks'
+  );
+
+  fireEvent.click(screen.getByRole('button', { name: 'Copy height 72418' }));
+  await waitFor(() => expect(writeText).toHaveBeenCalledWith('72418'));
+  expect(mockToastSuccess).toHaveBeenCalledWith('Copied height 72418');
+
+  const siblingCopies = screen.getAllByRole('button', { name: /Copy block hash/ });
+  expect(siblingCopies).toHaveLength(2);
+  fireEvent.click(siblingCopies[0]);
+  await waitFor(() => expect(writeText).toHaveBeenCalledWith(hashes[0]));
+  expect(mockToastSuccess).toHaveBeenCalledWith('Block hash copied');
+  expect(screen.getAllByRole('link', { name: /Open block/ })).toHaveLength(2);
 });
 
 test('shows the height overview when the height has a single sibling', async () => {

@@ -95,6 +95,9 @@ Tracked in
 - [x] Validator proposers in Recent Blocks link to the Validators page.
 - [x] `/height/:height` always shows the height overview, including a single
       sibling, with singular `1 sibling block` copy.
+- [x] Height copy sits next to the height value, sibling rows copy their block
+      hashes, the sibling-count pill explains DAG siblings on hover, and copy
+      actions report through a toast.
 - [x] Live Activity shows skeleton rows while its three initial queries load.
 - [x] Removed explicit `any` from the activity feed, search index, block
       details, validator pages, Home query variables and CSV exporter
