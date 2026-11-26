@@ -56,6 +56,40 @@ test('continues beyond the public 5000-row cap and supports previous-page naviga
   expect(requests.some(request => request.offset === 5000)).toBe(true);
 });
 
+test('submitting a wallet address searches deployments when that type is selected', async () => {
+  const address = '1111x5QCpTeTXakyVzda9zAVyo6vnSG2WTd9TJ3n93LmMYRhzZouR';
+  const deployment = { deploy_id: 'matching-deploy', deployer_address: address, deployer: 'key',
+    block_hash: 'hash', block_number: '7', timestamp: '1700000000000', errored: false, deployment_type: 'deploy' };
+  renderSearch('', new ApolloLink(({ variables }) => {
+    expect(variables.blocks).toEqual({ _or: [] });
+    expect(variables.transfers).toEqual({ _or: [] });
+    expect(variables.deployments._or).toContainEqual({ deployer_address: { _like: `%${address}%` } });
+    return Observable.of({ data: { blocks: [], transfers: [], deployments: [deployment] } });
+  }));
+  fireEvent.click(screen.getByRole('tab', { name: 'Transactions' }));
+  fireEvent.change(screen.getByLabelText('Block height or hash, transaction ID, or address'), { target: { value: address } });
+  fireEvent.click(screen.getByRole('button', { name: 'Search' }));
+  const result = await screen.findByRole('link', { name: 'Transaction matching-deploy' });
+  expect(result).toHaveAttribute('href', '/transaction/matching-deploy');
+  expect(screen.getByRole('tab', { name: 'Transactions' })).toHaveAttribute('aria-selected', 'true');
+});
+
+test('shows an unindexed deploy from the pending buffer', async () => {
+  const sig = 'a'.repeat(128);
+  renderSearch(`q=${sig}`, new ApolloLink((operation) => {
+    if (operation.operationName === 'GetPendingDeploy') {
+      return Observable.of({ data: { pending_deploys: [{
+        sig, is_rejected: false, timestamp: String(Date.now()), included_deployment: null,
+      }] } });
+    }
+    return Observable.of({ data: { blocks: [], transfers: [], deployments: [] } });
+  }));
+
+  const link = await screen.findByRole('link', { name: /Pending deploy/ });
+  expect(link).toHaveAttribute('href', `/transaction/${sig}`);
+  expect(screen.getByText(/Waiting in the validator buffer/)).toBeInTheDocument();
+});
+
 test('opens a deep-linked page beyond the public row cap', async () => {
   fixture('q=hash&type=blocks&order=desc&page=251');
   await screen.findByRole('link', { name: 'Block #24' });
@@ -115,7 +149,7 @@ test('mixed pages reuse cursors for Next/Previous and return to page one when op
   fireEvent.click(screen.getByRole('button', { name: 'Next' }));
   await screen.findByRole('link', { name: 'Block #24' });
   requests.length = 0;
-  const input = screen.getByLabelText('Block height or hash, deploy ID, or address');
+  const input = screen.getByLabelText('Block height or hash, transaction ID, or address');
   fireEvent.change(input, { target: { value: 'new' } });
   fireEvent.submit(input.closest('form')!);
   await screen.findByRole('link', { name: 'Block #44' });
@@ -142,7 +176,7 @@ test('changing query cancels a pending page and ignores its late response', asyn
     }
   })));
   await waitFor(() => expect(oldSignal).toBeDefined());
-  const input = screen.getByLabelText('Block height or hash, deploy ID, or address');
+  const input = screen.getByLabelText('Block height or hash, transaction ID, or address');
   fireEvent.change(input, { target: { value: 'new' } });
   fireEvent.submit(input.closest('form')!);
   await screen.findByRole('link', { name: 'Block #42' });
@@ -169,17 +203,34 @@ test('filter/order changes reset pagination and clearing the query clears old ro
   fireEvent.change(screen.getByLabelText('Result order'), { target: { value: 'asc' } });
   await screen.findByRole('link', { name: 'Block #0' });
   expect(requests.at(-1)).toMatchObject({ order: 'asc', offset: 0 });
-  fireEvent.change(screen.getByLabelText('Result type'), { target: { value: 'transfers' } });
+  fireEvent.click(screen.getByRole('tab', { name: 'Transfers' }));
   const link = await screen.findByRole('link', { name: '18446744073709551616.000000000000000001 ASI Transfer' });
   expect(link).toHaveAttribute('href', '/transaction/exact-transfer');
   expect(requests.at(-1).blocks).toEqual({ _or: [] });
   const requestCount = requests.length;
-  const input = screen.getByLabelText('Block height or hash, deploy ID, or address');
+  const input = screen.getByLabelText('Block height or hash, transaction ID, or address');
   fireEvent.change(input, { target: { value: '' } });
   fireEvent.submit(input.closest('form')!);
-  expect(screen.getByText('Enter a query to search the indexed chain.')).toBeInTheDocument();
+  expect(screen.getByText('Enter a query or an ASI amount range to search the indexed chain.')).toBeInTheDocument();
   expect(screen.queryByRole('link')).not.toBeInTheDocument();
   expect(requests).toHaveLength(requestCount);
+});
+
+test('runs an amount-range transfer search without a text query', async () => {
+  const requests: any[] = [];
+  renderSearch('type=transfers&min=0.1&max=2', new ApolloLink(operation => {
+    requests.push(operation.variables);
+    return Observable.of({ data: { blocks: [], transfers: [], deployments: [] } });
+  }));
+
+  await waitFor(() => expect(requests.length).toBeGreaterThan(0));
+  expect(requests[0].transfers).toEqual({ _and: [
+    { amount_asi: { _gte: '0.1' } },
+    { amount_asi: { _lte: '2' } },
+  ] });
+  expect(await screen.findByText(/for the selected amount range/)).toBeInTheDocument();
+  expect(screen.getByLabelText('Minimum ASI amount')).toHaveValue('0.1');
+  expect(screen.getByLabelText('Maximum ASI amount')).toHaveValue('2');
 });
 
 test('shows request failures without retaining the previous results', async () => {

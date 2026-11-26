@@ -1,5 +1,5 @@
 import React from 'react';
-import { formatDistanceToNow } from 'date-fns';
+import { formatRelativeTime } from '../utils/time';
 import { useIndexerStatus } from '../hooks/useIndexerStatus';
 
 const IndexerStatusPage: React.FC = () => {
@@ -51,7 +51,7 @@ const IndexerStatusPage: React.FC = () => {
         <div className="asi-card glass">
           <h5 className="text-muted">Last Update</h5>
           <h2 style={{ margin: 0, fontSize: '1.2rem' }}>
-            {data?.lastUpdate ? formatDistanceToNow(data.lastUpdate, { addSuffix: true }) : 'Unknown'}
+            {data?.lastUpdate ? formatRelativeTime(data.lastUpdate) : 'Unknown'}
           </h2>
         </div>
       </div>

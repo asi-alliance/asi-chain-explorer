@@ -2,7 +2,7 @@
     "name": "explorer",
     "version": "0.1.0",
     "private": true,
-    "homepage": ".",
+    "homepage": "/",
     "dependencies": {
         "@apollo/client": "^3.13.9",
         "@graphql-codegen/cli": "^5.0.7",
@@ -15,29 +15,20 @@
         "graphql-ws": "^6.0.6",
         "lucide-react": "^0.536.0",
         "papaparse": "^5.5.3",
-        "qrcode": "^1.5.4",
         "react": "^19.1.1",
-        "react-csv": "^2.2.2",
         "react-dom": "^19.1.1",
-        "react-intersection-observer": "^9.13.1",
         "react-is": "^19.1.1",
-        "react-qr-code": "^2.0.15",
         "react-router-dom": "^7.7.1",
         "react-scripts": "5.0.1",
-        "react-syntax-highlighter": "^15.6.1",
+        "react-syntax-highlighter": "^16.1.2",
         "react-toastify": "^10.0.5",
-        "react-virtualized": "^9.22.5",
-        "react-window": "^1.8.8",
         "recharts": "^3.1.1",
-        "swagger-ui-react": "^5.18.2",
         "typescript": "^4.9.5",
-        "waf-captcha-frontend": "^0.0.7",
-        "workbox-webpack-plugin": "^7.1.0",
-        "xlsx": "^0.18.5"
+        "waf-captcha-frontend": "^0.0.7"
     },
     "scripts": {
         "start": "react-scripts start",
-        "build": "PUBLIC_URL=/ react-scripts build",
+        "build": "react-scripts build",
         "test": "react-scripts test",
         "validate:graphql": "node scripts/validate-graphql.js",
         "eject": "react-scripts eject"
@@ -68,13 +59,9 @@
         "@types/jest": "^27.5.2",
         "@types/node": "^16.18.126",
         "@types/papaparse": "^5.3.16",
-        "@types/qrcode": "^1.5.5",
         "@types/react": "^19.1.13",
-        "@types/react-csv": "^1.1.10",
         "@types/react-dom": "^19.1.7",
         "@types/react-syntax-highlighter": "^15.5.13",
-        "@types/react-virtualized": "^9.21.30",
-        "@types/react-window": "^1.8.8",
         "@types/recharts": "^1.8.29"
     }
 }

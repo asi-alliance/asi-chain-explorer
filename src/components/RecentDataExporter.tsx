@@ -1,6 +1,7 @@
 import Papa from "papaparse";
 import { DocumentNode, gql, useLazyQuery } from "@apollo/client";
 import { ReactElement   , useEffect, useState } from "react";
+import { Download } from "lucide-react";
 
 const EXCLUDE_FIELDS = ["__typename"];
 
@@ -85,20 +86,28 @@ export const enum ExportEntities {
 export interface ExportEntitiesMeta {
     GQL: DocumentNode,
     EXPORT_DATA_KEY: string;
+    LABEL: string;
+    TITLE: string;
 }
 
 const ExportEntitiesRecords: Record<ExportEntities, ExportEntitiesMeta> = {
     [ExportEntities.BLOCKS]: {
         GQL: EXPORT_RECENT_BLOCKS,
         EXPORT_DATA_KEY: "blocks",
+        LABEL: "Export recent blocks as CSV",
+        TITLE: "Download up to 5000 recent blocks as CSV",
     },
     [ExportEntities.DEPLOYMENTS]: {
         GQL: EXPORT_RECENT_DEPLOYMENTS,
         EXPORT_DATA_KEY: "deployments",
+        LABEL: "Export recent deployments as CSV",
+        TITLE: "Download up to 5000 recent deployments as CSV",
     },
     [ExportEntities.TRANSFERS]: {
         GQL: EXPORT_RECENT_TRANSFERS,
         EXPORT_DATA_KEY: "transfers",
+        LABEL: "Export recent transfers as CSV",
+        TITLE: "Download up to 5000 recent transfers as CSV",
     },
 };
 
@@ -190,41 +199,36 @@ const RecentDataExporter = ({entityToExport}: RecentDataExporterProps): ReactEle
 
     if (isExportDataLoading || isParsing) {
         return (
-            <div className="recent-transactions-exporter" title="Exporting...">
-                <div
-                    className="loading"
-                    style={{ width: "20px", height: "20px" }}
-                />
-            </div>
+            <button
+                type="button"
+                className="recent-transactions-exporter"
+                title="Preparing CSV export"
+                aria-label={`Exporting ${entityToExport} as CSV`}
+                disabled
+            >
+                <span className="loading" aria-hidden="true" />
+                <span>CSV</span>
+            </button>
         );
     }
 
+    const meta = ExportEntitiesRecords[entityToExport];
+    const label = exportError ? `Export failed: ${exportError.message}` : meta.LABEL;
+
     return (
-        <div
+        <button
+            type="button"
             className="recent-transactions-exporter"
-            title={exportError ? `Export failed: ${exportError.message}` : "Export recent transactions"}
-            role="button"
-            aria-label={exportError ? `Export failed: ${exportError.message}` : "Export recent transactions"}
+            title={exportError ? `Export failed: ${exportError.message}` : meta.TITLE}
+            aria-label={label}
             onClick={() => {
                 setHasRequestedExport(true);
                 getDataForExport();
             }}
         >
-            <svg
-                width="20px"
-                height="20px"
-                viewBox="0 0 100 100"
-                fill="none"
-                xmlns="http://www.w3.org/2000/svg"
-            >
-                <path
-                    fillRule="evenodd"
-                    clipRule="evenodd"
-                    d="M0 13.9693V95.424C0.0612529 97.8213 2.20518 99.9387 4.57647 100H86.0353C88.4198 99.9387 90.5505 97.8082 90.6118 95.424V44.8902L90.6161 44.8202H82.7932V44.829L81.2356 44.8246V90.6254H9.37236V18.7687H55.1068L55.1768 18.7731V9.38909L4.8221 9.38471C2.26254 9.38471 0.131271 11.423 0 13.9693ZM68.5423 0H95.1785C97.7774 0 99.9387 2.15682 100 4.58489V33.0263L98.4424 33.0219V33.0307H90.6195V16.0252L48.6261 58.0102L41.9888 51.3736L83.9822 9.38404H66.9752L66.9839 6.9425e-06L68.5415 0.00438125L68.5423 0Z"
-                    fill={exportError ? "#ef4444" : "#7dbd61"}
-                />
-            </svg>
-        </div>
+            <Download size={15} aria-hidden="true" style={exportError ? { color: "#ef4444" } : undefined} />
+            <span>{exportError ? "Retry CSV" : "Export CSV"}</span>
+        </button>
     );
 };
 

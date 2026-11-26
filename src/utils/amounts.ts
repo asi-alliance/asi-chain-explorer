@@ -2,7 +2,7 @@
 export const LEGACY_DECIMALS = 8;
 export const MAX_DECIMALS = 77;
 export const NATIVE_DECIMALS = validateDecimals(
-  Number(process.env.REACT_APP_NATIVE_TOKEN_DECIMALS ?? LEGACY_DECIMALS)
+  Number(process.env.REACT_APP_NATIVE_TOKEN_DECIMALS ?? 18)
 );
 
 export function validateDecimals(value: number): number {
@@ -30,6 +30,40 @@ export function formatRaw(value: unknown, decimals = LEGACY_DECIMALS): string {
   if (!decimals) return text;
   const fraction = text.slice(-decimals).replace(/0+$/, "");
   return text.slice(0, -decimals) + (fraction ? "." + fraction : "");
+}
+
+/** Groups the integer part of an exact decimal for display; the value is unchanged. */
+export function groupThousands(text: string): string {
+  if (!/^\d+(?:\.\d+)?$/.test(text)) return text;
+  const [whole, fraction] = text.split('.');
+  const grouped = whole.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+  return fraction === undefined ? grouped : `${grouped}.${fraction}`;
+}
+
+/**
+ * Cuts the fraction to at most `decimals` digits without rounding, so a shown
+ * balance never claims more funds than the account holds. Trailing zeros are
+ * removed; the untouched value stays available for a tooltip.
+ */
+export function truncateDecimal(text: string, decimals = 8): string {
+  validateDecimals(decimals);
+  if (!/^\d+(?:\.\d+)?$/.test(text)) return text;
+  const [whole, fraction = ''] = text.split('.');
+  const kept = fraction.slice(0, decimals).replace(/0+$/, '');
+  return kept ? `${whole}.${kept}` : whole;
+}
+
+/**
+ * Cuts the displayed fraction without rounding up. A positive amount smaller
+ * than the display precision is shown as a less-than value instead of `0`.
+ */
+export function compactDecimal(text: string, decimals = 8): string {
+  validateDecimals(decimals);
+  const exact = decimalText(text);
+  const display = truncateDecimal(exact, decimals);
+  if (display !== '0') return groupThousands(display);
+  if (!/[1-9]/.test(exact)) return '0';
+  return decimals > 0 ? `<0.${'0'.repeat(decimals - 1)}1` : '<1';
 }
 
 export function decimalText(value: unknown): string {

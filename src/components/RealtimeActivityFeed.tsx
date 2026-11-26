@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { AnimatePresence } from './AnimatePresenceWrapper';
-import { formatDistanceToNow } from 'date-fns';
+import { formatRelativeTime } from '../utils/time';
 import { Activity, Clock, Zap, Database, TrendingUp } from 'lucide-react';
 import { useQuery } from '@apollo/client';
 import { GET_LATEST_BLOCKS, GET_LATEST_TRANSFERS, GET_LATEST_DEPLOYMENTS } from '../graphql/queries';
@@ -224,7 +224,7 @@ const RealtimeActivityFeed: React.FC<RealtimeActivityFeedProps> = ({
                   >
                     <Clock size={10} />
                     {activity.timestamp && !isNaN(activity.timestamp) 
-                      ? formatDistanceToNow(new Date(activity.timestamp), { addSuffix: true })
+                      ? formatRelativeTime(activity.timestamp)
                       : 'Just now'}
                   </div>
                 </div>
@@ -345,8 +345,8 @@ const RealtimeActivityFeed: React.FC<RealtimeActivityFeedProps> = ({
                 }}>
                   <Clock size={12} />
                   {activity.timestamp && !isNaN(activity.timestamp) 
-                    ? formatDistanceToNow(new Date(activity.timestamp), { addSuffix: true })
-                    : 'Just now'}
+                    ? formatRelativeTime(activity.timestamp)
+                    : 'just now'}
                   <span style={{ margin: '0 0.5rem' }}>•</span>
                   <span style={{ color: activity.color }}>
                     {activity.type.charAt(0).toUpperCase() + activity.type.slice(1)}

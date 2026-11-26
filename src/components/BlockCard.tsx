@@ -2,7 +2,7 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { Clock, Hash, FileCode, User } from 'lucide-react';
 import { BlockCardProps } from '../types';
-import { formatDistanceToNow } from 'date-fns';
+import { formatRelativeTime } from '../utils/time';
 import { getBlockPath } from '../utils/blockPath';
 
 const BlockCard: React.FC<BlockCardProps> = ({ block, showDetails = true }) => {
@@ -20,16 +20,7 @@ const BlockCard: React.FC<BlockCardProps> = ({ block, showDetails = true }) => {
         </Link>
         <div className="flex items-center space-x-2 text-sm text-gray-500">
           <Clock className="w-4 h-4" />
-          <span>{(() => {
-            try {
-              const timestamp = parseInt(block.timestamp.toString());
-              const date = new Date(timestamp);
-              if (isNaN(date.getTime())) return 'Invalid date';
-              return formatDistanceToNow(date, { addSuffix: true });
-            } catch (e) {
-              return 'Invalid date';
-            }
-          })()}</span>
+          <span>{formatRelativeTime(block.timestamp)}</span>
         </div>
       </div>
 

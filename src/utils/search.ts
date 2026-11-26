@@ -5,6 +5,10 @@ import { heightInput } from './blockHeight';
 
 export type SearchType = 'all' | 'blocks' | 'transfers' | 'deployments';
 export type SearchStream = Exclude<SearchType, 'all'>;
+export interface SearchFilters {
+  minAmount?: string;
+  maxAmount?: string;
+}
 export const SEARCH_PAGE_SIZE = 20;
 export const SEARCH_BATCH_SIZE = 200;
 const streamId = { blocks: 'block_hash', transfers: 'id', deployments: 'deploy_id' } as const;
@@ -37,12 +41,28 @@ export const SEARCH_INDEX = gql`
   }
 `;
 
+/** A numeric query is a height, not a text fragment; this cannot match an indexed hash, address or ID. */
+export const HEIGHT_ONLY_PATTERN = '%zzzzzzzzzzzz%';
+
+/** Escape LIKE metacharacters so a user's % and _ are matched literally. */
+export function escapeLikePattern(text: string): string {
+  return text.replace(/[\\%_]/g, '\\$&');
+}
+
+export function searchPattern(query: string): string {
+  return `%${escapeLikePattern(query.trim())}%`;
+}
+
+export function textPatternFor(query: string): string {
+  return heightInput(query) === null ? searchPattern(query) : HEIGHT_ONLY_PATTERN;
+}
+
 export function searchVariables(query: string, limit: number, order: 'asc' | 'desc', type: SearchType,
-  offset = 0, cursor?: SearchCursor) {
+  offset = 0, cursor?: SearchCursor, filters: SearchFilters = {}) {
   const value = query.trim();
-  const pattern = `%${value.replace(/[\\%_]/g, '\\$&')}%`;
-  const disabled = { _or: [] };
   const exactHeight = heightInput(value);
+  const pattern = textPatternFor(value);
+  const disabled = { _or: [] };
   const height = exactHeight === null ? [] : [{ block_number: { _eq: exactHeight } }];
   const afterCursor = (stream: SearchStream, filter: object) => {
     if (!cursor || type !== stream) return filter;
@@ -54,15 +74,25 @@ export function searchVariables(query: string, limit: number, order: 'asc' | 'de
       { timestamp: { [order === 'desc' ? '_lt' : '_gt']: cursor.timestamp } }, ...sameTime,
     ] }] };
   };
+  const amountFilters = [
+    filters.minAmount ? { amount_asi: { _gte: filters.minAmount } } : null,
+    filters.maxAmount ? { amount_asi: { _lte: filters.maxAmount } } : null,
+  ].filter(Boolean) as object[];
+  const transferText = value && (type === 'all' || type === 'transfers') ? { _or: [
+    { deploy_id: { _ilike: pattern } }, { from_address: { _like: pattern } },
+    { to_address: { _like: pattern } }, ...height
+  ] } : null;
+  const transferFilter = type === 'all' || type === 'transfers'
+    ? amountFilters.length
+      ? { _and: [...(transferText ? [transferText] : []), ...amountFilters] }
+      : transferText ?? disabled
+    : disabled;
   return {
     limit, offset, order,
     blocks: afterCursor('blocks', value && (type === 'all' || type === 'blocks') ? { _or: [
       ...height, { block_hash: { _ilike: pattern } }, { proposer: { _ilike: pattern } }
     ] } : disabled),
-    transfers: afterCursor('transfers', value && (type === 'all' || type === 'transfers') ? { _or: [
-      { deploy_id: { _ilike: pattern } }, { from_address: { _like: pattern } },
-      { to_address: { _like: pattern } }, ...height
-    ] } : disabled),
+    transfers: afterCursor('transfers', transferFilter),
     deployments: afterCursor('deployments', value && (type === 'all' || type === 'deployments') ? { _or: [
       { deploy_id: { _ilike: pattern } }, { deployer: { _ilike: pattern } },
       { deployer_address: { _like: pattern } }, ...height
@@ -70,20 +100,26 @@ export function searchVariables(query: string, limit: number, order: 'asc' | 'de
   };
 }
 
+/** Shorten a long protocol identifier for a one-line result row. */
+function shortIdentifier(value: unknown, head = 10, tail = 8): string {
+  const text = String(value ?? '');
+  return text.length <= head + tail + 1 ? text : `${text.slice(0, head)}…${text.slice(-tail)}`;
+}
+
 export function searchResults(data: any, order: 'asc' | 'desc'): SearchResult[] {
   const results: SearchResult[] = [
     ...(data?.blocks || []).map((b: any) => ({
       type: 'block', id: `block:${b.block_hash}`, title: `Block #${b.block_number}`,
-      description: b.block_hash, path: getBlockPath(b.block_hash, b.block_number), timestamp: Number(b.timestamp), data: b
+      description: shortIdentifier(b.block_hash, 12, 8), path: getBlockPath(b.block_hash, b.block_number), timestamp: Number(b.timestamp), data: b
     })),
     ...(data?.transfers || []).map((t: any) => ({
       type: 'transfer', id: `transfer:${t.id}`, title: `${decimalText(t.amount_asi)} ASI Transfer`,
-      description: `${t.from_address} → ${t.to_address} (${t.status})`,
+      description: `${shortIdentifier(t.from_address)} → ${shortIdentifier(t.to_address)} (${t.status})`,
       path: `/transaction/${encodeURIComponent(t.deploy_id)}`, timestamp: Number(t.timestamp), data: t
     })),
     ...(data?.deployments || []).map((d: any) => ({
-      type: 'deployment', id: `deployment:${d.deploy_id}`, title: `Deployment ${d.deploy_id}`,
-      description: `From ${d.deployer_address || d.deployer}${d.errored ? ' (failed)' : ''}`,
+      type: 'deployment', id: `deployment:${d.deploy_id}`, title: `Transaction ${shortIdentifier(d.deploy_id, 12, 8)}`,
+      description: `From ${shortIdentifier(d.deployer_address || d.deployer)}${d.errored ? ' (failed)' : ''}`,
       path: `/transaction/${encodeURIComponent(d.deploy_id)}`, timestamp: Number(d.timestamp), data: d
     }))
   ];

@@ -1,6 +1,6 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useQuery, gql } from "@apollo/client";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import {
     GET_NETWORK_STATS,
     GET_LATEST_BLOCKS,
@@ -8,11 +8,14 @@ import {
     SEARCH_BLOCKS_BY_NUMBER,
 } from "../graphql/queries";
 import { Block, NetworkStats } from "../types";
-import { formatDistanceToNow } from "date-fns";
+import { formatLocalTime, formatRelativeTime } from "../utils/time";
 import { calculateAverageBlockTime } from "../utils/calculateBlockTime";
 import RealtimeActivityFeed from "../components/RealtimeActivityFeed";
 import RecentDataExporter, { ExportEntities } from "../components/RecentDataExporter";
+import SearchField from "../components/SearchField";
 import { getBlockPath } from "../utils/blockPath";
+import { heightInput } from "../utils/blockHeight";
+import { searchPattern } from "../utils/search";
 // import { useRealtimeBlocks } from '../services/websocketService';
 
 // Query to get recent blocks for calculating average block time
@@ -27,9 +30,32 @@ const GET_RECENT_BLOCKS = gql`
 `;
 
 const HomePage: React.FC = () => {
+    const [searchParams, setSearchParams] = useSearchParams();
+    const urlQuery = searchParams.get("q") ?? "";
+    const finalizedOnly = searchParams.get("finalized") === "1";
     const [currentPage, setCurrentPage] = useState(1);
-    const [searchQuery, setSearchQuery] = useState("");
+    const [searchQuery, setSearchQuery] = useState(urlQuery);
     const blocksPerPage = 20;
+
+    useEffect(() => {
+        setSearchQuery(urlQuery);
+        setCurrentPage(1);
+    }, [urlQuery, finalizedOnly]);
+
+    useEffect(() => {
+        const query = searchQuery.trim();
+        if (query === urlQuery) return;
+
+        const timer = window.setTimeout(() => {
+            setSearchParams(previous => {
+                const next = new URLSearchParams(previous);
+                if (query) next.set("q", query);
+                else next.delete("q");
+                return next;
+            }, { replace: true });
+        }, 250);
+        return () => window.clearTimeout(timer);
+    }, [searchQuery, urlQuery, setSearchParams]);
 
     // Get initial network statistics with polling
     const { data: statsData, loading: statsLoading } = useQuery(
@@ -44,32 +70,45 @@ const HomePage: React.FC = () => {
         pollInterval: 5000, // Poll every 5 seconds
     });
 
-    // Get paginated blocks with polling - use search query if present
-    const isSearching = searchQuery.trim().length > 0;
-    const searchTerm = searchQuery.trim();
+    // Get paginated blocks with polling - use search query if present.
+    const searchTerm = urlQuery.trim();
+    const isSearching = searchTerm.length > 0;
+    const isFiltering = isSearching || finalizedOnly;
     const isNumericSearch = /^\d+$/.test(searchTerm);
+    const filterStatements: object[] = [];
+    if (finalizedOnly) {
+        filterStatements.push({ finalization_status: { _eq: 'finalized' } });
+    }
+    const where = filterStatements.length ? { _and: filterStatements } : {};
 
     // Choose the appropriate query based on search type
     let queryToUse = GET_LATEST_BLOCKS;
     let queryVariables: any = {
-        limit: blocksPerPage,
+        // Fetch one extra row to know whether a next page exists without
+        // treating a DAG height as a row count.
+        limit: blocksPerPage + 1,
         offset: (currentPage - 1) * blocksPerPage,
+        where,
     };
 
     if (isSearching) {
-        if (isNumericSearch) {
+        const exactHeight = heightInput(searchTerm);
+        if (isNumericSearch && exactHeight !== null) {
             queryToUse = SEARCH_BLOCKS_BY_NUMBER;
             queryVariables = {
-                blockNumber: parseInt(searchTerm),
-                limit: blocksPerPage,
+                // Send the exact decimal text; Number/parseInt would round large heights.
+                blockNumber: exactHeight,
+                limit: blocksPerPage + 1,
                 offset: (currentPage - 1) * blocksPerPage,
+                where,
             };
         } else {
             queryToUse = SEARCH_BLOCKS_BY_HASH;
             queryVariables = {
-                search: `%${searchTerm}%`,
-                limit: blocksPerPage,
+                search: searchPattern(searchTerm),
+                limit: blocksPerPage + 1,
                 offset: (currentPage - 1) * blocksPerPage,
+                where,
             };
         }
     }
@@ -78,32 +117,19 @@ const HomePage: React.FC = () => {
         queryToUse,
         {
             variables: queryVariables,
-            pollInterval: isSearching ? 0 : 2000, // Don't poll when searching
-            skip: isSearching && !searchTerm, // Skip query if searching but no term
+            // Only a text search pauses polling: its results do not change, while
+            // the finalized-only filter keeps showing new finalized blocks.
+            pollInterval: isSearching ? 0 : 2000,
         }
     );
 
     const stats = statsData?.network_stats?.[0] as NetworkStats;
-    const blocks = blocksQueryData?.blocks || [];
-    // Use the actual latest block number from blocks table for consistency
-    const latestBlockFromData =
-        blocksData?.blocks?.[0]?.block_number || blocks?.[0]?.block_number || 0;
-    const totalBlocks =
-        typeof latestBlockFromData === "string"
-            ? parseInt(latestBlockFromData)
-            : latestBlockFromData;
-    const totalPages = Math.ceil(totalBlocks / blocksPerPage);
+    // The lookahead row only decides whether Next is available.
+    const fetchedBlocks = blocksQueryData?.blocks || [];
+    const blocks = fetchedBlocks.slice(0, blocksPerPage);
+    const hasMore = fetchedBlocks.length > blocksPerPage;
 
-    const formatTimestamp = (timestamp: string | number) => {
-        try {
-            const ts = parseInt(timestamp.toString());
-            const date = new Date(ts);
-            if (isNaN(date.getTime())) return "Invalid date";
-            return formatDistanceToNow(date, { addSuffix: true });
-        } catch (e) {
-            return "Invalid date";
-        }
-    };
+    const formatTimestamp = (timestamp: string | number) => formatRelativeTime(timestamp);
 
     const truncateHash = (hash: string) => {
         if (!hash || hash.length < 16) return hash;
@@ -128,7 +154,7 @@ const HomePage: React.FC = () => {
     };
 
     const goToPage = (page: number) => {
-        if (page >= 1 && page <= totalPages) {
+        if (Number.isSafeInteger(page) && page >= 1) {
             setCurrentPage(page);
         }
     };
@@ -156,15 +182,16 @@ const HomePage: React.FC = () => {
                 }}
             >
                 {/* Left Column - Main Content */}
-                <div style={{ flex: "auto" }}>
+                <div style={{ flex: "1 1 0", minWidth: 0 }}>
                     {/* Summary Cards Row */}
                     <div className="summary-grid">
                         <div className="asi-card glass">
                             <h3
                                 className="text-muted"
                                 style={{ marginBottom: "0.5rem" }}
+                                title="Latest indexed block height"
                             >
-                                Latest Block
+                                Latest Height
                             </h3>
                             <h2 className="text-success" style={{ margin: 0 }}>
                                 {statsLoading ? "-" : latestBlockNumber}
@@ -243,36 +270,35 @@ const HomePage: React.FC = () => {
                                             "{searchQuery}"
                                         </span>
                                     </>
+                                ) : isFiltering ? (
+                                    "Filtered Blocks"
                                 ) : (
                                     "Recent Blocks"
                                 )}
                             </h1>
                         </div>
-                        <div className="export-data-container">
-                          <RecentDataExporter entityToExport={ExportEntities.BLOCKS} />
-                        </div>
                     </div>
                     <div className="section-controls">
                         <div className="search-box">
-                            <input
-                                className="text-3"
-                                type="text"
-                                placeholder="Search by block number or hash..."
-                                style={{
-                                    flex: "0 1 300px",
-                                    marginRight: "0.5rem",
-                                }}
+                            <SearchField
+                                placeholder="Height or hash"
+                                aria-label="Filter blocks by height or hash"
                                 value={searchQuery}
                                 onChange={(e) => setSearchQuery(e.target.value)}
                                 onKeyUp={handleSearch}
                             />
-                            {isSearching && (
+                            {searchQuery && (
                                 <button
                                     className="btn btn-secondary"
                                     style={{ padding: "8px 16px" }}
                                     onClick={() => {
                                         setSearchQuery("");
                                         setCurrentPage(1);
+                                        setSearchParams(previous => {
+                                            const next = new URLSearchParams(previous);
+                                            next.delete("q");
+                                            return next;
+                                        });
                                     }}
                                 >
                                     Clear
@@ -299,6 +325,40 @@ const HomePage: React.FC = () => {
                     </div>
                 </div>
 
+                <div className="home-filter-row">
+                    <label className="home-filter-row__check">
+                        <input
+                            type="checkbox"
+                            checked={finalizedOnly}
+                            onChange={(event) => {
+                                const checked = event.target.checked;
+                                setSearchParams(previous => {
+                                    const next = new URLSearchParams(previous);
+                                    if (checked) next.set("finalized", "1");
+                                    else next.delete("finalized");
+                                    return next;
+                                });
+                            }}
+                        />
+                        Finalized only
+                    </label>
+                    {finalizedOnly && (
+                        <button
+                            type="button"
+                            className="home-filter-row__clear"
+                            onClick={() => {
+                                setSearchParams(previous => {
+                                    const next = new URLSearchParams(previous);
+                                    next.delete("finalized");
+                                    return next;
+                                });
+                            }}
+                        >
+                            Clear filter
+                        </button>
+                    )}
+                </div>
+
                 {blocksLoading ? (
                     <div className="text-center">
                         <span className="loading"></span>
@@ -310,57 +370,90 @@ const HomePage: React.FC = () => {
                     </div>
                 ) : (
                     <div style={{ overflowX: "auto" }}>
-                        <table>
+                        <table className="recent-blocks-table">
                             <thead className="text-1">
                                 <tr>
-                                    <th>Block</th>
-                                    <th>Hash</th>
-                                    <th>Validator</th>
-                                    <th>Time</th>
-                                    <th>Status</th>
+                                    <th scope="col" title="Block height. A height can contain several DAG sibling blocks.">Height</th>
+                                    <th scope="col" title="Unique block identifier. Sibling blocks at the same height have different hashes.">Block hash</th>
+                                    <th scope="col">Validator</th>
+                                    <th scope="col">Time</th>
+                                    <th scope="col">Status</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                {blocks.map((block: Block) => (
+                                {blocks.map((block: Block, index: number) => {
+                                    const previous = blocks[index - 1];
+                                    const firstAtHeight = !previous || previous.block_number !== block.block_number;
+                                    let groupSize = 1;
+                                    if (firstAtHeight) {
+                                        for (let next = index + 1; next < blocks.length &&
+                                            blocks[next].block_number === block.block_number; next += 1) {
+                                            groupSize += 1;
+                                        }
+                                    }
+                                    return (
                                     <tr key={block.block_hash}>
-                                        <td>
-                                            <h5>
-                                                <Link
-                                                    to={getBlockPath(block.block_hash, block.block_number)}
-                                                    className="block-number"
-                                                >
-                                                    {block.block_number}
-                                                </Link>
-                                            </h5>
-                                        </td>
+                                        {firstAtHeight && (
+                                            <td rowSpan={groupSize} className="height-cell">
+                                                <h5>
+                                                    <Link
+                                                        to={getBlockPath(null, block.block_number)}
+                                                        className="block-number"
+                                                        aria-label={`Open height ${block.block_number}`}
+                                                        title="All blocks at this height"
+                                                    >
+                                                        {block.block_number}
+                                                    </Link>
+                                                </h5>
+                                                {groupSize > 1 && (
+                                                    <span className="height-group-count">
+                                                        {groupSize} blocks
+                                                    </span>
+                                                )}
+                                            </td>
+                                        )}
                                         <td className="hash-cell">
                                             <Link
                                                 className="text-3"
                                                 to={getBlockPath(block.block_hash, block.block_number)}
+                                                aria-label={`Open block ${block.block_hash}`}
+                                                title={block.block_hash}
                                             >
                                                 {truncateHash(block.block_hash)}
                                             </Link>
                                         </td>
-                                        <td className="text-3 mono">
+                                        <td className="text-3 mono" title={block.proposer}>
                                             {truncateHash(block.proposer)}
                                         </td>
-                                        <td className="timestamp">
+                                        <td className="timestamp" title={formatLocalTime(block.timestamp)}>
                                             {formatTimestamp(block.timestamp)}
                                         </td>
                                         <td>
-                                            <h5 className="text-success">
-                                                ✓ Confirmed
-                                            </h5>
+                                            {(() => {
+                                                const status = block.finalization_status;
+                                                const finalized = !status || status === 'finalized';
+                                                return (
+                                                    <h5 className={finalized ? 'text-success' : 'text-warning'} style={{ textTransform: 'capitalize' }}>
+                                                        {finalized ? '✓ Confirmed' : `• ${status?.replace(/_/g, ' ')}`}
+                                                    </h5>
+                                                );
+                                            })()}
                                         </td>
                                     </tr>
-                                ))}
+                                    );
+                                })}
                             </tbody>
                         </table>
                     </div>
                 )}
+                {!blocksLoading && blocks.length > 0 && (
+                    <p className="text-muted" style={{ marginTop: "0.75rem", fontSize: "0.8rem" }}>
+                        A height can contain several DAG sibling blocks. The block hash identifies each block.
+                    </p>
+                )}
 
                 {/* Pagination Controls */}
-                {totalPages > 1 && (
+                {(currentPage > 1 || hasMore) && (
                     <>
                         <div
                             className="pagination-controls"
@@ -388,7 +481,6 @@ const HomePage: React.FC = () => {
                                     type="number"
                                     value={currentPage}
                                     min="1"
-                                    max={totalPages}
                                     style={{
                                         width: "80px",
                                         textAlign: "center",
@@ -399,8 +491,7 @@ const HomePage: React.FC = () => {
                                         const page = parseInt(value);
                                         if (
                                             !isNaN(page) &&
-                                            page >= 1 &&
-                                            page <= totalPages
+                                            page >= 1
                                         ) {
                                             goToPage(page);
                                         }
@@ -409,40 +500,33 @@ const HomePage: React.FC = () => {
                                         // Reset to current page if invalid
                                         if (
                                             e.target.value === "" ||
-                                            parseInt(e.target.value) < 1 ||
-                                            parseInt(e.target.value) >
-                                                totalPages
+                                            parseInt(e.target.value) < 1
                                         ) {
                                             e.target.value =
                                                 currentPage.toString();
                                         }
                                     }}
                                 />
-                                <span className="text-muted">
-                                    of {totalPages}
-                                </span>
                             </div>
                             <h3>
                                 <button
                                     className="btn btn-secondary text-1"
-                                    disabled={currentPage === totalPages}
+                                    disabled={!hasMore}
                                     onClick={() => goToPage(currentPage + 1)}
                                 >
                                     Next →
                                 </button>
                             </h3>
                         </div>
-                        <div style={{ marginTop: "1rem", textAlign: "center" }}>
-                            <span className="text-muted">
-                                Showing {(currentPage - 1) * blocksPerPage + 1}-
-                                {Math.min(
-                                    currentPage * blocksPerPage,
-                                    totalBlocks
-                                )}{" "}
-                                of {totalBlocks} blocks
-                            </span>
-                        </div>
                     </>
+                )}
+                {!blocksLoading && blocks.length > 0 && (
+                    <div className="table-footer">
+                        <span className="text-muted">
+                            {`Showing ${(currentPage - 1) * blocksPerPage + 1}-${(currentPage - 1) * blocksPerPage + blocks.length} blocks`}
+                        </span>
+                        <RecentDataExporter entityToExport={ExportEntities.BLOCKS} />
+                    </div>
                 )}
             </section>
         </>

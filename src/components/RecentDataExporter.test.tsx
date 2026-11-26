@@ -24,7 +24,9 @@ function renderExporter(result: object) {
     link: new ApolloLink(() => Observable.of(result)),
   });
   render(<ApolloProvider client={client}><RecentDataExporter entityToExport={ExportEntities.TRANSFERS} /></ApolloProvider>);
-  fireEvent.click(screen.getByRole('button', { name: 'Export recent transactions' }));
+  const button = screen.getByRole('button', { name: 'Export recent transfers as CSV' });
+  expect(button).toHaveTextContent('Export CSV');
+  fireEvent.click(button);
 }
 
 test('exports exact raw amounts with their recorded 8/18 decimals', async () => {
@@ -50,5 +52,6 @@ test('exports exact raw amounts with their recorded 8/18 decimals', async () => 
 test('reports a GraphQL error envelope and produces no file', async () => {
   renderExporter({ errors: [{ message: 'statement timeout' }] });
   expect(await screen.findByRole('button', { name: 'Export failed: statement timeout' })).toBeInTheDocument();
+  expect(screen.getByText('Retry CSV')).toBeInTheDocument();
   expect(exported).toHaveLength(0);
 });

@@ -28,14 +28,15 @@ ENV REACT_APP_ENABLE_WEBSOCKETS=true
 ENV REACT_APP_ENABLE_POLLING=true
 ENV REACT_APP_POLLING_INTERVAL=5000
 
-ARG REACT_APP_NATIVE_TOKEN_DECIMALS=8
+ARG REACT_APP_NATIVE_TOKEN_DECIMALS=18
 ENV REACT_APP_NATIVE_TOKEN_DECIMALS=${REACT_APP_NATIVE_TOKEN_DECIMALS}
 
 # Build the React application for production
 RUN npm run build
 
-# Stage 2: Serve the application with nginx
-FROM nginx:alpine AS production
+# Stage 2: Serve the application with nginx. Pin the stable branch so image
+# refreshes are deliberate.
+FROM nginx:1.30.8-alpine AS production
 
 # Copy custom nginx configuration
 COPY --from=builder /app/nginx.conf /etc/nginx/templates/default.conf.template

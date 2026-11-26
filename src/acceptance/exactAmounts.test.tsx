@@ -4,6 +4,7 @@
 // Fixtures are synthetic Hasura responses with HASURA_GRAPHQL_STRINGIFY_NUMERIC_TYPES=true,
 // not live-chain evidence. docs/release-acceptance/exact-amounts.md records the results.
 import React from 'react';
+import { PendingDeploysStatusProvider } from '../hooks/usePendingDeploysStatus';
 import { ApolloClient, ApolloProvider, InMemoryCache, createHttpLink } from '@apollo/client';
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
@@ -65,6 +66,7 @@ function mount(url: string, path: string, element: React.ReactElement, respond: 
 
 function emptyData(operation: string): object {
   if (operation === 'GetPendingDeploy') return { pending_deploys: [] };
+  if (operation === 'WatchPendingDeploysStatus' || operation === 'GetPendingDeploysStatus') return { indexer_state: [] };
   return {};
 }
 
@@ -97,8 +99,24 @@ const deployment = (overrides: object = {}) => ({
 });
 
 function mountDeploy(respond: Responder) {
-  return mount(`/transaction/${DEPLOY_ID}`, '/transaction/:transactionId', <TransactionDetailPage />, respond);
+  return mount(`/transaction/${DEPLOY_ID}`, '/transaction/:transactionId',
+    <PendingDeploysStatusProvider><TransactionDetailPage /></PendingDeploysStatusProvider>, respond);
 }
+
+test('displays a deploy indexed between the empty detail read and the first inclusion result', async () => {
+  let detailReads = 0;
+  mountDeploy(operation => {
+    if (operation === 'GetTransactionDetails') return json({ deployments: ++detailReads === 1 ? [] : [deployment()] });
+    if (operation === 'WatchDeploymentIndexed') return json({ deployments: [{ deploy_id: DEPLOY_ID }] });
+    return undefined;
+  });
+
+  expect(await screen.findByText(INT64_MAX)).toBeInTheDocument();
+  expect(detailReads).toBe(2);
+  expect(requests.filter(r => r.operation === 'WatchDeploymentIndexed').map(r => r.variables))
+    .toEqual([{ deployId: DEPLOY_ID }]);
+  expect(requests.some(r => r.operation === 'WatchPendingDeploy')).toBe(false);
+});
 
 test('deploy details keep exact 18-decimal, legacy 8-decimal, zero, smallest, 2^63, 10^19 and uint256 transfers', async () => {
   mountDeploy(op => (op === 'GetTransactionDetails' ? json({ deployments: [deployment()] }) : undefined));
@@ -118,6 +136,23 @@ test('deploy details keep exact 18-decimal, legacy 8-decimal, zero, smallest, 2^
   ]);
   expect(screen.getByText(`Dust: ${UINT256_MAX}`)).toBeInTheDocument();
   expect(screen.getByText('Dust: 1000000000000000001')).toBeInTheDocument();
+});
+
+test('deploy overview shows full transfer addresses instead of shortened labels', async () => {
+  const sender = '1111x5QCpTeTXakyVzda9zAVyo6vnSG2WTd9TJ3n93LmMYRhzZouR';
+  const receiver = '11112HCvTdobZGUsaSKBLRSh6XW4kY3RNQFeKj4VMqXxHz2AYS2LyH';
+  mountDeploy(op => (op === 'GetTransactionDetails' ? json({
+    deployments: [deployment({ transfers: [
+      { ...transfer('1', '1000000000000000000', 18), from_address: sender, to_address: receiver },
+    ] })],
+  }) : undefined));
+
+  expect(await screen.findByRole('link', { name: sender }))
+    .toHaveAttribute('href', `/address/${encodeURIComponent(sender)}`);
+  expect(screen.getByRole('link', { name: receiver }))
+    .toHaveAttribute('href', `/address/${encodeURIComponent(receiver)}`);
+  expect(screen.queryByText('1111x5QC…hzZouR')).not.toBeInTheDocument();
+  expect(screen.queryByText('11112HCv…S2LyH')).not.toBeInTheDocument();
 });
 
 test('deploy details keep exact int64 phlo cost, phlo limit beyond 2^53 and uint256 phlo price', async () => {

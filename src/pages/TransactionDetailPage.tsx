@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
+import React, { useState, useEffect, useRef } from 'react';
+import { useParams, useNavigate, Link, useSearchParams } from 'react-router-dom';
+import WalletAddressLink from '../components/WalletAddressLink';
 import { useQuery } from '@apollo/client';
 import { motion } from 'framer-motion';
 import { AnimatePresence } from '../components/AnimatePresenceWrapper';
@@ -20,13 +21,14 @@ import {
   Download,
   Eye,
 } from 'lucide-react';
-import { format, formatDistanceToNow } from 'date-fns';
+import { formatLocalTime, formatRelativeTime } from '../utils/time';
 import { toast } from 'react-toastify';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import { gql } from '@apollo/client';
 import { CURRENT_TOKEN } from '../utils/constants';
-import { toMillis } from '../utils/calculateBlockTime';
+import { NATIVE_DECIMALS, groupThousands } from '../utils/amounts';
+import { deployFee } from '../utils/deployFee';
 import CopyButton from '../components/CopyButton';
 import NativeTransferLifecycle, {
   lifecycleCallLabel,
@@ -34,68 +36,28 @@ import NativeTransferLifecycle, {
 } from '../components/NativeTransferLifecycle';
 import { getParentHashes } from '../utils/blockParent';
 import { getBlockPath } from '../utils/blockPath';
-import { GET_PENDING_DEPLOY } from '../graphql/queries';
+import {
+  GET_DEPLOYMENT_INDEXED,
+  GET_PENDING_DEPLOY,
+  WATCH_DEPLOYMENT_INDEXED,
+  WATCH_PENDING_DEPLOY,
+} from '../graphql/queries';
+import { useLiveQuery } from '../hooks/useLiveQuery';
+import { usePendingDeploysStatus } from '../hooks/usePendingDeploysStatus';
 import PendingDeployDetails, { PendingDeployLeftBuffer } from '../components/PendingDeployDetails';
 import { transferStatusView } from '../utils/transferStatus';
+import type { Deployment } from '../types';
+import '../styles/transaction.css';
 
-// The indexer refreshes its pending-deploy snapshot every sync cycle (5 s by default).
-const PENDING_POLL_MS = 5000;
+const PENDING_WATCH_MS = 3 * 60_000;
 
-// Helper functions to safely parse timestamps
-const parseTimestamp = (timestamp: any): number => {
-  if (!timestamp) return Date.now();
-  
-  // If it's already a number
-  if (typeof timestamp === 'number') {
-    // Check if it's in seconds (< 10 digits) or milliseconds
-    return timestamp < 10000000000 ? timestamp * 1000 : timestamp;
-  }
-  
-  // If it's a string
-  if (typeof timestamp === 'string') {
-    // Try parsing as number first (epoch timestamp)
-    const parsed = parseInt(timestamp);
-    if (!isNaN(parsed)) {
-      // Check if it's in seconds or milliseconds
-      return parsed < 10000000000 ? parsed * 1000 : parsed;
-    }
-    
-    // Try parsing as date string
-    const date = new Date(timestamp);
-    if (!isNaN(date.getTime())) {
-      return date.getTime();
-    }
-  }
-  
-  // Fallback to current time
-  return Date.now();
-};
-
-const formatTimestamp = (timestamp: any): string => {
-  try {
-    const time = parseTimestamp(timestamp);
-    const date = new Date(time);
-    if (isNaN(date.getTime())) {
-      return 'Unknown time';
-    }
-    return format(date, 'PPpp');
-  } catch (error) {
-    return 'Unknown time';
-  }
-};
-
-const formatTimestampDistance = (timestamp: any): string => {
-  try {
-    const time = parseTimestamp(timestamp);
-    const date = new Date(time);
-    if (isNaN(date.getTime())) {
-      return 'Unknown time';
-    }
-    return formatDistanceToNow(date, { addSuffix: true });
-  } catch (error) {
-    return 'Unknown time';
-  }
-};
+/** Executed fee in ASI, using the block's token decimals when the indexer has them. */
+const deploymentFee = (deployment: Deployment) =>
+  deployFee(
+    deployment.phlo_cost,
+    deployment.phlo_price,
+    deployment.block?.token_decimals ?? NATIVE_DECIMALS
+  );
 
 const GET_TRANSACTION_DETAILS = gql`
   query GetTransactionDetails($deployId: String!) {
@@ -131,6 +93,7 @@ const GET_TRANSACTION_DETAILS = gql`
       block {
         block_number
         block_hash
+        token_decimals
         parent_links {
           parent_hash
           parent_index
@@ -149,9 +112,45 @@ const GET_TRANSACTION_DETAILS = gql`
 
 const TransactionDetailPage: React.FC = () => {
   const { transactionId } = useParams<{ transactionId: string }>();
+  return <TransactionDetail key={transactionId} transactionId={transactionId} />;
+};
+
+const DETAIL_TABS = ['overview', 'code', 'transfers', 'block'] as const;
+type DetailTab = typeof DETAIL_TABS[number];
+
+const detailTabFromParam = (value: string | null): DetailTab => (
+  DETAIL_TABS.includes(value as DetailTab) ? value as DetailTab : 'overview'
+);
+
+const TransferParty: React.FC<{ label: string; address: string }> = ({ label, address }) => (
+  <div>
+    <div style={{ color: '#9ca3af', fontSize: '0.75rem', letterSpacing: '0.04em', marginBottom: '0.2rem', textTransform: 'uppercase' }}>
+      {label}
+    </div>
+    <div className="mono" style={{ fontSize: '0.875rem', lineHeight: 1.5, wordBreak: 'break-all' }}>
+      <WalletAddressLink address={address} />
+    </div>
+  </div>
+);
+
+const TransactionDetail: React.FC<{ transactionId?: string }> = ({ transactionId }) => {
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState<'overview' | 'code' | 'transfers' | 'block'>('overview');
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [activeTab, setActiveTab] = useState<DetailTab>(detailTabFromParam(searchParams.get('tab')));
   const [showRawData, setShowRawData] = useState(false);
+
+  useEffect(() => {
+    const tab = detailTabFromParam(searchParams.get('tab'));
+    setActiveTab(previous => previous === tab ? previous : tab);
+  }, [searchParams]);
+
+  const selectTab = (tab: DetailTab) => {
+    setActiveTab(tab);
+    const next = new URLSearchParams(searchParams);
+    if (tab === 'overview') next.delete('tab');
+    else next.set('tab', tab);
+    setSearchParams(next);
+  };
 
   const { data, loading, error, refetch } = useQuery(GET_TRANSACTION_DETAILS, {
     variables: { deployId: transactionId },
@@ -166,30 +165,48 @@ const TransactionDetailPage: React.FC = () => {
   const lifecycle = useNativeTransferLifecycle(transaction?.deploy_id);
   const lifecycleLabel = lifecycleCallLabel(lifecycle);
 
-  // A deploy that is not in a block yet exists only in the pending-deploy snapshot.
+  // A deploy that is not in a block yet exists only in the pending-deploy
+  // snapshot, which the indexer keeps only when it reads validator buffers.
   const notIndexed = !!transactionId && !loading && !error && !transaction;
-  const { data: pendingData, loading: pendingLoading } = useQuery(GET_PENDING_DEPLOY, {
+  const pendingFeature = usePendingDeploysStatus();
+  const [watchExpired, setWatchExpired] = useState(false);
+  const [detailsChecked, setDetailsChecked] = useState(false);
+  const awaitingIndexer = notIndexed && !watchExpired && !detailsChecked;
+  const watchPending = awaitingIndexer && !!pendingFeature.status;
+  useEffect(() => {
+    if (!awaitingIndexer) return;
+    const timer = window.setTimeout(() => setWatchExpired(true), PENDING_WATCH_MS);
+    return () => window.clearTimeout(timer);
+  }, [awaitingIndexer]);
+
+  const { data: pendingData, loading: pendingLoading, error: pendingError } = useLiveQuery(WATCH_PENDING_DEPLOY, GET_PENDING_DEPLOY, {
     variables: { sig: transactionId },
-    skip: !notIndexed,
-    pollInterval: PENDING_POLL_MS,
+    skip: !watchPending,
   });
   const pendingDeploy = notIndexed ? pendingData?.pending_deploys?.[0] : undefined;
   const isPending = !!pendingDeploy;
 
-  // The node can drop a deploy from its buffer before the indexer stores the
-  // block that includes it. Keep the lookup alive after the deploy was seen.
-  const [pendingSeenFor, setPendingSeenFor] = useState<string | null>(null);
+  // Remember a pending observation so the page can explain a subsequent empty buffer.
+  const [seenInBuffer, setSeenInBuffer] = useState(false);
   useEffect(() => {
-    if (isPending && transactionId) setPendingSeenFor(transactionId);
-  }, [isPending, transactionId]);
-  const leftBuffer = notIndexed && !isPending && pendingSeenFor === transactionId;
-  const awaitingIndexer = isPending || leftBuffer;
+    if (isPending) setSeenInBuffer(true);
+  }, [isPending]);
+  const leftBuffer = watchPending && seenInBuffer && pendingData?.pending_deploys?.length === 0;
 
+  // Reload the details once the indexer stores the deploy, instead of polling them.
+  const { data: indexedData, loading: indexedLoading, error: indexedError } = useLiveQuery(WATCH_DEPLOYMENT_INDEXED, GET_DEPLOYMENT_INDEXED, {
+    variables: { deployId: transactionId },
+    skip: !awaitingIndexer,
+  });
+  const indexedNow = awaitingIndexer && (indexedData?.deployments?.length ?? 0) > 0;
+  const requestedDetails = useRef(false);
   useEffect(() => {
-    if (!awaitingIndexer) return;
-    const timer = setInterval(() => { refetch(); }, PENDING_POLL_MS);
-    return () => clearInterval(timer);
-  }, [awaitingIndexer, refetch]);
+    if (indexedNow && !requestedDetails.current) {
+      requestedDetails.current = true;
+      // Keep a manual retry available if the detail row is still absent or the request fails.
+      void refetch().then(() => setDetailsChecked(true), () => setDetailsChecked(true));
+    }
+  }, [indexedNow, refetch]);
 
   useEffect(() => {
     if (!transactionId) {
@@ -206,6 +223,7 @@ const TransactionDetailPage: React.FC = () => {
   const downloadTransactionData = (format: 'json' | 'txt') => {
     if (!transaction) return;
 
+    const fee = deploymentFee(transaction);
     const data = {
       transaction,
       transfers,
@@ -228,10 +246,11 @@ ASI Chain Transaction Details
 
 Transaction ID: ${transaction.deploy_id}
 Deployer: ${transaction.deployer}
-Block Number: ${transaction.block_number}
+Height: ${transaction.block_number}
 Timestamp: ${new Date(transaction.timestamp).toLocaleString()}
 Status: ${transaction.errored ? 'Failed' : 'Success'}
-Phlo Cost: ${transaction.phlo_cost?.toLocaleString() || 'N/A'}
+Phlo Cost: ${transaction.phlo_cost?.toLocaleString() || 'N/A'} phlo
+Fee: ${fee ? `${fee.asi} ${CURRENT_TOKEN}` : 'N/A'}
 Type: ${transaction.deployment_type || 'Unknown'}
 
 ${transaction.error_message ? `Error: ${transaction.error_message}\n` : ''}
@@ -271,14 +290,11 @@ Exported at: ${new Date().toLocaleString()}
     return 'Unknown';
   };
 
-  const getStatusColor = (errored: boolean, status?: string) => {
-    if (errored) return '#ef4444';
-    if (status === 'success' || status === 'included') return '#10b981';
-    if (status === 'pending') return '#f59e0b';
-    return '#9ca3af';
-  };
-
-  if (loading || (notIndexed && pendingLoading && !pendingData)) {
+  const statusError = error ?? (awaitingIndexer
+    ? indexedError ?? pendingFeature.error ?? (watchPending ? pendingError : undefined)
+    : undefined);
+  const checkingStatus = indexedLoading || pendingFeature.loading || (pendingLoading && !pendingData);
+  if (loading || (awaitingIndexer && !isPending && (indexedNow || (!statusError && checkingStatus)))) {
     return (
       <div style={{
         display: 'flex',
@@ -294,12 +310,47 @@ Exported at: ${new Date().toLocaleString()}
     );
   }
 
-  if (pendingDeploy) {
+  if (!transaction && (watchExpired || detailsChecked)) {
+    return (
+      <section className="asi-card">
+        {watchExpired && !seenInBuffer && <>
+          <h2>Transaction Not Found</h2>
+          <p>Transaction {transactionId} could not be found.</p>
+        </>}
+        {watchExpired && seenInBuffer && <>
+          <h2>Deploy status unconfirmed</h2>
+          <p>The deploy was seen in a validator buffer earlier. The three-minute watch ended without confirmation that it was included.</p>
+        </>}
+        {!watchExpired && <h2>Transaction details unavailable</h2>}
+        <p role="status">{watchExpired ? 'Automatic updates stopped after three minutes.' :
+          'The indexer has recorded this deploy. Its details are currently unavailable.'}</p>
+        <button className="btn btn-secondary" onClick={() => {
+          setWatchExpired(false);
+          void refetch().catch(() => { /* useQuery reports the failure. */ });
+        }}>Check again</button>
+      </section>
+    );
+  }
+
+  if (pendingDeploy && !statusError) {
     return <PendingDeployDetails deploy={pendingDeploy} />;
   }
 
-  if (leftBuffer && transactionId) {
+  if (leftBuffer && !statusError && transactionId) {
     return <PendingDeployLeftBuffer sig={transactionId} />;
+  }
+
+  // The inclusion watch is still running: this is not a terminal not-found state.
+  if (awaitingIndexer && !statusError) {
+    return (
+      <section className="asi-card">
+        <h2>Deploy not indexed yet</h2>
+        <p>Transaction {transactionId} has not been indexed in a block yet.</p>
+        <p className="text-muted" role="status">
+          This page keeps checking for three minutes and updates automatically when the deploy is indexed.
+        </p>
+      </section>
+    );
   }
 
   if (error || !transaction) {
@@ -307,10 +358,10 @@ Exported at: ${new Date().toLocaleString()}
       <div className="asi-card" style={{ textAlign: 'center', padding: '3rem' }}>
         <div style={{ color: '#ef4444', marginBottom: '1rem' }}>
           <AlertCircle size={48} style={{ marginBottom: '1rem' }} />
-          <h2>Transaction Not Found</h2>
+          <h2>{statusError ? 'Unable to verify deploy status' : 'Transaction Not Found'}</h2>
         </div>
         <p style={{ color: '#9ca3af', marginBottom: '2rem' }}>
-          {error ? error.message : `Transaction ${transactionId} could not be found.`}
+          {statusError ? statusError.message : `Transaction ${transactionId} could not be found.`}
         </p>
         <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center' }}>
           <button
@@ -321,7 +372,7 @@ Exported at: ${new Date().toLocaleString()}
             Go Back
           </button>
           <button
-            onClick={() => refetch()}
+            onClick={() => { void refetch().catch(() => { /* useQuery reports the failure. */ }); }}
             className="btn btn-primary"
           >
             <Activity size={16} style={{ marginRight: '0.5rem' }} />
@@ -332,6 +383,17 @@ Exported at: ${new Date().toLocaleString()}
     );
   }
 
+  const feeDecimals = transaction.block?.token_decimals ?? NATIVE_DECIMALS;
+  const fee = deploymentFee(transaction);
+  const maxFee = deployFee(transaction.phlo_limit, transaction.phlo_price, feeDecimals);
+  const statusText = getStatusText(transaction.errored, transaction.status);
+  const statusDetail = transaction.errored
+    ? transaction.error_message || 'The deploy was processed with an error.'
+    : transaction.status === 'pending'
+      ? 'The deploy is waiting to be included in a block.'
+      : 'The transaction has been processed and included in the blockchain.';
+  const statusClass = transaction.errored ? ' is-error' : transaction.status === 'pending' ? ' is-pending' : '';
+
   const tabs = [
     { key: 'overview', label: 'Overview', icon: <Activity size={16} /> },
     { key: 'code', label: 'Code', icon: <Code size={16} /> },
@@ -341,34 +403,6 @@ Exported at: ${new Date().toLocaleString()}
 
   const renderOverviewTab = () => (
     <div>
-      {/* Status Banner */}
-      <div className="asi-card" style={{
-        marginBottom: '2rem',
-        backgroundColor: transaction.errored ? 'rgba(239, 68, 68, 0.1)' : 'rgba(16, 185, 129, 0.1)',
-        border: `1px solid ${getStatusColor(transaction.errored, transaction.status)}40`
-      }}>
-        <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: '1rem'
-        }}>
-          {getStatusIcon(transaction.errored, transaction.status)}
-          <div>
-            <div style={{
-              fontSize: '1.25rem',
-              fontWeight: '600',
-              color: getStatusColor(transaction.errored, transaction.status)
-            }}>
-              Transaction {getStatusText(transaction.errored, transaction.status)}
-            </div>
-            <div style={{ fontSize: '0.875rem', color: '#9ca3af' }}>
-              {transaction.errored && transaction.error_message ? transaction.error_message : 
-               'Transaction has been processed and included in the blockchain'}
-            </div>
-          </div>
-        </div>
-      </div>
-
       {/* Main Details Grid */}
       <div style={{
         display: 'grid',
@@ -389,22 +423,6 @@ Exported at: ${new Date().toLocaleString()}
             Transaction Information
           </h3>
           <div style={{ gap: '1rem' }}>
-            <div style={{ marginBottom: '1rem' }}>
-              <div style={{ fontSize: '0.875rem', color: '#9ca3af', marginBottom: '0.25rem' }}>
-                Transaction ID
-              </div>
-              <div style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.5rem',
-                fontSize: '0.875rem',
-                wordBreak: 'break-all'
-              }}>
-                {transaction.deploy_id}
-                <CopyButton dataToCopy={transaction.deploy_id} iconSize={14} />
-              </div>
-            </div>
-
             <div style={{ marginBottom: '1rem' }}>
               <div style={{ fontSize: '0.875rem', color: '#9ca3af', marginBottom: '0.25rem' }}>
                 Deployer
@@ -444,11 +462,18 @@ Exported at: ${new Date().toLocaleString()}
               </div>
               <div>
                 <div style={{ fontWeight: '500' }}>
-                  {formatTimestamp(transaction.timestamp)}
+                  {formatLocalTime(transaction.timestamp)}
                 </div>
                 <div style={{ fontSize: '0.875rem', color: '#9ca3af' }}>
-                  {formatTimestampDistance(transaction.timestamp)}
+                  {String(transaction.block_number) === '0'
+                    ? 'Genesis deployment'
+                    : formatRelativeTime(transaction.timestamp)}
                 </div>
+                {String(transaction.block_number) === '0' && (
+                  <div style={{ fontSize: '0.8rem', color: '#9ca3af', marginTop: '0.35rem', lineHeight: 1.45 }}>
+                    Imported from RChain mainnet with its original timestamp; the testnet included it in block 0.
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -466,6 +491,24 @@ Exported at: ${new Date().toLocaleString()}
             <Zap size={20} />
             Execution Details
           </h3>
+          {fee ? (
+            <div className="deploy-fee">
+              <span className="deploy-fee__label">Transaction fee</span>
+              <span className="deploy-fee__value" title={`${fee.asi} ${CURRENT_TOKEN} (${fee.dust} atomic units)`}>
+                {fee.display} {CURRENT_TOKEN}
+              </span>
+              <span className="deploy-fee__note">
+                {groupThousands(String(transaction.phlo_cost ?? 0))} phlo ×{" "}
+                {groupThousands(String(transaction.phlo_price ?? 0))} atomic units per phlo
+                {maxFee ? ` · precharge up to ${maxFee.display} ${CURRENT_TOKEN}` : ""}
+              </span>
+            </div>
+          ) : (
+            <p className="deploy-fee__missing" role="status">
+              Fee is unavailable: the indexer has not reported both the phlo cost
+              and the phlo price for this deploy.
+            </p>
+          )}
           <div style={{ gap: '1rem' }}>
             <div style={{
               display: 'grid',
@@ -509,7 +552,7 @@ Exported at: ${new Date().toLocaleString()}
               </div>
             </div>
 
-            {transaction.sig && (
+            {transaction.sig && transaction.sig !== transaction.deploy_id && (
               <div style={{ marginTop: '1rem' }}>
                 <div style={{ fontSize: '0.875rem', color: '#9ca3af', marginBottom: '0.25rem' }}>
                   Signature
@@ -544,7 +587,7 @@ Exported at: ${new Date().toLocaleString()}
           <div style={{ gap: '1rem' }}>
             <div style={{ marginBottom: '1rem' }}>
               <div style={{ fontSize: '0.875rem', color: '#9ca3af', marginBottom: '0.25rem' }}>
-                Block Number
+                Height
               </div>
               <Link
                 to={getBlockPath(transaction.block_hash, transaction.block_number)}
@@ -626,7 +669,7 @@ Exported at: ${new Date().toLocaleString()}
             gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
             gap: '1rem'
           }}>
-            {transfers.slice(0, 4).map((transfer: any, index: number) => (
+            {transfers.slice(0, 4).map((transfer: any) => (
               <div
                 key={transfer.id}
                 style={{
@@ -655,13 +698,9 @@ Exported at: ${new Date().toLocaleString()}
                     {transferStatusView(transfer.status).label}
                   </span>
                 </div>
-                <div style={{ fontSize: '0.875rem', color: '#d1d5db' }}>
-                  <div style={{ marginBottom: '0.25rem' }}>
-                    <strong>From:</strong> {transfer.from_address.slice(0, 12)}...
-                  </div>
-                  <div>
-                    <strong>To:</strong> {transfer.to_address.slice(0, 12)}...
-                  </div>
+                <div style={{ display: 'grid', gap: '0.65rem' }}>
+                  <TransferParty label="From" address={transfer.from_address} />
+                  <TransferParty label="To" address={transfer.to_address} />
                 </div>
               </div>
             ))}
@@ -669,7 +708,7 @@ Exported at: ${new Date().toLocaleString()}
           {transfers.length > 4 && (
             <div style={{ textAlign: 'center', marginTop: '1rem' }}>
               <button
-                onClick={() => setActiveTab('transfers')}
+                onClick={() => selectTab('transfers')}
                 style={{
                   padding: '0.5rem 1rem',
                   border: '1px solid #3b82f6',
@@ -832,7 +871,7 @@ Exported at: ${new Date().toLocaleString()}
                     fontSize: '0.875rem',
                     wordBreak: 'break-all'
                   }}>
-                    {transfer.from_address}
+                    <WalletAddressLink address={transfer.from_address} />
                   </div>
                 </div>
 
@@ -853,7 +892,7 @@ Exported at: ${new Date().toLocaleString()}
                     fontSize: '0.875rem',
                     wordBreak: 'break-all'
                   }}>
-                    {transfer.to_address}
+                    <WalletAddressLink address={transfer.to_address} />
                   </div>
                 </div>
               </div>
@@ -870,7 +909,7 @@ Exported at: ${new Date().toLocaleString()}
               }}>
                 <div>
                   <Clock size={14} style={{ marginRight: '0.25rem' }} />
-                  {formatTimestampDistance(toMillis(transfer.created_at))}
+                  {formatRelativeTime(transfer.created_at)}
                 </div>
                 {transfer.amount_dust && (
                   <div>
@@ -921,7 +960,7 @@ Exported at: ${new Date().toLocaleString()}
         }}>
           <div>
             <div style={{ fontSize: '0.875rem', color: '#9ca3af', marginBottom: '0.25rem' }}>
-              Block Number
+              Height
             </div>
             <div style={{ fontSize: '1.5rem', fontWeight: '600', color: '#10b981' }}>
               #{block.block_number}
@@ -933,7 +972,7 @@ Exported at: ${new Date().toLocaleString()}
               Timestamp
             </div>
             <div style={{ fontSize: '1rem', fontWeight: '500' }}>
-              {formatTimestamp(block.timestamp)}
+              {formatLocalTime(block.timestamp)}
             </div>
           </div>
 
@@ -1062,13 +1101,21 @@ Exported at: ${new Date().toLocaleString()}
             Back
           </button>
           
-          <h1 style={{ margin: '0 0 0.5rem 0' }}>Transaction Details</h1>
-          <div style={{
-            fontSize: '0.875rem',
-            color: '#9ca3af',
-            wordBreak: 'break-all'
-          }}>
-            {transactionId}
+          <div className="transaction-heading">
+            <h1>Transaction Details</h1>
+            <span
+              className={`transaction-status${statusClass}`}
+              role="img"
+              title={`Transaction ${statusText}: ${statusDetail}`}
+              aria-label={`Transaction ${statusText}: ${statusDetail}`}
+              tabIndex={0}
+            >
+              <span aria-hidden="true">{getStatusIcon(transaction.errored, transaction.status)}</span>
+            </span>
+          </div>
+          <div className="transaction-id-row">
+            <span className="mono">{transaction.deploy_id}</span>
+            <CopyButton dataToCopy={transaction.deploy_id} iconSize={14} />
           </div>
         </div>
 
@@ -1095,6 +1142,7 @@ Exported at: ${new Date().toLocaleString()}
       {/* Tab Navigation */}
       <div style={{
         display: 'flex',
+        flexWrap: 'wrap',
         gap: '0.5rem',
         marginBottom: '2rem',
         backgroundColor: 'rgba(255, 255, 255, 0.05)',
@@ -1104,7 +1152,8 @@ Exported at: ${new Date().toLocaleString()}
         {tabs.map((tab) => (
           <button
             key={tab.key}
-            onClick={() => setActiveTab(tab.key as any)}
+            onClick={() => selectTab(tab.key as DetailTab)}
+            aria-pressed={activeTab === tab.key}
             style={{
               flex: 1,
               padding: '0.75rem 1rem',

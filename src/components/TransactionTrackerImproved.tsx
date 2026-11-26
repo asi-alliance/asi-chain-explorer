@@ -1,9 +1,11 @@
 import React, {
     useState,
+    useEffect,
     useMemo,
     useRef,
 } from "react";
 import { useQuery, gql, useLazyQuery } from "@apollo/client";
+import { useSearchParams } from "react-router-dom";
 import { motion } from "framer-motion";
 import {
   RefreshCw,
@@ -15,9 +17,10 @@ import {
   CheckCircle,
   XCircle,
 } from 'lucide-react';
-import { formatDistanceToNow } from 'date-fns';
+import { formatLocalTime, formatRelativeTime, toMillis } from '../utils/time';
 import { CURRENT_TOKEN } from '../utils/constants';
 import RecentDataExporter, { ExportEntities } from "./RecentDataExporter";
+import SearchField from "./SearchField";
 
 // GraphQL Queries
 const GET_TRANSACTION_COUNTS = gql`
@@ -127,19 +130,39 @@ interface TransactionTrackerImprovedProps {
     embedded?: boolean;
 }
 
+type TransactionTab = "deployments" | "transfers";
+
+const tabFromParam = (value: string | null): TransactionTab => (
+    value === "transfers" ? "transfers" : "deployments"
+);
+
 const TransactionTrackerImproved: React.FC<TransactionTrackerImprovedProps> = ({
     onTransactionSelect,
     embedded = false,
 }) => {
     const debounceRef = useRef<NodeJS.Timeout | undefined>(undefined);
+    const [searchParams, setSearchParams] = useSearchParams();
     // State
-    const [activeTab, setActiveTab] = useState<"deployments" | "transfers">(
-        "deployments"
-    );
+    const [activeTab, setActiveTab] = useState<TransactionTab>(tabFromParam(searchParams.get("tab")));
     // const [activeTab, setActiveTab] = useState<'all' | 'deployments' | 'transfers'>('all');
     const [currentPage, setCurrentPage] = useState(1);
     const [itemsPerPage, setItemsPerPage] = useState(20);
     const [searchQuery, setSearchQuery] = useState("");
+
+    useEffect(() => {
+        const tab = tabFromParam(searchParams.get("tab"));
+        setActiveTab(previous => previous === tab ? previous : tab);
+        setCurrentPage(1);
+    }, [searchParams]);
+
+    const selectTab = (tab: TransactionTab) => {
+        setActiveTab(tab);
+        setCurrentPage(1);
+        const next = new URLSearchParams(searchParams);
+        if (tab === "transfers") next.set("tab", "transfers");
+        else next.delete("tab");
+        setSearchParams(next);
+    };
 
     // Fetch total counts
     const { data: countsData } = useQuery(GET_TRANSACTION_COUNTS, {
@@ -214,37 +237,6 @@ const TransactionTrackerImproved: React.FC<TransactionTrackerImprovedProps> = ({
       setSearchQuery(value);
       debouncedSearch(value);
     }
-    /** Normalize any time-like value to epoch milliseconds. */
-    const toMillis = (input: string | number | undefined | null): number => {
-        if (input == null) return NaN;
-
-        if (typeof input === 'number' && Number.isFinite(input)) {
-            // Detect seconds vs milliseconds by magnitude
-            return input > 1e12 ? input : input * 1000;
-        }
-
-        if (typeof input === 'string') {
-            const s = input.trim();
-
-            // Pure digits → numeric epoch (seconds or milliseconds)
-            if (/^\d+$/.test(s)) {
-                const n = Number(s);
-                return n > 1e12 ? n : n * 1000;
-            }
-
-            // ISO-like string: trim microseconds to milliseconds
-            let normalized = s.replace(/(\.\d{3})\d+/, '$1'); // "....350416" → "....350"
-            // If there's time but no timezone, assume UTC
-            if (/[T ]\d{2}:\d{2}:\d{2}/.test(normalized) && !/[zZ]$/.test(normalized) && !/[+-]\d{2}:\d{2}$/.test(normalized)) {
-                normalized += 'Z';
-            }
-
-            const ms = Date.parse(normalized); // returns ms
-            return Number.isNaN(ms) ? NaN : ms;
-        }
-
-        return NaN;
-    };
 
     const searchResults = useMemo(() => {
 
@@ -281,8 +273,8 @@ const TransactionTrackerImproved: React.FC<TransactionTrackerImprovedProps> = ({
         }
 
       return results.sort((a, b) => {
-            const timeA = parseInt(a.displayTime);
-            const timeB = parseInt(b.displayTime);
+            const timeA = toMillis(a.displayTime);
+            const timeB = toMillis(b.displayTime);
             return timeB - timeA;
       });
     }, [transactionsSearchData, activeTab])
@@ -331,8 +323,8 @@ const TransactionTrackerImproved: React.FC<TransactionTrackerImprovedProps> = ({
         }
 
         return results.sort((a, b) => {
-            const timeA = parseInt(a.displayTime);
-            const timeB = parseInt(b.displayTime);
+            const timeA = toMillis(a.displayTime);
+            const timeB = toMillis(b.displayTime);
             return timeB - timeA;
         });
     }, [searchQuery, searchResults, transactionData, activeTab]);
@@ -384,9 +376,6 @@ const TransactionTrackerImproved: React.FC<TransactionTrackerImprovedProps> = ({
                     <div className="header-content-wrapper">
                         <h1 style={{ margin: "0 0 0.5rem 0" }}>{heading.title}</h1>
                     </div>
-                    <div className="export-data-container">
-                        <RecentDataExporter entityToExport={heading.exportEntity} />
-                    </div>
                 </div>
                 <p
                     style={{
@@ -398,115 +387,72 @@ const TransactionTrackerImproved: React.FC<TransactionTrackerImprovedProps> = ({
                 </p>
             </div>
 
-            {/* Summary Stats Bar */}
-            {!embedded && (
-                <div
-                    style={{
-                        display: "flex",
-                        gap: "1rem",
-                        marginBottom: "2rem",
-                        padding: "1rem",
-                        backgroundColor: "rgba(255, 255, 255, 0.05)",
-                        borderRadius: "8px",
-                    }}
-                >
-                    <div
-                        style={{
-                            display: "flex",
-                            alignItems: "center",
-                            gap: "0.5rem",
-                        }}
-                    >
-                        <FileText size={16} style={{ color: "#f59e0b" }} />
-                        <h3>{totalDeployments} Deployments</h3>
-                    </div>
-                    <div
-                        style={{
-                            display: "flex",
-                            alignItems: "center",
-                            gap: "0.5rem",
-                        }}
-                    >
-                        <ArrowRightLeft
-                            size={16}
-                            style={{ color: "#3b82f6" }}
-                        />
-                        <h3>{totalTransfers} Transfers</h3>
-                    </div>
-                    <div
-                        style={{
-                            display: "flex",
-                            alignItems: "center",
-                            gap: "0.5rem",
-                        }}
-                    >
-                        <Activity size={16} style={{ color: "#10b981" }} />
-                        <h3>{totalTransactions} Total</h3>
-                    </div>
-                </div>
-            )}
-
             {/* Tab Navigation */}
             <div
                 style={{
                     display: "flex",
+                    alignItems: "center",
                     gap: "1rem",
                     borderBottom: "1px solid rgba(255, 255, 255, 0.1)",
                     marginBottom: "2rem",
+                    flexWrap: "wrap",
                 }}
             >
-                {/* {(['all', 'deployments', 'transfers'] as const).map((tab) => ( */}
-                {(["deployments", "transfers"] as const).map((tab) => (
-                    <button
-                        className="text-1"
-                        key={tab}
-                        onClick={() => {
-                            setActiveTab(tab);
-                            setCurrentPage(1);
-                        }}
+                <div style={{ display: "flex", gap: "0.35rem" }}>
+                    {(["deployments", "transfers"] as const).map((tab) => (
+                        <button
+                            className="text-1"
+                            key={tab}
+                            onClick={() => selectTab(tab)}
+                            aria-pressed={activeTab === tab}
+                            style={{
+                                display: "flex",
+                                alignItems: "center",
+                                gap: "0.4rem",
+                                padding: "0.75rem 1rem",
+                                background: "none",
+                                border: "none",
+                                borderBottom:
+                                    activeTab === tab
+                                        ? "2px solid #10b981"
+                                        : "2px solid transparent",
+                                color: activeTab === tab ? "#10b981" : "#9ca3af",
+                                cursor: "pointer",
+                                textTransform: "capitalize",
+                                fontWeight: activeTab === tab ? "600" : "400",
+                            }}
+                        >
+                            {tab === "deployments"
+                                ? <FileText size={15} aria-hidden="true" />
+                                : <ArrowRightLeft size={15} aria-hidden="true" />}
+                            {tab === "deployments"
+                                ? `Deployments (${searchQuery ? totalSearchDeployments : totalDeployments})`
+                                : `Transfers (${searchQuery ? totalSearchTransfers : totalTransfers})`}
+                        </button>
+                    ))}
+                </div>
+                {!searchQuery && (
+                    <span
                         style={{
-                            padding: "0.75rem 1rem",
-                            background: "none",
-                            border: "none",
-                            borderBottom:
-                                activeTab === tab
-                                    ? "2px solid #10b981"
-                                    : "2px solid transparent",
-                            color: activeTab === tab ? "#10b981" : "#9ca3af",
-                            cursor: "pointer",
-                            textTransform: "capitalize",
-                            fontWeight: activeTab === tab ? "600" : "400",
+                            marginLeft: "auto",
+                            paddingBottom: "0.75rem",
+                            color: "#9ca3af",
+                            fontSize: "0.875rem",
                         }}
                     >
-                        {/* {tab === 'all' ? `All (${totalTransactions})` 
-              : tab === 'deployments' ? `Deployments (${totalDeployments})`
-              : `Transfers (${totalTransfers})`} */}
-                        {tab === "deployments"
-                            ? `Deployments (${searchQuery ? totalSearchDeployments : totalDeployments})`
-                            : `Transfers (${searchQuery ? totalSearchTransfers : totalTransfers})`}
-                    </button>
-                ))}
+                        {totalTransactions} total
+                    </span>
+                )}
             </div>
 
             {/* Search Bar */}
             <div style={{ marginBottom: "2rem" }}>
-                <div style={{ display: "flex", gap: "0.5rem" }}>
-                    <input
-                        className="text-3"
-                        type="text"
-                        placeholder="Search by ID, address, or block hash..."
-                        value={searchQuery}
-                        onChange={(e) => {handleSearchQueryChange(e.target.value)}}
-                        style={{
-                            flex: 1,
-                            padding: "0.75rem",
-                            borderRadius: "8px",
-                            border: "1px solid rgba(255, 255, 255, 0.2)",
-                            backgroundColor: "rgba(255, 255, 255, 0.05)",
-                            color: "#fff",
-                        }}
-                    />
-                </div>
+                <SearchField
+                    placeholder="Search by ID, address, or block hash..."
+                    aria-label="Search transactions by ID, address, or block hash"
+                    value={searchQuery}
+                    onChange={(e) => handleSearchQueryChange(e.target.value)}
+                />
             </div>
 
             {/* Transaction List */}
@@ -586,10 +532,11 @@ const TransactionTrackerImproved: React.FC<TransactionTrackerImprovedProps> = ({
                                         }}
                                     >
                                         Block #{tx.block_number} •{" "}
-                                        {formatDistanceToNow(
-                                            new Date(toMillis(tx.displayTime)),
-                                            { addSuffix: true }
-                                        )}
+                                        <span title={formatLocalTime(tx.displayTime)}>
+                                            {String(tx.block_number) === "0"
+                                                ? "Genesis"
+                                                : formatRelativeTime(tx.displayTime)}
+                                        </span>
                                     </div>
                                 </div>
 
@@ -713,6 +660,16 @@ const TransactionTrackerImproved: React.FC<TransactionTrackerImprovedProps> = ({
                     </div>
                 )}
             </div>
+            {!loading && !areTransactionsSearching && transactions.length > 0 && (
+                <div className="table-footer">
+                    <span className="text-muted">
+                        {searchQuery
+                            ? `${transactions.length} matching ${activeTab === "deployments" ? "deployments" : "transfers"}`
+                            : `Showing ${(currentPage - 1) * itemsPerPage + 1}-${(currentPage - 1) * itemsPerPage + transactions.length} of ${totalItemsForTab}`}
+                    </span>
+                    <RecentDataExporter entityToExport={heading.exportEntity} />
+                </div>
+            )}
         </div>
     );
 };

@@ -137,13 +137,13 @@ const NetworkDashboard: React.FC = () => {
 
         return [
             {
-                title: "Latest Block",
+                title: "Latest Height",
                 value: getValue(lastBlock?.block_number || "0"),
                 change: 0,
                 changeType: "increase",
                 icon: <Database size={20} />,
                 color: "#f59e0b",
-                description: "Most recent block",
+                description: "Most recent block height",
             },
             {
                 title: "Block Time",

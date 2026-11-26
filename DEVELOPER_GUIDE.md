@@ -87,7 +87,6 @@ explorer/src/
 │   ├── LoadingSpinner.tsx
 │   ├── NetworkDashboard.tsx
 │   ├── BlockVisualization.tsx
-│   ├── WalletSearch.tsx
 │   ├── TransactionTrackerImproved.tsx
 │   ├── AdvancedSearch.tsx
 │   ├── RecentTransactionsExporter.tsx

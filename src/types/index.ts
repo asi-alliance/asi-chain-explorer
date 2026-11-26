@@ -2,6 +2,7 @@
 export interface BlockParent {
   parent_hash: string;
   parent_index: number;
+  block_hash?: string;
 }
 
 export interface Block {
@@ -9,6 +10,7 @@ export interface Block {
   block_hash: string;
   parent_hash?: string;
   parent_links?: BlockParent[];
+  child_links?: BlockParent[];
   timestamp: number;
   proposer: string;
   deployment_count: number;

@@ -1,4 +1,4 @@
-import { loadSearchPage, SearchCheckpoints, SearchCursor, SearchResult, SearchStream, searchResults, searchVariables } from './search';
+import { HEIGHT_ONLY_PATTERN, loadSearchPage, SearchCheckpoints, SearchCursor, SearchResult, SearchStream, searchResults, searchVariables } from './search';
 
 test('searches deploy IDs and both addresses with exact precision', () => {
   const variables = searchVariables('1111abc', 20, 'desc', 'all');
@@ -9,6 +9,28 @@ test('searches deploy IDs and both addresses with exact precision', () => {
     from_address: 'a', to_address: 'b', amount_asi: '18446744073709551616.000000000000000001', timestamp: 1, status: 'success' }] }, 'desc');
   expect(results[0].title).toBe('18446744073709551616.000000000000000001 ASI Transfer');
   expect(results[0].path).toBe('/transaction/sig');
+});
+
+test('amount range filters transfers without a text query', () => {
+  const variables = searchVariables('', 20, 'desc', 'transfers', 0, undefined,
+    { minAmount: '0.1', maxAmount: '2' });
+  expect(variables.transfers).toEqual({ _and: [
+    { amount_asi: { _gte: '0.1' } },
+    { amount_asi: { _lte: '2' } },
+  ] });
+  expect(variables.blocks).toEqual({ _or: [] });
+  expect(variables.deployments).toEqual({ _or: [] });
+});
+
+test('a numeric query is a height and does not also scan text fields', () => {
+  const variables = searchVariables('42', 20, 'desc', 'all');
+  expect(variables.blocks).toEqual({ _or: [
+    { block_number: { _eq: '42' } },
+    { block_hash: { _ilike: HEIGHT_ONLY_PATTERN } },
+    { proposer: { _ilike: HEIGHT_ONLY_PATTERN } },
+  ] });
+  expect(JSON.stringify(variables.transfers)).toContain(HEIGHT_ONLY_PATTERN);
+  expect(JSON.stringify(variables.deployments)).toContain(HEIGHT_ONLY_PATTERN);
 });
 
 test('numeric heights are bounded and literal wildcard searches are escaped', () => {
