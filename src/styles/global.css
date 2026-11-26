@@ -451,8 +451,8 @@ code, .code {
 }
 
 .recent-blocks-table tbody tr:hover {
-    /* Keep the hover tint neutral: green is reserved for Confirmed status. */
-    background-color: rgba(255, 255, 255, 0.035);
+    /* Rows are not clickable; links inside keep their own hover affordance. */
+    background-color: transparent;
 }
 
 .validator-cell a {

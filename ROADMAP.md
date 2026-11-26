@@ -88,7 +88,8 @@ Tracked in
 - [x] Home search and filter controls stack at 600 px with no overflow at 390 px.
 - [x] Finalized only is checked by default; `?finalized=0` explicitly shows all
       blocks.
-- [x] Recent Blocks hover uses a neutral tint so green stays reserved for the
+- [x] Recent Blocks rows have no hover tint, because the rows are not clickable;
+      links keep their own hover affordance and green stays reserved for the
       Confirmed status.
 - [x] Validator proposers in Recent Blocks link to the Validators page.
 
