@@ -79,6 +79,21 @@ test('shows one height overview with all siblings instead of an arbitrary first 
   );
 });
 
+test('shows the height overview when the height has a single sibling', async () => {
+  renderHeightWith(new ApolloLink(operation => {
+    if (operation.operationName === 'GetLatestHeight') {
+      return Observable.of({ data: { blocks: [{ block_number: '72420', block_hash: 'c'.repeat(64) }] } });
+    }
+    return Observable.of({ data: { blocks: [blocks[0]] } });
+  }));
+
+  expect(await screen.findByRole('heading', { name: '#72418' })).toBeInTheDocument();
+  expect(screen.getByText('1 sibling block')).toBeInTheDocument();
+  expect(screen.queryByText('Block Details')).not.toBeInTheDocument();
+  expect(screen.getByRole('link', { name: /Open block/ }))
+    .toHaveAttribute('href', `/block/hash/${hashes[0]}`);
+});
+
 test('shows a loading skeleton for a height or block', () => {
   renderHeightWith(new ApolloLink(operation => {
     if (operation.operationName === 'GetLatestHeight') return Observable.of({ data: { blocks: [] } });

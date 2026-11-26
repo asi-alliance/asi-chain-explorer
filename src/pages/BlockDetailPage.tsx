@@ -173,8 +173,9 @@ const BlockDetailPage: React.FC = () => {
     status === 'finalized' ? 'is-finalized' : status ? 'is-pending' : 'is-unknown';
   const siblingCount = matchingBlocks.length;
   const siblingCountLabel = siblingCount >= 100 ? '100+' : String(siblingCount);
+  const siblingNoun = siblingCount === 1 ? 'sibling block' : 'sibling blocks';
   const isHeightView = Boolean(routeHeight) && !blockHash;
-  const showHeightOverview = isHeightView && siblingCount > 1;
+  const showHeightOverview = isHeightView;
   const currentHeight = heightInput(routeHeight || String(block.block_number));
   const latestHeight = heightInput(latestHeightResult.data?.blocks?.[0]?.block_number || '');
   const previousHeight = currentHeight !== null && BigInt(currentHeight) > 0n
@@ -244,7 +245,7 @@ const BlockDetailPage: React.FC = () => {
             <div className="height-overview__actions">
               <CopyButton dataToCopy={String(routeHeight)} label="Copy height" iconSize={14} />
               <span className="height-overview__count">
-                {siblingCountLabel} sibling blocks
+                {siblingCountLabel} {siblingNoun}
               </span>
             </div>
           </header>
@@ -259,7 +260,7 @@ const BlockDetailPage: React.FC = () => {
               <strong>#{routeHeight}</strong>
             </div>
             <div className="asi-card glass">
-              <p className="text-muted">Sibling blocks</p>
+              <p className="text-muted">{siblingCount === 1 ? 'Sibling block' : 'Sibling blocks'}</p>
               <strong>{siblingCountLabel}</strong>
             </div>
             <div className="asi-card glass">

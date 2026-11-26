@@ -93,6 +93,9 @@ Tracked in
       links keep their own hover affordance and green stays reserved for the
       Confirmed status.
 - [x] Validator proposers in Recent Blocks link to the Validators page.
+- [x] `/height/:height` always shows the height overview, including a single
+      sibling, with singular `1 sibling block` copy.
+- [x] Live Activity shows skeleton rows while its three initial queries load.
 
 ## Blocked by the indexer / Hasura
 

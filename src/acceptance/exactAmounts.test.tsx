@@ -214,8 +214,8 @@ function bondStakes(): string[] {
 }
 
 test('genesis block bonds use the recorded 18 decimals exactly', async () => {
-  mount('/height/0', '/height/:height', <BlockDetailPage />,
-    op => (op === 'GetBlocksAtHeight' ? json({ blocks: [block()] }) : undefined));
+  mount(`/block/hash/${'a'.repeat(64)}`, '/block/hash/:blockHash', <BlockDetailPage />,
+    op => (op === 'GetBlockDetails' ? json({ blocks: [block()] }) : undefined));
   await screen.findByRole('heading', { name: 'Validator Bonds Map' });
   expect(bondStakes()).toEqual([
     '1.000000000000000001 ASI',
@@ -225,7 +225,7 @@ test('genesis block bonds use the recorded 18 decimals exactly', async () => {
 });
 
 test('a historical 8-decimal block keeps its recorded precision', async () => {
-  mount('/height/12', '/height/:height', <BlockDetailPage />, op => (op === 'GetBlocksAtHeight'
+  mount(`/block/hash/${'a'.repeat(64)}`, '/block/hash/:blockHash', <BlockDetailPage />, op => (op === 'GetBlockDetails'
     ? json({ blocks: [block({ block_number: '12', token_decimals: 8, bonds_map: [{ validator: 'v', stake: '100000000' }] })] })
     : undefined));
   await screen.findByRole('heading', { name: 'Validator Bonds Map' });

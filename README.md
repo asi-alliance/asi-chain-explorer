@@ -63,7 +63,7 @@ The system indexes blockchain data including blocks, deployments, transfers, val
 - **Finalized by default**: Recent Blocks starts with Finalized only checked; `?finalized=0` explicitly shows all blocks
 - **Validator links**: proposer addresses in Recent Blocks open the Validators page with the full public key in the tooltip and accessible name
 - **Mobile Recent Blocks**: below 600 px the Height column stays pinned while the table scrolls horizontally; the search, Clear and Finalized-only controls stack without horizontal overflow
-- **Loading and Retry**: Recent Blocks uses skeleton rows, network cards and height summaries use skeleton cards, and failed stats/blocks/height reads show an explicit Retry without discarding the last loaded data
+- **Loading and Retry**: Recent Blocks uses skeleton rows, network cards and height summaries use skeleton cards, Live Activity shows activity skeletons, and failed stats/blocks/height reads show an explicit Retry without discarding the last loaded data
 - **Status Legend**: Confirmed and Unfinalized labels sit under the Recent Blocks filters with the same colours as the table and height overview
 - **Route fallback**: Unknown paths render a 404 page with the attempted path, chain search and recovery links; the legacy `/blocks` path redirects to `/`
 
@@ -501,7 +501,7 @@ Docker builds accept the same build argument. Changing a display setting does no
 rescale tokens or upgrade a chain's denomination.
 
 Validation: `CI=true npm test -- --watchAll=false --runInBand`,
-`npx tsc --noEmit`, and `npm run build`. The suite currently has 394 tests
+`npx tsc --noEmit`, and `npm run build`. The suite currently has 396 tests
 in 40 suites.
 The `Tests` workflow runs these checks on pull requests to `dev` and `main` and
 on pushes to `dev`. Its build runs with `CI=true`, so a lint warning fails the

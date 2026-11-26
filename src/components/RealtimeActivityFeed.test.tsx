@@ -23,6 +23,14 @@ test.each([
   expect(renders).toBeLessThan(5);
 });
 
+test('shows activity skeletons while the feed loads', () => {
+  (useQuery as jest.Mock).mockReturnValue({ data: undefined, loading: true });
+  render(<RealtimeActivityFeed compact />);
+
+  expect(screen.getByRole('status', { name: 'Loading live activity' })).toBeInTheDocument();
+  expect(document.querySelectorAll('.live-activity-skeleton__row')).toHaveLength(4);
+});
+
 test('keeps DAG siblings distinct in the live activity feed', async () => {
   const now = Date.now();
   const blocks = { blocks: [

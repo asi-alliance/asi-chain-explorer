@@ -25,6 +25,22 @@ interface RealtimeActivityFeedProps {
   height?: string;
 }
 
+function ActivitySkeleton() {
+  return (
+    <div className="live-activity-skeleton" role="status" aria-label="Loading live activity">
+      {Array.from({ length: 4 }, (_, index) => (
+        <div className="live-activity-skeleton__row" key={index} aria-hidden="true">
+          <span className="skeleton live-activity-skeleton__icon" />
+          <span className="live-activity-skeleton__body">
+            <span className="skeleton live-activity-skeleton__title" />
+            <span className="skeleton live-activity-skeleton__line" />
+          </span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 const RealtimeActivityFeed: React.FC<RealtimeActivityFeedProps> = ({
   maxItems = 50,
   showConnectionStatus = true,
@@ -36,17 +52,17 @@ const RealtimeActivityFeed: React.FC<RealtimeActivityFeedProps> = ({
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   
   // Fetch real-time data using GraphQL queries with polling
-  const { data: blocksData } = useQuery(GET_LATEST_BLOCKS, {
+  const { data: blocksData, loading: blocksLoading } = useQuery(GET_LATEST_BLOCKS, {
     variables: { limit: 5 },
     pollInterval: 3000, // Poll every 3 seconds
   });
   
-  const { data: transfersData } = useQuery(GET_LATEST_TRANSFERS, {
+  const { data: transfersData, loading: transfersLoading } = useQuery(GET_LATEST_TRANSFERS, {
     variables: { limit: 5 },
     pollInterval: 3000,
   });
   
-  const { data: deploymentsData } = useQuery(GET_LATEST_DEPLOYMENTS, {
+  const { data: deploymentsData, loading: deploymentsLoading } = useQuery(GET_LATEST_DEPLOYMENTS, {
     variables: { limit: 5 },
     pollInterval: 3000,
   });
@@ -55,6 +71,7 @@ const RealtimeActivityFeed: React.FC<RealtimeActivityFeedProps> = ({
   const blocks = useMemo(() => blocksData?.blocks || [], [blocksData]);
   const transfers = useMemo(() => transfersData?.transfers || [], [transfersData]);
   const deployments = useMemo(() => deploymentsData?.deployments || [], [deploymentsData]);
+  const loading = blocksLoading || transfersLoading || deploymentsLoading;
 
   // Convert data to activity items
   useEffect(() => {
@@ -164,6 +181,7 @@ const RealtimeActivityFeed: React.FC<RealtimeActivityFeedProps> = ({
             padding: '1rem 0'
           }}
         >
+          {loading && activities.length === 0 && <ActivitySkeleton />}
           <AnimatePresence>
             {activities.map(activity => (
               <motion.div
@@ -283,6 +301,7 @@ const RealtimeActivityFeed: React.FC<RealtimeActivityFeedProps> = ({
           padding: '1rem 0'
         }}
       >
+        {loading && activities.length === 0 && <ActivitySkeleton />}
         <AnimatePresence>
           {activities.map(activity => (
             <motion.div
@@ -359,7 +378,7 @@ const RealtimeActivityFeed: React.FC<RealtimeActivityFeedProps> = ({
           ))}
         </AnimatePresence>
         
-        {activities.length === 0 && (
+        {!loading && activities.length === 0 && (
           <div style={{ 
             textAlign: 'center', 
             padding: '3rem 1rem',

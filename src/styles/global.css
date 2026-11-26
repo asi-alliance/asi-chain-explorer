@@ -553,6 +553,40 @@ code, .code {
     margin-top: 6px;
 }
 
+.live-activity-skeleton {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 0 0.5rem;
+}
+
+.live-activity-skeleton__row {
+    display: flex;
+    gap: 12px;
+    padding: 10px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.02);
+}
+
+.live-activity-skeleton__icon {
+    flex: 0 0 auto;
+    width: 30px;
+    height: 30px;
+    border-radius: 8px;
+}
+
+.live-activity-skeleton__body {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    gap: 8px;
+    min-width: 0;
+}
+
+.live-activity-skeleton__title { width: 45%; height: 12px; }
+.live-activity-skeleton__line { width: 80%; height: 10px; }
+
 .skeleton--short { width: 40px; height: 14px; }
 .skeleton--hash { width: 118px; height: 14px; }
 .skeleton--validator { width: 96px; height: 14px; }
