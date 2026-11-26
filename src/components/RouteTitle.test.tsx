@@ -17,9 +17,10 @@ afterEach(() => {
 });
 
 test('builds route-specific titles', () => {
-  expect(routeTitle('/')).toBe('Latest blocks');
+  expect(routeTitle('/')).toBe('Finalized blocks');
   expect(routeTitle('/', '?q=2045')).toBe('Search: 2045');
   expect(routeTitle('/', '?finalized=1')).toBe('Finalized blocks');
+  expect(routeTitle('/', '?finalized=0')).toBe('Latest blocks');
   expect(routeTitle('/transactions', '?tab=transfers')).toBe('Transfers');
   expect(routeTitle('/transactions')).toBe('Deployments');
   expect(routeTitle('/height/2045')).toBe('Height #2045');
@@ -29,6 +30,13 @@ test('builds route-specific titles', () => {
   expect(routeTitle('/search', '?q=deploy')).toBe('Search: deploy');
   expect(routeTitle('/address/1111abcdefghijklmnop')).toContain('Address 1111abcd…');
   expect(routeTitle('/unknown')).toBe('Page not found');
+});
+
+test('follows the finalized-only default in the home title', () => {
+  expect(routeTitle('/')).toBe('Finalized blocks');
+  expect(routeTitle('/', '?finalized=0')).toBe('Latest blocks');
+  expect(routeTitle('/', '?finalized=1')).toBe('Finalized blocks');
+  expect(routeTitle('/', '?finalized=0&q=2045')).toBe('Search: 2045');
 });
 
 test('sets document.title from the current location', () => {

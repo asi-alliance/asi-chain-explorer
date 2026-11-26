@@ -60,7 +60,7 @@ The system indexes blockchain data including blocks, deployments, transfers, val
 - **Network Statistics**: Simplified Network Dashboard view
 - **Genesis Funding**: Complete visibility of initial token distribution
 - **Shareable views**: Home filters (`?q=`, `?finalized=0` for all blocks), the `/transactions` tab (`?tab=transfers`) and transaction detail tabs (`?tab=code`, `?tab=transfers`, `?tab=block`) live in the URL; every route also sets a descriptive browser title
-- **Finalized by default**: Recent Blocks starts with Finalized only checked; `?finalized=0` explicitly shows all blocks
+- **Finalized by default**: Recent Blocks starts with Finalized only checked; `?finalized=0` explicitly shows all blocks, and the browser title follows the selected view
 - **Validator links**: proposer addresses in Recent Blocks open the Validators page with the full public key in the tooltip and accessible name
 - **Mobile Recent Blocks**: below 600 px the Height column stays pinned while the table scrolls horizontally; the search, Clear and Finalized-only controls stack without horizontal overflow
 - **Loading and Retry**: Recent Blocks uses skeleton rows, network cards and height summaries use skeleton cards, Live Activity shows activity skeletons, and failed stats/blocks/height reads show an explicit Retry without discarding the last loaded data

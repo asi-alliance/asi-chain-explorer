@@ -27,7 +27,7 @@ export function routeTitle(pathname: string, search = ''): string {
 
     if (segments.length === 0) {
         if (query) return `Search: ${shortQuery(query)}`;
-        return params.get('finalized') === '1' ? 'Finalized blocks' : 'Latest blocks';
+        return params.get('finalized') === '0' ? 'Latest blocks' : 'Finalized blocks';
     }
 
     if (segments[0] === 'transaction' && segments[1]) {

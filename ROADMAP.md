@@ -88,7 +88,7 @@ Tracked in
 - [x] Confirmed / Unfinalized status legend under the Recent Blocks filters.
 - [x] Home search and filter controls stack at 600 px with no overflow at 390 px.
 - [x] Finalized only is checked by default; `?finalized=0` explicitly shows all
-      blocks.
+      blocks, and the browser title follows the same default.
 - [x] Recent Blocks rows have no hover tint, because the rows are not clickable;
       links keep their own hover affordance and green stays reserved for the
       Confirmed status.
