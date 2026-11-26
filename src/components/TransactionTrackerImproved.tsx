@@ -96,6 +96,35 @@ const SEARCH_TRANSACTIONS = gql`
                 id
             }
         }
+
+        # Apply the Contract deploys partition before its cap. Otherwise newer
+        # deploy-with-transfer matches can hide every matching contract deploy.
+        contract_deployments: deployments(
+            where: {
+                _and: [
+                    {
+                        _or: [
+                            { deployer: { _ilike: $query } }
+                            { deploy_id: { _ilike: $query } }
+                            { block_hash: { _ilike: $query } }
+                        ]
+                    }
+                    { _not: { transfers: {} } }
+                ]
+            }
+            limit: 30
+            order_by: { timestamp: desc }
+        ) {
+            deploy_id
+            deployer
+            deployment_type
+            block_number
+            timestamp
+            errored
+            transfers {
+                id
+            }
+        }
     }
 `;
 
@@ -203,16 +232,18 @@ const TransactionTrackerImproved: React.FC<TransactionTrackerImprovedProps> = ({
         () => transactionsSearchData?.deployments ?? [],
         [transactionsSearchData]
     );
+    const contractSearchDeployments = useMemo(
+        () => transactionsSearchData?.contract_deployments ?? [],
+        [transactionsSearchData]
+    );
     const searchDeployments = useMemo(
-        () => activeTab === "contract"
-            ? allSearchDeployments.filter((deployment: any) => !deployment.transfers?.length)
-            : allSearchDeployments,
-        [allSearchDeployments, activeTab]
+        () => activeTab === "contract" ? contractSearchDeployments : allSearchDeployments,
+        [activeTab, allSearchDeployments, contractSearchDeployments]
     );
 
     const totalSearchDeployments = searchQuery ? allSearchDeployments.length : totalDeployments;
     const totalSearchContract = searchQuery
-        ? allSearchDeployments.filter((deployment: any) => !deployment.transfers?.length).length
+        ? contractSearchDeployments.length
         : contractDeployments;
     const totalSearchTransfers = searchQuery
         ? transactionsSearchData?.transfers?.length || 0

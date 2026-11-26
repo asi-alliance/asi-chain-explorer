@@ -169,28 +169,27 @@ export const GET_BLOCK_DETAILS = gql`
   }
 `;
 
-// Optional field: an older indexer does not expose blocks.block_size yet.
-// Build the document from parts so the static schema check for the rest of the
-// explorer does not fail on that forward-compatible probe. The block page
-// ignores the query error and shows N/A until the indexer migration is deployed.
-export const GET_BLOCK_SIZE = gql(
-  [
-    'query GetBlockSize($blockHash: String!) {',
-    '  blocks(where: { block_hash: { _eq: $blockHash } }, limit: 1) {',
-    '    block_hash',
-    '    block_size',
-    '  }',
-    '}',
-  ].join('\n')
-);
+// Optional field: an older indexer does not expose blocks.block_size yet. The
+// operation stays a regular gql document so scripts/validate-graphql.js checks
+// it against any schema that exposes the field. On an older schema the
+// validator skips only this documented optional field; the block page ignores
+// the query error and shows N/A until the indexer migration is deployed.
+export const GET_BLOCK_SIZE = gql`
+  query GetBlockSize($blockHash: String!) {
+    blocks(where: { block_hash: { _eq: $blockHash } }, limit: 1) {
+      block_hash
+      block_size
+    }
+  }
+`;
 
 export const GET_BLOCKS_AT_HEIGHT = gql`
   ${BLOCK_FRAGMENT}
   ${DEPLOYMENT_FRAGMENT}
   ${TRANSFER_FRAGMENT}
-  query GetBlocksAtHeight($blockNumber: bigint!) {
+  query GetBlocksAtHeight($blockNumber: bigint!, $filter: blocks_bool_exp!) {
     blocks(
-      where: { block_number: { _eq: $blockNumber } }
+      where: $filter
       order_by: { block_hash: asc }
       limit: 100
     ) {
@@ -205,6 +204,19 @@ export const GET_BLOCKS_AT_HEIGHT = gql`
           ...TransferFragment
         }
       }
+    }
+    height_total: blocks_aggregate(
+      where: { block_number: { _eq: $blockNumber } }
+    ) {
+      aggregate { count }
+    }
+    height_finalized: blocks_aggregate(
+      where: {
+        block_number: { _eq: $blockNumber }
+        finalization_status: { _eq: "finalized" }
+      }
+    ) {
+      aggregate { count }
     }
   }
 `;

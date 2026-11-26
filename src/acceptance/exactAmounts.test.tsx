@@ -236,7 +236,10 @@ test('a block height beyond 2^53 is requested exactly', async () => {
   mount(`/height/${TWO_POW_53_PLUS_1}`, '/height/:height', <BlockDetailPage />,
     op => (op === 'GetBlocksAtHeight' ? json({ blocks: [] }) : undefined));
   await screen.findByText(/Block Not Found/);
-  expect(requests.find(r => r.operation === 'GetBlocksAtHeight')?.variables).toEqual({ blockNumber: TWO_POW_53_PLUS_1 });
+  expect(requests.find(r => r.operation === 'GetBlocksAtHeight')?.variables).toEqual({
+    blockNumber: TWO_POW_53_PLUS_1,
+    filter: { block_number: { _eq: TWO_POW_53_PLUS_1 } },
+  });
 });
 
 // ---------------------------------------------------------------- validators

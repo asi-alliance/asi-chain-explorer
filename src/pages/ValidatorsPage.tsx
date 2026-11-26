@@ -110,7 +110,7 @@ const SecondaryDetails: React.FC<SecondaryDetailsProps> = ({
       <dd><HeightLink value={last} /></dd>
       {showBond && (
         <>
-          <dt>Last bond</dt>
+          <dt>Latest stake snapshot</dt>
           <dd>{bond === null || bond === undefined ? "Never bonded" : <HeightLink value={bond} />}</dd>
         </>
       )}
@@ -358,7 +358,12 @@ const ValidatorsPage: React.FC = () => {
                         </th>
                         <th className="text-1 validator-col--secondary">First Seen</th>
                         <th className="text-1 validator-col--secondary">Last Seen</th>
-                        <th className="text-1 validator-col--secondary">Last Bond</th>
+                        <th
+                          className="text-1 validator-col--secondary"
+                          title="Latest validator_bonds row. The indexer records a stake snapshot for each block, so this height can advance without a new bond event."
+                        >
+                          Latest Stake Snapshot
+                        </th>
                         <th className="text-1">Status</th>
                       </tr>
                     </thead>
@@ -414,7 +419,9 @@ const ValidatorsPage: React.FC = () => {
                             </td>
                             <td className="text-3 validator-col--secondary">
                               {latestBond ? (
-                                <HeightLink value={latestBond.block_number} />
+                                <span title="Latest validator_bonds snapshot; not necessarily a new bond event">
+                                  <HeightLink value={latestBond.block_number} />
+                                </span>
                               ) : (
                                 <span className="text-muted">Never bonded</span>
                               )}

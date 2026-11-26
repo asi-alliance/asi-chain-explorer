@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { useLazyQuery, useQuery } from '@apollo/client';
 import TransactionTrackerImproved from './TransactionTrackerImproved';
@@ -94,4 +94,37 @@ test('does not filter the all deploys tab', () => {
 
   const paginated = queryCalls.find((call) => call.name === 'GetPaginatedTransactions');
   expect(paginated?.variables.deploymentWhere).toEqual({});
+});
+
+test('uses the contract-filtered search stream before its limit', () => {
+  const withTransfer = deployments.slice(0, 30).map((deployment) => ({
+    ...deployment,
+    transfers: [{ id: 1 }],
+  }));
+  const contractOnly = {
+    ...deployments[0],
+    deploy_id: 'contract-only',
+    transfers: [],
+  };
+  (useLazyQuery as jest.Mock).mockReturnValue([
+    jest.fn(),
+    {
+      data: {
+        deployments: withTransfer,
+        contract_deployments: [contractOnly],
+        transfers: [],
+      },
+      loading: false,
+    },
+  ]);
+  render(<MemoryRouter initialEntries={['/transactions']}><TransactionTrackerImproved /></MemoryRouter>);
+
+  fireEvent.change(screen.getByPlaceholderText('Search by ID, address, or block hash...'), {
+    target: { value: 'contract' },
+  });
+  expect(screen.getByRole('button', { name: 'Contract deploys (1)' })).toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: 'Contract deploys (1)' }));
+
+  expect(screen.getByText('1 matching contract deploys')).toBeInTheDocument();
+  expect(screen.getByText('Deploy by 04ababab...')).toBeInTheDocument();
 });

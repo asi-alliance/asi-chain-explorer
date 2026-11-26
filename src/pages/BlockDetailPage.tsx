@@ -59,15 +59,6 @@ const BlockDetailPage: React.FC = () => {
   }>();
   const routeHeight = height ?? blockNumber;
 
-  const hashResult = useQuery(GET_BLOCK_DETAILS, {
-    variables: { blockHash: blockHash || '' },
-    skip: !blockHash,
-  });
-  const heightResult = useQuery(GET_BLOCKS_AT_HEIGHT, {
-    variables: { blockNumber: routeHeight || '0' },
-    skip: !routeHeight,
-  });
-  const latestHeightResult = useQuery<{ blocks: Array<{ block_number: string }> }>(GET_LATEST_HEIGHT);
   const [searchParams, setSearchParams] = useSearchParams();
   const statusFilter = searchParams.get('status') === 'finalized'
     ? 'finalized'
@@ -78,6 +69,24 @@ const BlockDetailPage: React.FC = () => {
     else next.set('status', value);
     setSearchParams(next);
   };
+  const heightFilter = {
+    block_number: { _eq: routeHeight },
+    ...(statusFilter === 'finalized'
+      ? { finalization_status: { _eq: 'finalized' } }
+      : statusFilter === 'unfinalized'
+        ? { finalization_status: { _neq: 'finalized' } }
+        : {}),
+  };
+
+  const hashResult = useQuery(GET_BLOCK_DETAILS, {
+    variables: { blockHash: blockHash || '' },
+    skip: !blockHash,
+  });
+  const heightResult = useQuery(GET_BLOCKS_AT_HEIGHT, {
+    variables: { blockNumber: routeHeight || '0', filter: heightFilter },
+    skip: !routeHeight,
+  });
+  const latestHeightResult = useQuery<{ blocks: Array<{ block_number: string }> }>(GET_LATEST_HEIGHT);
 
   const activeResult = blockHash ? hashResult : heightResult;
   const { data, loading, error } = activeResult;
@@ -112,10 +121,19 @@ const BlockDetailPage: React.FC = () => {
   }
 
   const matchingBlocks = (data?.blocks || []) as Block[];
+  const heightData = data as {
+    height_total?: { aggregate?: { count?: number } };
+    height_finalized?: { aggregate?: { count?: number } };
+  } | undefined;
+  const heightTotal = heightData?.height_total?.aggregate?.count ?? matchingBlocks.length;
+  const finalizedTotal = heightData?.height_finalized?.aggregate?.count
+    ?? matchingBlocks.filter((sibling) => sibling.finalization_status === 'finalized').length;
+  const isHeightView = Boolean(routeHeight) && !blockHash;
+  const hasHeight = isHeightView && heightTotal > 0;
   const block = matchingBlocks[0];
   const requestedBlock = blockHash || routeHeight;
 
-  if (!block) {
+  if (!block && !hasHeight) {
     return (
       <div className="status-message error">
         <strong>Block Not Found:</strong> Block {requestedBlock} was not found on the network.
@@ -123,8 +141,8 @@ const BlockDetailPage: React.FC = () => {
     );
   }
 
-  const deploymentCount = block.deployments?.length ?? block.deployment_count ?? 0;
-  const blockSize = blockSizeData?.blocks?.[0]?.block_size ?? block.block_size;
+  const deploymentCount = block?.deployments?.length ?? block?.deployment_count ?? 0;
+  const blockSize = blockSizeData?.blocks?.[0]?.block_size ?? block?.block_size;
 
   const staleNotice = error ? (
     <div className="data-state data-state--warning" role="status">
@@ -190,7 +208,7 @@ const BlockDetailPage: React.FC = () => {
       return {
         from: match[1],
         to: match[2],
-        amount: formatRaw(match[3], block.token_decimals)
+        amount: formatRaw(match[3], block?.token_decimals)
       };
     }
     return null;
@@ -200,22 +218,17 @@ const BlockDetailPage: React.FC = () => {
     status ? status.replace(/_/g, ' ') : 'Unknown';
   const finalizationClass = (status?: string | null) =>
     status === 'finalized' ? 'is-finalized' : status ? 'is-pending' : 'is-unknown';
-  const siblingCount = matchingBlocks.length;
-  const siblingCountLabel = siblingCount >= 100 ? '100+' : String(siblingCount);
+  const siblingCount = heightTotal;
+  const siblingCountLabel = siblingCount.toLocaleString('en-US');
   const siblingNoun = siblingCount === 1 ? 'sibling block' : 'sibling blocks';
-  const isHeightView = Boolean(routeHeight) && !blockHash;
   const showHeightOverview = isHeightView;
-  const currentHeight = heightInput(routeHeight || String(block.block_number));
+  const currentHeight = heightInput(routeHeight || String(block?.block_number ?? ''));
   const latestHeight = heightInput(latestHeightResult.data?.blocks?.[0]?.block_number || '');
   const previousHeight = currentHeight !== null && BigInt(currentHeight) > 0n
     ? (BigInt(currentHeight) - 1n).toString() : null;
   const nextHeight = currentHeight !== null && latestHeight !== null && BigInt(currentHeight) < BigInt(latestHeight)
     ? (BigInt(currentHeight) + 1n).toString() : null;
-  const filteredSiblings = matchingBlocks.filter((sibling) => {
-    if (statusFilter === 'finalized') return sibling.finalization_status === 'finalized';
-    if (statusFilter === 'unfinalized') return sibling.finalization_status !== 'finalized';
-    return true;
-  });
+  const filteredSiblings = matchingBlocks;
 
   const heightNav = (
     <div className="height-nav">
@@ -252,9 +265,7 @@ const BlockDetailPage: React.FC = () => {
       ? undefined
       : earliestTimestamp === latestTimestamp
         ? formatDate(latestTimestamp)
-        : `${formatDate(earliestTimestamp)} – ${formatDate(latestTimestamp)}`;
-    const finalizedCount = matchingBlocks
-      .filter((sibling) => sibling.finalization_status === 'finalized').length;
+        : `${formatDate(earliestTimestamp)} - ${formatDate(latestTimestamp)}`;
 
     return (
       <>
@@ -302,7 +313,7 @@ const BlockDetailPage: React.FC = () => {
             </div>
             <div className="asi-card glass">
               <p className="text-muted">Finalized</p>
-              <strong>{finalizedCount} of {matchingBlocks.length}</strong>
+              <strong>{finalizedTotal} of {heightTotal}</strong>
             </div>
             <div className="asi-card glass">
               <p className="text-muted">Time range</p>
@@ -312,7 +323,7 @@ const BlockDetailPage: React.FC = () => {
 
           {matchingBlocks.length === 100 && (
             <p className="height-overview__limit">
-              Showing the first 100 blocks at this height.
+              Showing the first 100 {statusFilter === 'all' ? 'blocks' : `${statusFilter} blocks`} at this height.
             </p>
           )}
 
@@ -384,6 +395,14 @@ const BlockDetailPage: React.FC = () => {
           )}
         </section>
       </>
+    );
+  }
+
+  if (!block) {
+    return (
+      <div className="status-message error">
+        <strong>Block Not Found:</strong> Block {requestedBlock} was not found on the network.
+      </div>
     );
   }
 

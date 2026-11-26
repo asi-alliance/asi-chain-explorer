@@ -290,12 +290,16 @@ Hasura has:
 - `HASURA_GRAPHQL_UNAUTHORIZED_ROLE=public`. Without it, every page fails.
 - The public-role permissions of the indexer's `scripts/full-init-hasura.sh`:
   `select` on the explorer tables and views with `limit: 5000`, and aggregates
-  on `deployments`, `transfers`, `transaction_history_view` and `pending_deploys`.
+  on `blocks`, `block_heights_view`, `deployments`, `transfers`,
+  `transaction_history_view` and `pending_deploys`.
 
 The `GraphQL Schema` workflow validates every explorer operation against the
 schema that Hasura gives to an unauthenticated request after that script. It does
 not check the row limit. The CSV export requests 5000 rows, so a lower limit
-shortens the export.
+shortens the export. A documented optional field such as `blocks.block_size` is
+skipped only while the target indexer does not expose it; the strict paired run
+described under [GraphQL schema compatibility](#graphql-schema-compatibility)
+fails if the field is missing.
 
 Run the published image with the public endpoints of the target network:
 
@@ -362,13 +366,13 @@ resolves before nginx starts.
 
 - `/` - Home dashboard with network overview and Recent Blocks with a footer CSV export; finalized-only is the default, `?q=` preserves the search and `?finalized=0` shows all blocks
 - `/blocks` - Redirects to `/`; the home page is the block list
-- `/height/:height` - Height overview; a height with several DAG siblings lists every sibling
-- `/block/hash/:blockHash` - Details for one specific block, including its size, deployments and transfers; deploy IDs and transfer rows link to `/transaction/:id`
+- `/height/:height` - Height overview with exact sibling and finalized counts; the `?status=finalized` and `?status=unfinalized` filters run in GraphQL before the 100-sibling sample, so one finalized sibling is never hidden by 100 unfinalized ones
+- `/block/hash/:blockHash` - Details for one specific block, including its size when the indexer exposes `blocks.block_size` (older indexers show `N/A`), deployments and transfers; deploy IDs and transfer rows link to `/transaction/:id`
 - `/block/:blockNumber` - Legacy height URL; redirects to `/height/:blockNumber` and preserves the query string
 - `/transactions` - Non-overlapping All deploys, Contract deploys (no transfer events) and Transfers tabs with a footer CSV export; `?tab=contract` and `?tab=transfers` open a tab directly
 - `/pending` - Deploys in the validators' deploy buffers that no indexed block includes yet (the navigation tab appears only when the indexer tracks pending deploys)
 - `/transaction/:transactionId` - Deploy details: executed fee in ASI, code, transfers with native transfer calls and block. Shows one copyable ID, a status tooltip, local and relative timestamps; block-0 records carry a Genesis label. `?tab=code`, `?tab=transfers` and `?tab=block` open a tab directly. A pending deploy shows its pending state until it is indexed.
-- `/validators` - Current validators with consensus health, stake-share bars, copyable keys, height links, proposer counts over the latest 1,000 blocks and a separate inactive table
+- `/validators` - Current validators with consensus health, stake-share bars, copyable keys, height links, the latest stake snapshot (labelled as a snapshot, not a new bond event), proposer counts over the latest 1,000 blocks and a separate inactive table
 - `/validator-history` - Bond set at a chosen height; the height links to the height overview, the proposer links to the validators page, and the block time carries an absolute-time tooltip
 - `/statistics` - Network Dashboard with height, block time, TPS, validators, consensus, indexer status, sync progress and the last indexed block
 - `/search` - Search results for a height, hash, deploy ID or address, with type tabs and copy/share actions
@@ -503,7 +507,7 @@ Docker builds accept the same build argument. Changing a display setting does no
 rescale tokens or upgrade a chain's denomination.
 
 Validation: `CI=true npm test -- --watchAll=false --runInBand`,
-`npx tsc --noEmit`, and `npm run build`. The suite currently has 414 tests
+`npx tsc --noEmit`, and `npm run build`. The suite currently has 416 tests
 in 39 suites.
 The `Tests` workflow runs these checks on pull requests to `dev` and `main` and
 on pushes to `dev`. Its build runs with `CI=true`, so a lint warning fails the
@@ -517,7 +521,18 @@ operation under `src/` against the schema that Hasura exposes to the public role
 The check reports unknown fields, wrong argument and variable types, and
 aggregates that the public role cannot read. It does not run the queries.
 
+`GetBlockSize` probes the optional `blocks.block_size` field. The operation stays
+discoverable, so a schema that exposes the field validates the full document. On
+an older schema the validator skips only the documented unknown-field error and
+reports it as a skip. Pass `--require-optional-fields` to make that skip fail:
+
+```bash
+npm run validate:graphql -- http://127.0.0.1:8080/v1/graphql --require-optional-fields
+```
+
 The `GraphQL Schema` workflow runs this check against the indexer stack: the
 indexer `docker-compose.yml` with its migrations and `scripts/full-init-hasura.sh`.
 It runs on pull requests to `dev`, on pushes to `dev` and once a day, against
-indexer `dev`. A manual run can select another indexer branch, tag or commit.
+indexer `dev`. A manual run can select another indexer branch, tag or commit and
+set `require_block_size` to make the paired schema check strict, including
+`blocks.block_size` and the public aggregate permissions.

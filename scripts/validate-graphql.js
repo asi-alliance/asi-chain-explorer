@@ -2,8 +2,13 @@
 // Validates every GraphQL operation in src/ against the schema that a Hasura
 // endpoint exposes to the unauthenticated (public) role.
 //
-// Usage: node scripts/validate-graphql.js <graphql-endpoint>
+// Usage: node scripts/validate-graphql.js <graphql-endpoint> [--require-optional-fields]
 //    or: HASURA_GRAPHQL_ENDPOINT=<graphql-endpoint> npm run validate:graphql
+//
+// Some explorer operations probe a field that only a newer indexer exposes. They
+// stay discoverable and are validated strictly whenever the schema has the
+// field. Against an older schema only those documented unknown-field errors are
+// skipped; pass --require-optional-fields to turn a skip into a failure.
 'use strict';
 
 const fs = require('fs');
@@ -14,6 +19,13 @@ const ROOT = path.resolve(__dirname, '..');
 const SRC = path.join(ROOT, 'src');
 const OPERATION_START = /`(\s*(?:query|mutation|subscription)\b[\s\S]*?)`/g;
 const GQL_TEMPLATE = /(?:const\s+(\w+)\s*=\s*)?gql`([\s\S]*?)`/g;
+const OPTIONAL_SCHEMA_FIELDS = [
+  {
+    operation: 'GetBlockSize',
+    type: 'blocks',
+    field: 'block_size',
+  },
+];
 
 function sourceFiles(dir) {
   return fs.readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
@@ -74,6 +86,26 @@ function withoutDuplicateFragments(ast) {
   return { ...ast, definitions };
 }
 
+function operationName(ast) {
+  const operation = ast.definitions.find((definition) => definition.kind === 'OperationDefinition');
+  return operation && operation.name ? operation.name.value : null;
+}
+
+function optionalFieldForOperation(ast) {
+  const name = operationName(ast);
+  return OPTIONAL_SCHEMA_FIELDS.find((entry) => entry.operation === name) || null;
+}
+
+function optionalFieldSkipReason(ast, errors, schema) {
+  const optional = optionalFieldForOperation(ast);
+  if (!optional || errors.length === 0) return null;
+  const fields = schema.getType(optional.type)?.getFields?.();
+  if (fields && fields[optional.field]) return null;
+  const unknownField = `Cannot query field "${optional.field}" on type "${optional.type}".`;
+  const onlyOptionalFieldErrors = errors.every((error) => error.message.startsWith(unknownField));
+  return onlyOptionalFieldErrors ? optional : null;
+}
+
 async function fetchSchema(endpoint) {
   const response = await fetch(endpoint, {
     method: 'POST',
@@ -87,15 +119,19 @@ async function fetchSchema(endpoint) {
 }
 
 async function main() {
+  const requireOptionalFields = process.argv.includes('--require-optional-fields');
   const endpoint = process.argv[2] || process.env.HASURA_GRAPHQL_ENDPOINT;
-  if (!endpoint) {
-    console.error('Usage: node scripts/validate-graphql.js <graphql-endpoint>');
+  if (!endpoint || endpoint === '--require-optional-fields') {
+    console.error(
+      'Usage: node scripts/validate-graphql.js <graphql-endpoint> [--require-optional-fields]'
+    );
     process.exit(2);
   }
 
   const schema = await fetchSchema(endpoint);
   const { named, documents } = collectDocuments();
   let checked = 0;
+  let skipped = 0;
   let failed = 0;
 
   for (const document of documents) {
@@ -108,23 +144,40 @@ async function main() {
       continue;
     }
     if (!ast.definitions.some((definition) => definition.kind === 'OperationDefinition')) continue;
-    checked++;
     const errors = validate(schema, ast);
     if (errors.length > 0) {
+      const optional = optionalFieldSkipReason(ast, errors, schema);
+      if (optional) {
+        skipped++;
+        console.log(
+          `skip ${document.label}\n     optional ${optional.type}.${optional.field} is not exposed by this schema`
+        );
+        continue;
+      }
       failed++;
       console.log(`FAIL ${document.label}`);
       for (const error of errors) console.log(`     ${error.message}`);
     } else {
+      checked++;
       console.log(`ok   ${document.label}`);
     }
   }
 
-  console.log(`\n${checked} operation document(s) checked against ${endpoint}, ${failed} failed.`);
-  if (checked === 0) {
+  console.log(
+    `\n${checked} operation document(s) checked against ${endpoint}, ` +
+      `${skipped} skipped for older schemas, ${failed} failed.`
+  );
+  if (checked + skipped === 0) {
     console.error('No GraphQL operations found under src/.');
     process.exit(1);
   }
   if (failed > 0) process.exit(1);
+  if (skipped > 0 && requireOptionalFields) {
+    console.error(
+      `--require-optional-fields is set, but ${skipped} operation(s) were skipped because this schema does not expose them.`
+    );
+    process.exit(1);
+  }
 }
 
 main().catch((error) => {

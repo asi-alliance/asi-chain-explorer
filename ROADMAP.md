@@ -127,13 +127,30 @@ Tracked in
       the entry HTML and a deep route.
 - [x] A missing `valid_after_block_number` no longer renders an empty row on a
       block deployment card; zero still renders.
+- [x] Block pages show the node-reported block size, link deploy and transfer
+      rows to transaction details, and count the deployments in the loaded
+      block instead of the denormalized counter. The optional
+      `blocks.block_size` query stays in schema validation and degrades to
+      `N/A` on an indexer without migration 008.
+- [x] The height overview applies `?status=finalized` and
+      `?status=unfinalized` in GraphQL before the 100-sibling limit and reads
+      exact sibling and finalized totals from `blocks_aggregate`.
+- [x] Search on the Contract deploys tab applies `_not: { transfers: {} }`
+      before its 30-row limit, so newer transfer deploys cannot hide matching
+      contract deploys.
+- [x] The validators table labels `validator_bonds` heights as the latest stake
+      snapshot, because the indexer writes a row for each block even when stake
+      is unchanged.
 - [x] CI uses `actions/checkout@v7` and `actions/setup-node@v7`; the suite has
-      414 tests in 39 suites.
+      416 tests in 39 suites.
 
 ## Blocked by the indexer / Hasura
 
 Tracked in
-[asi-chain-indexer#66](https://github.com/asi-alliance/asi-chain-indexer/issues/66):
+[asi-chain-indexer#66](https://github.com/asi-alliance/asi-chain-indexer/issues/66).
+[Indexer #70](https://github.com/asi-alliance/asi-chain-indexer/pull/70) adds the
+public aggregates, grouped height view and search indexes. The explorer uses
+them where deployed and keeps its capped fallback on older schemas:
 
 - Exact height counts and grouped-by-height pagination across pages.
 - Counts on `/search` type tabs (currently capped at the 30-row search limit).

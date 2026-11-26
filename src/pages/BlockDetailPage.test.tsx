@@ -44,11 +44,11 @@ const blocks = hashes.map((block_hash, index) => ({
   deployments: [],
 }));
 
-function renderHeightWith(link: ApolloLink) {
+function renderHeightWith(link: ApolloLink, path = '/height/72418') {
   const client = new ApolloClient({ cache: new InMemoryCache(), link });
   return render(
     <ApolloProvider client={client}>
-      <MemoryRouter initialEntries={['/height/72418']}>
+      <MemoryRouter initialEntries={[path]}>
         <Routes>
           <Route path="/height/:height" element={<BlockDetailPage />} />
           <Route path="/" element={<p>home</p>} />
@@ -186,6 +186,48 @@ test('shows the height overview when the height has a single sibling', async () 
   expect(screen.getByRole('link', { name: /Open block/ }))
     .toHaveAttribute('href', `/block/hash/${hashes[0]}`);
 });
+
+test('applies the finalization filter before the sibling limit and uses aggregate totals', async () => {
+  const finalized = {
+    ...blocks[0],
+    block_hash: 'finalized-block',
+    finalization_status: 'finalized',
+    deployments: [],
+  };
+  let seenFilter: any;
+  renderHeightWith(
+    new ApolloLink(operation => {
+      if (operation.operationName === 'GetLatestHeight') {
+        return Observable.of({ data: { blocks: [{ block_number: '72420', block_hash: 'c'.repeat(64) }] } });
+      }
+      if (operation.operationName === 'GetBlockSize') {
+        return Observable.of({ data: { blocks: [{ block_hash: 'finalized-block', block_size: '2048' }] } });
+      }
+      seenFilter = operation.variables.filter;
+      return Observable.of({
+        data: {
+          blocks: [finalized],
+          height_total: { aggregate: { count: 101 } },
+          height_finalized: { aggregate: { count: 1 } },
+        },
+      });
+    }),
+    '/height/72418?status=finalized'
+  );
+
+  expect(await screen.findByRole('heading', { name: '#72418' })).toBeInTheDocument();
+  expect(seenFilter).toEqual({
+    block_number: { _eq: '72418' },
+    finalization_status: { _eq: 'finalized' },
+  });
+  expect(screen.getByText('101 sibling blocks')).toBeInTheDocument();
+  expect(screen.getByText('1 of 101')).toBeInTheDocument();
+  expect(screen.getByRole('link', { name: /Open block/ })).toHaveAttribute(
+    'href',
+    '/block/hash/finalized-block'
+  );
+});
+
 
 test('shows a loading skeleton for a height or block', () => {
   renderHeightWith(new ApolloLink(operation => {
