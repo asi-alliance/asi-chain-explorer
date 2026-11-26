@@ -35,7 +35,12 @@ function operationName(query: any): string {
 }
 
 function renderHome() {
-  return render(<MemoryRouter initialEntries={['/']}><HomePage /></MemoryRouter>);
+  return render(
+    <MemoryRouter initialEntries={['/']}>
+      <HomePage />
+      <LocationProbe />
+    </MemoryRouter>
+  );
 }
 
 beforeEach(() => {
@@ -68,6 +73,26 @@ test('clears and restores Home filters without a URL loop', async () => {
   expect(input).toHaveValue('123');
   await new Promise(resolve => setTimeout(resolve, 350));
   expect(screen.getByTestId('location')).toHaveTextContent('/?q=123');
+});
+
+test('defaults to finalized-only and stores an explicit opt-out', () => {
+  const variables: any[] = [];
+  (useQuery as jest.Mock).mockImplementation((query, options) => {
+    if (operationName(query) === 'GetLatestBlocks') variables.push(options.variables);
+    return { data: { blocks: [], network_stats: [] }, loading: false, refetch: jest.fn() };
+  });
+  renderHome();
+  const checkbox = screen.getByRole('checkbox', { name: /Finalized only/ });
+  expect(checkbox).toBeChecked();
+  expect(variables[0].where).toEqual({ _and: [{ finalization_status: { _eq: 'finalized' } }] });
+
+  fireEvent.click(checkbox);
+  expect(checkbox).not.toBeChecked();
+  expect(screen.getByTestId('location')).toHaveTextContent('/?finalized=0');
+
+  fireEvent.click(checkbox);
+  expect(checkbox).toBeChecked();
+  expect(screen.getByTestId('location')).toHaveTextContent(/^\/$/);
 });
 
 test('shows skeleton rows and cards while the overview loads', () => {

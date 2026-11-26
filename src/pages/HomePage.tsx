@@ -62,7 +62,8 @@ function RecentBlocksSkeleton() {
 const HomePage: React.FC = () => {
     const [searchParams, setSearchParams] = useSearchParams();
     const urlQuery = searchParams.get("q") ?? "";
-    const finalizedOnly = searchParams.get("finalized") === "1";
+    // Finalized-only is the default; ?finalized=0 is the explicit opt-out.
+    const finalizedOnly = searchParams.get("finalized") !== "0";
     const [currentPage, setCurrentPage] = useState(1);
     const [searchQuery, setSearchQuery] = useState(urlQuery);
     const blocksPerPage = 20;
@@ -110,7 +111,6 @@ const HomePage: React.FC = () => {
     // Get paginated blocks with polling - use search query if present.
     const searchTerm = urlQuery.trim();
     const isSearching = searchTerm.length > 0;
-    const isFiltering = isSearching || finalizedOnly;
     const isNumericSearch = /^\d+$/.test(searchTerm);
     const filterStatements: object[] = [];
     if (finalizedOnly) {
@@ -342,8 +342,8 @@ const HomePage: React.FC = () => {
                                             "{searchQuery}"
                                         </span>
                                     </>
-                                ) : isFiltering ? (
-                                    "Filtered Blocks"
+                                ) : finalizedOnly ? (
+                                    "Finalized Blocks"
                                 ) : (
                                     "Recent Blocks"
                                 )}
@@ -406,8 +406,8 @@ const HomePage: React.FC = () => {
                                 const checked = event.target.checked;
                                 setSearchParams(previous => {
                                     const next = new URLSearchParams(previous);
-                                    if (checked) next.set("finalized", "1");
-                                    else next.delete("finalized");
+                                    if (checked) next.delete("finalized");
+                                    else next.set("finalized", "0");
                                     return next;
                                 });
                             }}
@@ -421,7 +421,7 @@ const HomePage: React.FC = () => {
                             onClick={() => {
                                 setSearchParams(previous => {
                                     const next = new URLSearchParams(previous);
-                                    next.delete("finalized");
+                                    next.set("finalized", "0");
                                     return next;
                                 });
                             }}

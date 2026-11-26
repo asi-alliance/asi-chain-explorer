@@ -450,6 +450,11 @@ code, .code {
     }
 }
 
+.recent-blocks-table tbody tr:hover {
+    /* Keep the hover tint neutral: green is reserved for Confirmed status. */
+    background-color: rgba(255, 255, 255, 0.035);
+}
+
 .height-cell {
     vertical-align: top;
 }

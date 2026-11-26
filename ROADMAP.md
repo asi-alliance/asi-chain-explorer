@@ -86,6 +86,10 @@ Tracked in
 - [x] Explicit error and Retry states that keep the last loaded data visible.
 - [x] Confirmed / Unfinalized status legend under the Recent Blocks filters.
 - [x] Home search and filter controls stack at 600 px with no overflow at 390 px.
+- [x] Finalized only is checked by default; `?finalized=0` explicitly shows all
+      blocks.
+- [x] Recent Blocks hover uses a neutral tint so green stays reserved for the
+      Confirmed status.
 
 ## Blocked by the indexer / Hasura
 
