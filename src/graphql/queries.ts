@@ -44,8 +44,6 @@ export const DEPLOYMENT_FRAGMENT = gql`
     status
     block_number
     block_hash
-    seq_num
-    shard_id
     sig
     sig_algorithm
     errored

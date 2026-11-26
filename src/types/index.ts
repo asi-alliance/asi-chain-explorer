@@ -56,8 +56,6 @@ export interface Deployment {
   status?: string;
   block_number?: number;
   block_hash?: string;
-  seq_num?: number | null;
-  shard_id?: string | null;
   sig?: string;
   sig_algorithm?: string;
   errored: boolean;

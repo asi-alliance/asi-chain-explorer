@@ -74,8 +74,6 @@ const GET_TRANSACTION_DETAILS = gql`
       status
       block_number
       block_hash
-      seq_num
-      shard_id
       sig
       sig_algorithm
       errored
@@ -621,36 +619,6 @@ Exported at: ${new Date().toLocaleString()}
                 <CopyButton dataToCopy={transaction.block_hash} iconSize={14} />
               </div>
             </div>
-
-            {(transaction.seq_num != null || transaction.shard_id) && (
-              <div style={{
-                display: 'grid',
-                gridTemplateColumns: transaction.seq_num != null && transaction.shard_id ? '1fr 1fr' : '1fr',
-                gap: '1rem'
-              }}>
-                {transaction.seq_num != null && (
-                  <div>
-                    <div style={{ fontSize: '0.875rem', color: '#9ca3af', marginBottom: '0.25rem' }}>
-                      Sequence Number
-                    </div>
-                    <div style={{ fontSize: '1.125rem', fontWeight: '600' }}>
-                      {transaction.seq_num}
-                    </div>
-                  </div>
-                )}
-
-                {transaction.shard_id && (
-                  <div>
-                    <div style={{ fontSize: '0.875rem', color: '#9ca3af', marginBottom: '0.25rem' }}>
-                      Shard ID
-                    </div>
-                    <div style={{ fontSize: '1.125rem', fontWeight: '600' }}>
-                      {transaction.shard_id}
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
           </div>
         </div>
       </div>

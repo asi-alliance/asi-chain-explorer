@@ -231,35 +231,6 @@ test('shows the executed deploy fee in ASI using the block decimals', async () =
     .toHaveAttribute('title', expect.stringContaining('processed and included'));
 });
 
-test('hides empty deployment sequence and shard fields', async () => {
-  const indexedDeployment = (overrides: object = {}) => ({
-    __typename: 'deployments', deploy_id: SIG, sig: SIG, deployer: '04' + 'ab'.repeat(32),
-    term: 'new x in { x!(1) }', timestamp: '1762770000000', deployment_type: 'contract_call',
-    phlo_cost: '1', phlo_price: '1', phlo_limit: '1', valid_after_block_number: '1',
-    status: 'included', errored: false, block_number: '1', block_hash: 'b'.repeat(64),
-    created_at: '2026-11-11T00:00:00', seq_num: null, shard_id: null, transfers: [],
-    block: {
-      __typename: 'blocks', block_number: 1, block_hash: 'b'.repeat(64),
-      token_decimals: 18, parent_links: [], timestamp: '1762770000000',
-      proposer: 'v', deployment_count: 1, state_hash: 's', finalization_status: 'finalized',
-      justifications: [], created_at: '2026-11-11T00:00:00',
-    },
-    ...overrides,
-  });
-  const { update } = renderLookup({
-    details: { data: { deployments: [indexedDeployment()] } },
-  });
-
-  expect(await screen.findByRole('heading', { name: 'Transaction Details' })).toBeInTheDocument();
-  expect(screen.queryByText('Sequence Number')).not.toBeInTheDocument();
-  expect(screen.queryByText('Shard ID')).not.toBeInTheDocument();
-
-  update({ details: { data: { deployments: [indexedDeployment({ seq_num: 0, shard_id: 'root' })] } } });
-  await waitFor(() => expect(screen.getByText('Sequence Number')).toBeInTheDocument());
-  expect(screen.getByText('Shard ID')).toBeInTheDocument();
-  expect(screen.getByText('root')).toBeInTheDocument();
-});
-
 test('labels RChain mainnet deployments in the genesis block', async () => {
   renderLookup({
     details: {

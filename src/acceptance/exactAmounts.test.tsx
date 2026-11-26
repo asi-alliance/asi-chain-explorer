@@ -83,7 +83,7 @@ const deployment = (overrides: object = {}) => ({
   __typename: 'deployments', deploy_id: DEPLOY_ID, deployer: '04' + 'cd'.repeat(32), term: 'new x in { Nil }',
   timestamp: '1762000000000', deployment_type: 'ASI Transfer', phlo_cost: INT64_MAX, phlo_price: UINT256_MAX,
   phlo_limit: TWO_POW_53_PLUS_1, valid_after_block_number: '0', status: 'included', block_number: TWO_POW_53_PLUS_1,
-  block_hash: 'b'.repeat(64), seq_num: 1, shard_id: 'root', sig: 'ab', sig_algorithm: 'secp256k1',
+  block_hash: 'b'.repeat(64), sig: 'ab', sig_algorithm: 'secp256k1',
   errored: false, error_message: null, created_at: '2026-11-01T00:00:00',
   transfers: [
     transfer('1', '1000000000000000001', 18),

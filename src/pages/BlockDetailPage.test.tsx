@@ -63,9 +63,13 @@ function renderHeight() {
   }));
 }
 
-type DeploymentFixture = Deployment & { __typename: 'deployments' };
+type DeploymentFixture = Deployment & {
+  __typename: 'deployments';
+  seq_num?: number | null;
+  shard_id?: string | null;
+};
 
-function deployment(overrides: Partial<Deployment> = {}): DeploymentFixture {
+function deployment(overrides: Partial<DeploymentFixture> = {}): DeploymentFixture {
   return {
     __typename: 'deployments',
     deploy_id: 'a'.repeat(130),
@@ -168,25 +172,18 @@ test('shows a retryable error when block details fail to load', async () => {
   expect(screen.getByRole('link', { name: /Back to home/ })).toHaveAttribute('href', '/');
 });
 
-test('hides empty deployment sequence and shard fields but keeps populated values', async () => {
+test('keeps block metadata off deployment cards and renders block sequence zero', async () => {
   renderBlockWithDeployments([
-    deployment({ deploy_id: 'a'.repeat(130), deployment_type: 'Indexed deployment', seq_num: null, shard_id: null }),
-    deployment({ deploy_id: 'b'.repeat(130), deployment_type: 'Populated deployment', seq_num: 7, shard_id: 'root' }),
+    deployment({ deploy_id: 'a'.repeat(130), deployment_type: 'Indexed deployment', seq_num: 7, shard_id: 'root' }),
   ]);
 
   expect(await screen.findByRole('heading', { name: 'Block Details' })).toBeInTheDocument();
+  expect(screen.getByText('Sequence Number').nextElementSibling).toHaveTextContent('0');
+  expect(screen.getByText('Shard ID').nextElementSibling).toHaveTextContent('root');
 
-  const emptyCard = screen
+  const card = screen
     .getByRole('heading', { name: 'Indexed deployment', level: 4 })
     .closest('.deployment-item') as HTMLElement;
-  expect(within(emptyCard).queryByText('Sequence')).not.toBeInTheDocument();
-  expect(within(emptyCard).queryByText('Shard ID')).not.toBeInTheDocument();
-
-  const populatedCard = screen
-    .getByRole('heading', { name: 'Populated deployment', level: 4 })
-    .closest('.deployment-item') as HTMLElement;
-  expect(within(populatedCard).getByText('Sequence')).toBeInTheDocument();
-  expect(within(populatedCard).getByText('7')).toBeInTheDocument();
-  expect(within(populatedCard).getByText('Shard ID')).toBeInTheDocument();
-  expect(within(populatedCard).getByText('root')).toBeInTheDocument();
+  expect(within(card).queryByText('Sequence')).not.toBeInTheDocument();
+  expect(within(card).queryByText('Shard ID')).not.toBeInTheDocument();
 });

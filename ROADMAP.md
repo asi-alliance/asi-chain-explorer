@@ -99,8 +99,8 @@ Tracked in
 - [x] Removed explicit `any` from the activity feed, search index, block
       details, validator pages, Home query variables and CSV exporter
       (90 → 60 remaining, mostly tests and legacy components).
-- [x] Empty deployment Sequence Number and Shard ID values stay hidden instead
-      of rendering a blank row and `N/A`.
+- [x] Deployment cards and transaction pages no longer show block-level
+      Sequence Number and Shard ID metadata; the block page keeps the real values.
 - [x] Removed the unrouted BlocksPage, TransfersPage and DeploymentsPage, the
       unused BlockVisualization, BlockCard, LoadingSpinner and genesis-funding
       utility, and their tests. ConnectionStatus remains live in Layout.

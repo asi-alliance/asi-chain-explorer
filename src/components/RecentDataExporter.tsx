@@ -41,8 +41,6 @@ query GetDeploymentsCSV {
         timestamp
         block_hash
         created_at
-        seq_num
-        shard_id
         sig
         sig_algorithm
         deployer

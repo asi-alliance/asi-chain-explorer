@@ -467,7 +467,7 @@ const BlockDetailPage: React.FC = () => {
           <dd>{block.version || 'N/A'}</dd>
           
           <dt>Sequence Number</dt>
-          <dd>{block.seq_num || 'N/A'}</dd>
+          <dd>{block.seq_num ?? 'N/A'}</dd>
           
           <dt>Shard ID</dt>
           <dd className="mono">{block.shard_id || 'N/A'}</dd>
@@ -718,28 +718,6 @@ const BlockDetailPage: React.FC = () => {
                           </dt>
                           <dd style={{ fontSize: '13px', margin: 0 }}>
                             {deploy.status}
-                          </dd>
-                        </>
-                      )}
-                      
-                      {deploy.seq_num != null && (
-                        <>
-                          <dt style={{ fontSize: '13px', color: 'var(--text-tertiary)', margin: 0 }}>
-                            Sequence
-                          </dt>
-                          <dd style={{ fontSize: '13px', margin: 0 }}>
-                            {deploy.seq_num}
-                          </dd>
-                        </>
-                      )}
-                      
-                      {deploy.shard_id && (
-                        <>
-                          <dt style={{ fontSize: '13px', color: 'var(--text-tertiary)', margin: 0 }}>
-                            Shard ID
-                          </dt>
-                          <dd style={{ fontSize: '13px', margin: 0 }}>
-                            {deploy.shard_id}
                           </dd>
                         </>
                       )}
