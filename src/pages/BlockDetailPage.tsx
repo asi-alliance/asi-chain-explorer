@@ -716,7 +716,7 @@ const BlockDetailPage: React.FC = () => {
                         )}
                       </dd>
                       
-                      {deploy.valid_after_block_number !== undefined && (
+                      {deploy.valid_after_block_number != null && (
                         <>
                           <dt style={{ fontSize: '13px', color: 'var(--text-tertiary)', margin: 0 }}>
                             Valid After Block

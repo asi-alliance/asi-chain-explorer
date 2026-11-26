@@ -533,6 +533,12 @@ code, .code {
     100% { transform: rotate(360deg); }
 }
 
+/* Inline refresh icons while a list is loading. */
+.spinning {
+    animation: spin 0.9s linear infinite;
+    transform-origin: center;
+}
+
 /* Layout-preserving placeholders while data loads. */
 .skeleton {
     display: block;
@@ -599,7 +605,8 @@ code, .code {
 }
 
 @media (prefers-reduced-motion: reduce) {
-    .skeleton { animation: none; }
+    .skeleton,
+    .spinning { animation: none; }
 }
 
 /* Explicit error or stale-data state that keeps the surrounding page stable. */

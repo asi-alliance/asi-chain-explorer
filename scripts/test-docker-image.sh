@@ -94,6 +94,16 @@ expected="window.__ASI_EXPLORER_CONFIG__ = Object.freeze({\"REACT_APP_GRAPHQL_UR
 [ "$config" = "$expected" ] && pass "serves runtime endpoints in /config.js" || { fail "served /config.js"; echo "$config" >&2; }
 grep -qi '^cache-control: no-store' "$work/config-headers" && pass "/config.js is not cached" || fail "/config.js cache headers"
 curl -fsS -D "$work/index-headers" -o /dev/null "$base/"
+grep -qi '^cache-control: no-cache' "$work/index-headers" \
+    && pass "index.html revalidates in the browser" \
+    || fail "index.html cache headers"
+curl -fsS -D "$work/route-headers" -o "$work/route-body" "$base/pending"
+grep -qi '^cache-control: no-cache' "$work/route-headers" \
+    && pass "SPA routes revalidate in the browser" \
+    || fail "SPA route cache headers"
+grep -q 'src="/config.js"' "$work/route-body" \
+    && pass "SPA routes serve the entry HTML" \
+    || fail "SPA route body"
 for headers in "$work/index-headers" "$work/config-headers"; do
     grep -qiE "^content-security-policy:.*connect-src 'self' http: https: ws: wss:" "$headers" \
         && pass "browser CSP permits HTTP and WebSocket endpoints ($(basename "$headers"))" \

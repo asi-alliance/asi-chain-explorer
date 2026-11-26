@@ -501,7 +501,7 @@ Docker builds accept the same build argument. Changing a display setting does no
 rescale tokens or upgrade a chain's denomination.
 
 Validation: `CI=true npm test -- --watchAll=false --runInBand`,
-`npx tsc --noEmit`, and `npm run build`. The suite currently has 409 tests
+`npx tsc --noEmit`, and `npm run build`. The suite currently has 410 tests
 in 39 suites.
 The `Tests` workflow runs these checks on pull requests to `dev` and `main` and
 on pushes to `dev`. Its build runs with `CI=true`, so a lint warning fails the

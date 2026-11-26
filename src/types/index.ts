@@ -52,7 +52,7 @@ export interface Deployment {
   phlo_cost?: string | number;
   phlo_price?: string | number;
   phlo_limit?: string | number;
-  valid_after_block_number?: number;
+  valid_after_block_number?: string | number | null;
   status?: string;
   block_number?: number;
   block_hash?: string;

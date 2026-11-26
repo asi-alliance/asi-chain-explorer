@@ -215,3 +215,18 @@ test('keeps block metadata off deployment cards and renders block sequence zero'
   expect(within(card).queryByText('Sequence')).not.toBeInTheDocument();
   expect(within(card).queryByText('Shard ID')).not.toBeInTheDocument();
 });
+
+test('renders Valid After Block only when the indexer has a value, including zero', async () => {
+  renderBlockWithDeployments([
+    deployment({ deploy_id: 'a'.repeat(130), valid_after_block_number: null }),
+    deployment({ deploy_id: 'b'.repeat(130), valid_after_block_number: 0 }),
+  ]);
+
+  expect(await screen.findByRole('heading', { name: 'Block Details' })).toBeInTheDocument();
+  const cards = screen
+    .getAllByRole('heading', { name: 'Contract Deployment', level: 4 })
+    .map(heading => heading.closest('.deployment-item') as HTMLElement);
+
+  expect(within(cards[0]).queryByText('Valid After Block')).not.toBeInTheDocument();
+  expect(within(cards[1]).getByText('Valid After Block').nextElementSibling).toHaveTextContent('0');
+});
