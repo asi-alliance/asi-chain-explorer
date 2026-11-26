@@ -77,6 +77,31 @@ test('shows eight decimals by default and the exact balance on hover', async () 
     .toHaveTextContent('899,999.999999999998091895 ASI');
 });
 
+test('shows a less-than label for a positive balance below eight decimals', async () => {
+  fetchMock.mockResolvedValue({ ok: true, json: async () => ({
+    address, balance: '1', token_decimals: 18, block_hash: hash, block_number: 7294,
+  }) });
+  show('/address/' + address);
+  const compact = await screen.findByText('<0.00000001 ASI');
+  expect(compact).toHaveAttribute('data-exact', '0.000000000000000001 ASI');
+  expect(compact).toHaveAttribute('tabindex', '0');
+  const exactId = compact.getAttribute('aria-describedby');
+  expect(exactId).toBeTruthy();
+  expect(document.getElementById(exactId as string))
+    .toHaveTextContent('0.000000000000000001 ASI');
+});
+
+test('does not mark an exact eight-decimal balance as truncated', async () => {
+  fetchMock.mockResolvedValue({ ok: true, json: async () => ({
+    address, balance: '10000000000', token_decimals: 18, block_hash: hash, block_number: 7294,
+  }) });
+  show('/address/' + address);
+  const exact = await screen.findByText('0.00000001 ASI');
+  expect(exact).not.toHaveAttribute('data-exact');
+  expect(exact).not.toHaveAttribute('aria-describedby');
+  expect(exact).not.toHaveAttribute('tabindex');
+});
+
 test('retries a failed balance read from the warning', async () => {
   fetchMock.mockResolvedValueOnce({ ok: false, status: 503 })
     .mockResolvedValueOnce({ ok: false, status: 503 })

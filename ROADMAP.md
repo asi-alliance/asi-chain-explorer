@@ -65,6 +65,12 @@ lives in
 - Removed unused QR, Swagger, XLSX, Workbox and intersection-observer packages, updated the syntax highlighter and pinned nginx stable.
 - Transaction tabs wrap on narrow screens instead of overflowing the page.
 
+## After PR #79
+
+- A positive wallet balance below the eight-decimal display precision reads
+  `<0.00000001 ASI`; the exact amount stays in the hover/focus tooltip and the
+  accessible description.
+
 ## Frontend-only next
 
 Tracked in

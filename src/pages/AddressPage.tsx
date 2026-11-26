@@ -3,7 +3,7 @@ import { Link, useParams } from 'react-router-dom';
 import { format } from 'date-fns';
 import { AlertTriangle, ArrowLeft, CheckCircle2, RefreshCw, Wallet } from 'lucide-react';
 import { getPublicConfig } from '../runtimeConfig';
-import { formatRaw, groupThousands, truncateDecimal, validateDecimals } from '../utils/amounts';
+import { compactDecimal, formatRaw, groupThousands, validateDecimals } from '../utils/amounts';
 import { isVaultAddress } from '../utils/addressPath';
 import { getBlockPath } from '../utils/blockPath';
 import { CURRENT_TOKEN } from '../utils/constants';
@@ -130,9 +130,10 @@ function AddressView({ address }: { address: string }) {
   }, []);
 
   const exactBalanceId = useId();
-  const exactBalance = balance ? `${groupThousands(balance.amount)} ${CURRENT_TOKEN}` : '';
-  const compactBalance = balance ? truncateDecimal(balance.amount) : '';
-  const truncated = balance ? compactBalance !== balance.amount : false;
+  const exactBalanceText = balance ? groupThousands(balance.amount) : '';
+  const exactBalance = balance ? `${exactBalanceText} ${CURRENT_TOKEN}` : '';
+  const compactBalance = balance ? compactDecimal(balance.amount) : '';
+  const truncated = balance ? compactBalance !== exactBalanceText : false;
 
   return (
     <div className="address-page">
@@ -183,7 +184,7 @@ function AddressView({ address }: { address: string }) {
                 data-exact={truncated ? exactBalance : undefined}
                 aria-describedby={truncated ? exactBalanceId : undefined}
                 tabIndex={truncated ? 0 : undefined}>
-                {groupThousands(compactBalance)} {CURRENT_TOKEN}
+                {compactBalance} {CURRENT_TOKEN}
               </span>
               {truncated && (
                 <span id={exactBalanceId} className="address-sr">{exactBalance}</span>
