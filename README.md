@@ -363,7 +363,7 @@ resolves before nginx starts.
 - `/` - Home dashboard with network overview and Recent Blocks with a footer CSV export; finalized-only is the default, `?q=` preserves the search and `?finalized=0` shows all blocks
 - `/blocks` - Redirects to `/`; the home page is the block list
 - `/height/:height` - Height overview; a height with several DAG siblings lists every sibling
-- `/block/hash/:blockHash` - Details for one specific block
+- `/block/hash/:blockHash` - Details for one specific block, including its size, deployments and transfers; deploy IDs and transfer rows link to `/transaction/:id`
 - `/block/:blockNumber` - Legacy height URL; redirects to `/height/:blockNumber` and preserves the query string
 - `/transactions` - Non-overlapping All deploys, Contract deploys (no transfer events) and Transfers tabs with a footer CSV export; `?tab=contract` and `?tab=transfers` open a tab directly
 - `/pending` - Deploys in the validators' deploy buffers that no indexed block includes yet (the navigation tab appears only when the indexer tracks pending deploys)

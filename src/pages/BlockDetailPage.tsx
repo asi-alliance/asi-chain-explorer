@@ -8,7 +8,7 @@ import { formatRelativeTime } from '../utils/time';
 import { CURRENT_TOKEN } from '../utils/constants';
 import { getParentHashes } from '../utils/blockParent';
 import { heightInput } from '../utils/blockHeight';
-import { formatRaw } from '../utils/amounts';
+import { formatRaw, groupThousands } from '../utils/amounts';
 import { getBlockPath } from '../utils/blockPath';
 import CopyButton from '../components/CopyButton';
 import ShareLinkButton from '../components/ShareLinkButton';
@@ -41,6 +41,15 @@ function HeightSkeleton() {
     </div>
   );
 }
+
+const DEPLOYMENT_TYPE_LABELS: Record<string, string> = {
+  asi_transfer: 'ASI Transfer',
+  validator_operation: 'Validator Operation',
+  registry_lookup: 'Registry Lookup',
+  smart_contract: 'Contract Call',
+  genesis_mint: 'Genesis Mint',
+  genesis_bond: 'Genesis Bond',
+};
 
 const BlockDetailPage: React.FC = () => {
   const { blockHash, blockNumber, height } = useParams<{
@@ -105,6 +114,8 @@ const BlockDetailPage: React.FC = () => {
     );
   }
 
+  const deploymentCount = block.deployments?.length ?? block.deployment_count ?? 0;
+
   const staleNotice = error ? (
     <div className="data-state data-state--warning" role="status">
       <AlertTriangle size={16} aria-hidden="true" />
@@ -133,9 +144,17 @@ const BlockDetailPage: React.FC = () => {
     return `${address.slice(0, 20)}...${address.slice(-20)}`;
   };
 
+  const formatBlockSize = (value: string | number | null | undefined) => {
+    const size = Number(value);
+    if (!Number.isFinite(size) || size < 0) return 'N/A';
+    if (size < 1000) return `${size} B`;
+    if (size < 1_000_000) return `${(size / 1000).toFixed(2)} KB`;
+    return `${(size / 1_000_000).toFixed(2)} MB`;
+  };
+
   const getTransactionType = (deploy: Deployment) => {
     if (deploy.deployment_type) {
-      return deploy.deployment_type;
+      return DEPLOYMENT_TYPE_LABELS[deploy.deployment_type] || deploy.deployment_type;
     }
     
     if (deploy.term) {
@@ -335,7 +354,7 @@ const BlockDetailPage: React.FC = () => {
                         {formatTimestamp(sibling.timestamp)}
                       </span>
                       <span className="height-sibling__deploys">
-                        {sibling.deployment_count || 0} deploys
+                        {sibling.deployments?.length ?? sibling.deployment_count ?? 0} deploys
                       </span>
                       <span className={`height-sibling__status ${finalizationClass(sibling.finalization_status)}`}>
                         {finalizationLabel(sibling.finalization_status)}
@@ -490,9 +509,12 @@ const BlockDetailPage: React.FC = () => {
           
           <dt>Fault Tolerance</dt>
           <dd>{block.fault_tolerance !== undefined ? block.fault_tolerance : 'N/A'}</dd>
+
+          <dt>Block Size</dt>
+          <dd>{formatBlockSize(block.block_size)}</dd>
           
           <dt>Deployment Count</dt>
-          <dd>{block.deployment_count || 0}</dd>
+          <dd>{deploymentCount}</dd>
         </dl>
       </section>
 
@@ -621,7 +643,7 @@ const BlockDetailPage: React.FC = () => {
         <section className="asi-card mt-3">
           <h2>Transactions / Deployments</h2>
           <p className="text-muted mb-2">
-            {block.deployments.length} deployments in this block
+            {deploymentCount} deployments in this block
           </p>
           
           <div>
@@ -694,7 +716,12 @@ const BlockDetailPage: React.FC = () => {
                         Deploy ID
                       </dt>
                       <dd className="mono" style={{ fontSize: '12px', margin: 0, wordBreak: 'break-all' }}>
-                        {deploy.deploy_id}
+                        <Link
+                          className="height-link"
+                          to={`/transaction/${encodeURIComponent(deploy.deploy_id)}`}
+                        >
+                          {deploy.deploy_id}
+                        </Link>
                       </dd>
                       
                       <dt style={{ fontSize: '13px', color: 'var(--text-tertiary)', margin: 0 }}>
@@ -756,7 +783,20 @@ const BlockDetailPage: React.FC = () => {
                             Transfers
                           </dt>
                           <dd style={{ fontSize: '13px', margin: 0 }}>
-                            {deploy.transfers.length} {CURRENT_TOKEN} transfer{deploy.transfers.length > 1 ? 's' : ''}
+                            {deploy.transfers.map((transfer) => (
+                              <div key={transfer.id} style={{ marginBottom: '0.35rem' }}>
+                                <Link
+                                  className="height-link"
+                                  to={`/transaction/${encodeURIComponent(deploy.deploy_id)}?tab=transfers`}
+                                >
+                                  {truncateAddress(transfer.from_address)} → {truncateAddress(transfer.to_address)}
+                                </Link>
+                                <span className="text-muted">
+                                  {' '}
+                                  {groupThousands(formatRaw(transfer.amount_dust, transfer.token_decimals))} {CURRENT_TOKEN}
+                                </span>
+                              </div>
+                            ))}
                           </dd>
                         </>
                       )}

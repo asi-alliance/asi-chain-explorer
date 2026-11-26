@@ -26,6 +26,7 @@ export const BLOCK_FRAGMENT = gql`
     sig_algorithm
     version
     extra_bytes
+    block_size
     created_at
   }
 `;

@@ -38,6 +38,7 @@ export interface Block {
   sig_algorithm?: string;
   version?: number;
   extra_bytes?: string;
+  block_size?: number | string | null;
   created_at: string;
   deployments?: Deployment[];
   validator_bonds?: ValidatorBond[];

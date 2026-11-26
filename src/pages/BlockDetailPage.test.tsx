@@ -23,6 +23,7 @@ const blocks = hashes.map((block_hash, index) => ({
   proposer: `04${String(index).repeat(64)}`,
   timestamp: String(Date.now() - 60_000 - index * 1_000),
   deployment_count: 2,
+  block_size: 2048,
   finalization_status: 'finalized',
   parent_links: [],
   child_links: [],
@@ -208,12 +209,17 @@ test('keeps block metadata off deployment cards and renders block sequence zero'
   expect(await screen.findByRole('heading', { name: 'Block Details' })).toBeInTheDocument();
   expect(screen.getByText('Sequence Number').nextElementSibling).toHaveTextContent('0');
   expect(screen.getByText('Shard ID').nextElementSibling).toHaveTextContent('root');
+  expect(screen.getByText('Block Size').nextElementSibling).toHaveTextContent('2.05 KB');
 
   const card = screen
     .getByRole('heading', { name: 'Indexed deployment', level: 4 })
     .closest('.deployment-item') as HTMLElement;
   expect(within(card).queryByText('Sequence')).not.toBeInTheDocument();
   expect(within(card).queryByText('Shard ID')).not.toBeInTheDocument();
+  expect(within(card).getByRole('link', { name: 'a'.repeat(130) })).toHaveAttribute(
+    'href',
+    `/transaction/${'a'.repeat(130)}`
+  );
 });
 
 test('renders Valid After Block only when the indexer has a value, including zero', async () => {
