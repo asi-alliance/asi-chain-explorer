@@ -98,7 +98,7 @@ The system indexes blockchain data including blocks, deployments, transfers, val
 2. **Data Processing**: Each block is processed to extract deployments, transfers, validator bonds, and network state
 3. **Database Storage**: Processed data is stored in PostgreSQL with proper relationships and indices
 4. **GraphQL Exposure**: Hasura automatically generates GraphQL API from database schema
-5. **Frontend Query**: React application queries the GraphQL API over HTTP and polls for block and statistics updates; pending deploys, indexer status and outgoing pending deploys use WebSocket subscriptions with an HTTP fallback
+5. **Frontend Query**: React application queries the GraphQL API over HTTP and polls for block and statistics updates; pending deploys and outgoing pending deploys use WebSocket subscriptions with an HTTP fallback, while indexer status polls its `/status` endpoint every five seconds
 6. **User Interface**: Data is rendered in the web interface with visualizations and navigation
 
 ## Technology Stack
@@ -311,10 +311,12 @@ docker run -p 3001:80 \
 
 ## API Endpoints
 
-The indexer status page polls the current indexer's `/status` response every five
-seconds after the preceding request completes. It displays the stored sync cursor
-against the node's finalized height. Missing data and failed requests show an
-unavailable state; failed refreshes clear the previous status.
+The indexer cards on the Network Dashboard poll the current indexer's `/status`
+response every five seconds after the preceding request completes. They show the
+stored sync cursor, the node's finalized height, sync progress and the time of the
+last indexed block, not the time of the latest status check. Missing data and
+failed requests show an unavailable state; failed refreshes clear the previous
+status.
 
 Production nginx proxies `GET /api/indexer/status` to `INDEXER_STATUS_URL`.
 For `GET /api/indexer/address/{address}` it replaces the upstream `/status`
@@ -368,10 +370,10 @@ resolves before nginx starts.
 - `/transaction/:transactionId` - Deploy details: executed fee in ASI, code, transfers with native transfer calls and block. Shows one copyable ID, a status tooltip, local and relative timestamps; block-0 records carry a Genesis label. `?tab=code`, `?tab=transfers` and `?tab=block` open a tab directly. A pending deploy shows its pending state until it is indexed.
 - `/validators` - Current validators with consensus health, stake-share bars, copyable keys, height links, proposer counts over the latest 1,000 blocks and a separate inactive table
 - `/validator-history` - Bond set at a chosen height; the height links to the height overview, the proposer links to the validators page, and the block time carries an absolute-time tooltip
-- `/statistics` - Network Dashboard with height, block time, TPS, validators and consensus health
+- `/statistics` - Network Dashboard with height, block time, TPS, validators, consensus, indexer status, sync progress and the last indexed block
 - `/search` - Search results for a height, hash, deploy ID or address, with type tabs and copy/share actions
 - `/address/:address` - Spendable balance at the latest finalized block and indexed transfer history
-- `/indexer-status` - Indexer health monitoring
+- `/indexer-status` - Redirects to `/statistics`; indexer health is part of the Network Dashboard
 - Any unknown path - 404 page with the chain search and recovery links
 
 The `/transfers` and `/deployments` routes are disabled in `src/App.tsx`.
@@ -501,7 +503,7 @@ Docker builds accept the same build argument. Changing a display setting does no
 rescale tokens or upgrade a chain's denomination.
 
 Validation: `CI=true npm test -- --watchAll=false --runInBand`,
-`npx tsc --noEmit`, and `npm run build`. The suite currently has 410 tests
+`npx tsc --noEmit`, and `npm run build`. The suite currently has 414 tests
 in 39 suites.
 The `Tests` workflow runs these checks on pull requests to `dev` and `main` and
 on pushes to `dev`. Its build runs with `CI=true`, so a lint warning fails the

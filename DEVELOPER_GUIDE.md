@@ -103,7 +103,6 @@ explorer/src/
 │   ├── SearchResultsPage.tsx
 │   ├── AddressPage.tsx
 │   ├── PendingPage.tsx
-│   ├── IndexerStatusPage.tsx
 │   └── NotFoundPage.tsx
 │
 ├── graphql/            # GraphQL operations

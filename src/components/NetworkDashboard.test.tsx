@@ -3,11 +3,14 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { useQuery } from '@apollo/client';
 import NetworkDashboard from './NetworkDashboard';
+import { useIndexerStatus } from '../hooks/useIndexerStatus';
 
 jest.mock('@apollo/client', () => ({
   ...jest.requireActual('@apollo/client'),
   useQuery: jest.fn(),
 }));
+
+jest.mock('../hooks/useIndexerStatus', () => ({ useIndexerStatus: jest.fn() }));
 
 jest.mock('react-router-dom', () => {
   Object.assign(global, { TextEncoder: require('util').TextEncoder });
@@ -78,6 +81,21 @@ const renderPage = () =>
 
 afterEach(() => {
   jest.clearAllMocks();
+});
+
+beforeEach(() => {
+  (useIndexerStatus as jest.Mock).mockReturnValue({
+    data: {
+      lastIndexedBlock: 10274,
+      latestBlock: 10275,
+      lastUpdate: new Date(),
+      lag: 1,
+      percentage: 99.99,
+      label: 'Syncing',
+    },
+    loading: false,
+    error: false,
+  });
 });
 
 test('shows consensus health and links the latest height', () => {
@@ -187,4 +205,108 @@ test('keeps a height above 2^53 exact in the card and its link', () => {
     'href',
     '/height/9007199254740993'
   );
+});
+
+test('shows the indexer status, sync progress and last indexed block', () => {
+  const lastUpdate = new Date();
+  (useQuery as jest.Mock).mockReturnValue(
+    queryResult({
+      data: statsData({
+        blocks: [{ block_number: '10451', block_hash: 'abc' }],
+      }),
+      loading: false,
+    })
+  );
+  (useIndexerStatus as jest.Mock).mockReturnValue({
+    data: {
+      lastIndexedBlock: 10450,
+      latestBlock: 10450,
+      lastUpdate,
+      lag: 0,
+      percentage: 100,
+      label: 'Synced',
+    },
+    loading: false,
+    error: false,
+  });
+  renderPage();
+
+  expect(screen.getByText('Indexer Status')).toBeInTheDocument();
+  expect(screen.getByText('Synced')).toBeInTheDocument();
+  expect(screen.getByText('100.00%')).toBeInTheDocument();
+  expect(screen.getByText('0 blocks behind node #10,450')).toBeInTheDocument();
+  expect(screen.getByText('Checked every 5 seconds')).toBeInTheDocument();
+  expect(screen.getByRole('link', { name: '10,450' })).toHaveAttribute(
+    'href',
+    '/height/10450'
+  );
+  expect(screen.getByRole('progressbar', { name: 'Sync Progress progress' })).toHaveAttribute(
+    'aria-valuenow',
+    '100'
+  );
+  expect(screen.getByText(/^Last indexed /)).toHaveAttribute(
+    'title',
+    expect.stringMatching(/\d{4}/)
+  );
+});
+
+test('keeps a nearly synced indexer below 100 percent', () => {
+  (useQuery as jest.Mock).mockReturnValue(
+    queryResult({ data: statsData(), loading: false })
+  );
+  (useIndexerStatus as jest.Mock).mockReturnValue({
+    data: {
+      lastIndexedBlock: 10274,
+      latestBlock: 10275,
+      lastUpdate: new Date(),
+      lag: 1,
+      percentage: 99.9999,
+      label: 'Syncing',
+    },
+    loading: false,
+    error: false,
+  });
+  renderPage();
+
+  expect(screen.getByText('99.99%')).toBeInTheDocument();
+  expect(screen.getByText('1 block behind node #10,275')).toBeInTheDocument();
+});
+
+test('reports indexer failure and an ahead cursor without a progress bar', () => {
+  (useQuery as jest.Mock).mockReturnValue(
+    queryResult({ data: statsData(), loading: false })
+  );
+  (useIndexerStatus as jest.Mock).mockReturnValue({
+    data: null,
+    loading: false,
+    error: true,
+  });
+  const { unmount } = renderPage();
+
+  expect(screen.getByRole('alert')).toHaveTextContent(
+    'Indexer status is unavailable. Retrying automatically.'
+  );
+  expect(screen.getByText('Unavailable')).toBeInTheDocument();
+  expect(screen.queryByRole('progressbar')).not.toBeInTheDocument();
+
+  unmount();
+  (useIndexerStatus as jest.Mock).mockReturnValue({
+    data: {
+      lastIndexedBlock: 120,
+      latestBlock: 100,
+      lastUpdate: new Date(),
+      lag: -20,
+      percentage: null,
+      label: 'Ahead of node',
+    },
+    loading: false,
+    error: false,
+  });
+  renderPage();
+
+  expect(screen.getByText('20 blocks ahead of node #100')).toBeInTheDocument();
+  expect(screen.getByRole('status')).toHaveTextContent(
+    'The indexer is ahead of the node.'
+  );
+  expect(screen.queryByRole('progressbar')).not.toBeInTheDocument();
 });

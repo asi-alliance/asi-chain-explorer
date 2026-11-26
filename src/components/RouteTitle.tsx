@@ -62,7 +62,6 @@ export function routeTitle(pathname: string, search = ''): string {
         '/validators': 'Validators',
         '/validator-history': 'Validator history',
         '/statistics': 'Statistics',
-        '/indexer-status': 'Indexer status',
     };
 
     return staticTitles[`/${segments[0]}`] ?? 'Page not found';

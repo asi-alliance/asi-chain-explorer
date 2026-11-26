@@ -33,13 +33,13 @@ jobs:
       HASURA_BASE: http://127.0.0.1:8080
     steps:
       - name: Check out explorer
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           path: explorer
           ref: ${{ github.event_name == 'schedule' && 'dev' || '' }}
 
       - name: Check out indexer
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           repository: asi-alliance/asi-chain-indexer
           ref: ${{ inputs.indexer_ref || 'dev' }}
@@ -75,7 +75,7 @@ jobs:
           bash scripts/full-init-hasura.sh </dev/null
 
       - name: Set up Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: 22
 

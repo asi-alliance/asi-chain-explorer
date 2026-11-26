@@ -53,3 +53,9 @@ test('hides the Pending tab when the indexer does not track pending deploys', ()
   expect(names).not.toContain('Pending');
   expect(names).toContain('Transactions');
 });
+
+test('keeps indexer status inside Statistics instead of a separate tab', () => {
+  const names = renderAt('/statistics').map((tab) => tab.textContent);
+  expect(names).toContain('Statistics');
+  expect(names).not.toContain('Indexer');
+});

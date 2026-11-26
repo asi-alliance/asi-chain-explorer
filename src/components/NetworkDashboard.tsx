@@ -6,8 +6,13 @@ import {
     formatTime,
 } from "../utils/calculateBlockTime";
 import { groupThousands } from "../utils/amounts";
+import { formatLocalTime, formatRelativeTime } from "../utils/time";
+import { useIndexerStatus } from "../hooks/useIndexerStatus";
 import {
+    Activity,
     Database,
+    Gauge,
+    Hash,
     Zap,
     Clock,
     Server,
@@ -36,7 +41,10 @@ interface MetricCard {
     icon: React.ReactNode;
     color: string;
     description?: string;
+    descriptionTitle?: string;
     to?: string;
+    progress?: number;
+    loading?: boolean;
 }
 
 interface ChartPoint {
@@ -181,6 +189,7 @@ const NetworkDashboard: React.FC = () => {
     });
 
     const statsUnavailable = Boolean(statsError) && !stats;
+    const indexer = useIndexerStatus();
 
     const keyMetrics = useMemo((): MetricCard[] => {
         const lastBlock = stats?.blocks[0] ?? {};
@@ -199,6 +208,35 @@ const NetworkDashboard: React.FC = () => {
         const quarantined = network?.validators_in_quarantine;
         const participation = network?.consensus_participation;
         const consensus = network?.consensus_status;
+        const statsLoading = isStatsLoading && !stats;
+
+        const indexerStatus = indexer.data;
+        const indexerLoading = indexer.loading && !indexer.data;
+        const indexerLabel = indexer.loading ? "Loading" : indexerStatus?.label ?? "Unavailable";
+        const indexerColor = indexerLabel === "Synced"
+            ? "#93e27c"
+            : indexerLabel === "Syncing" ? "#3b82f6" : "#f59e0b";
+        const indexerDescription = indexerLoading
+            ? "Waiting for the indexer"
+            : indexer.error
+                ? "Status unavailable; retrying"
+                : indexerStatus?.label === "Unavailable"
+                    ? "The indexer cannot reach the node"
+                    : "Checked every 5 seconds";
+        // Do not round a nearly caught-up indexer to a misleading 100.00%.
+        const progress = indexerStatus?.percentage == null
+            ? null
+            : Math.floor(indexerStatus.percentage * 100) / 100;
+        const lag = indexerStatus?.lag;
+        const nodeHeight = indexerStatus?.latestBlock;
+        const lagDescription = lag == null
+            ? "Node height unknown"
+            : `${Math.abs(lag).toLocaleString("en-US")} ${Math.abs(lag) === 1 ? "block" : "blocks"} ${lag < 0 ? "ahead of" : "behind"} node${nodeHeight == null ? "" : ` #${nodeHeight.toLocaleString("en-US")}`}`;
+        const indexedHeight = indexerStatus?.lastIndexedBlock;
+        const lastUpdate = indexerStatus?.lastUpdate;
+        const lastIndexedDescription = lastUpdate
+            ? `Last indexed ${formatRelativeTime(lastUpdate)}`
+            : "Last indexed time unknown";
 
         return [
             {
@@ -208,6 +246,7 @@ const NetworkDashboard: React.FC = () => {
                 color: "#f59e0b",
                 description: "Most recent block height",
                 to: blockNumber ? `/height/${blockNumber}` : undefined,
+                loading: statsLoading,
             },
             {
                 title: "Block Time",
@@ -217,6 +256,7 @@ const NetworkDashboard: React.FC = () => {
                 icon: <Clock size={20} />,
                 color: "#10b981",
                 description: "Average time between blocks",
+                loading: statsLoading,
             },
             {
                 title: "Transactions/sec",
@@ -224,6 +264,7 @@ const NetworkDashboard: React.FC = () => {
                 icon: <Zap size={20} />,
                 color: "#3b82f6",
                 description: "Network throughput",
+                loading: statsLoading,
             },
             {
                 title: "Active Validators",
@@ -236,6 +277,7 @@ const NetworkDashboard: React.FC = () => {
                     ? `${formatMetric(quarantined)} in quarantine`
                     : "No validators in quarantine",
                 to: "/validators",
+                loading: statsLoading,
             },
             {
                 title: "Consensus",
@@ -247,9 +289,37 @@ const NetworkDashboard: React.FC = () => {
                 description: participation
                     ? `${participation}% participation`
                     : "Consensus participation",
+                loading: statsLoading,
+            },
+            {
+                title: "Indexer Status",
+                value: indexerLabel,
+                icon: <Activity size={20} />,
+                color: indexerColor,
+                description: indexerDescription,
+                loading: indexerLoading,
+            },
+            {
+                title: "Sync Progress",
+                value: progress == null ? "—" : `${progress.toFixed(2)}%`,
+                icon: <Gauge size={20} />,
+                color: indexerColor,
+                description: lagDescription,
+                progress: progress ?? undefined,
+                loading: indexerLoading,
+            },
+            {
+                title: "Last Indexed Block",
+                value: indexedHeight == null ? "—" : indexedHeight.toLocaleString("en-US"),
+                icon: <Hash size={20} />,
+                color: "#8b5cf6",
+                description: lastIndexedDescription,
+                descriptionTitle: lastUpdate ? formatLocalTime(lastUpdate) : undefined,
+                to: indexedHeight == null ? undefined : `/height/${indexedHeight}`,
+                loading: indexerLoading,
             },
         ];
-    }, [stats]);
+    }, [stats, indexer, isStatsLoading]);
 
     const chartsData = useMemo((): ChartPoint[] => {
         if (!stats) {
@@ -270,6 +340,13 @@ const NetworkDashboard: React.FC = () => {
         (item) => item.deployments > 0 || item.transfers > 0
     );
     const showSkeletons = isStatsLoading && !stats;
+    const indexerAlert = indexer.error
+        ? "Indexer status is unavailable. Retrying automatically."
+        : indexer.data?.label === "Unavailable"
+            ? "The indexer cannot reach the node."
+            : indexer.data?.lag != null && indexer.data.lag < 0
+                ? "The indexer is ahead of the node. Check that both are using the same network and current chain state."
+                : null;
 
     return (
         <div>
@@ -349,13 +426,22 @@ const NetworkDashboard: React.FC = () => {
                     </button>
                 </div>
             )}
+            {indexerAlert && (
+                <div
+                    className={`data-state ${indexer.error ? "data-state--error" : "data-state--warning"}`}
+                    role={indexer.error ? "alert" : "status"}
+                >
+                    <AlertTriangle size={16} aria-hidden="true" />
+                    <span>{indexerAlert}</span>
+                </div>
+            )}
             <div
                 style={{
                     display: "grid",
                     gridTemplateColumns: "repeat(auto-fit, minmax(250px, 1fr))",
                     gap: "1.5rem",
                 }}
-                aria-busy={showSkeletons}
+                aria-busy={showSkeletons || indexer.loading}
             >
                 {keyMetrics.map((metric, index) => (
                     <motion.div
@@ -405,7 +491,7 @@ const NetworkDashboard: React.FC = () => {
                                         lineHeight: "1",
                                     }}
                                 >
-                                    {showSkeletons ? (
+                                    {metric.loading ? (
                                         <span
                                             className="skeleton skeleton--stat"
                                             aria-hidden="true"
@@ -426,6 +512,7 @@ const NetworkDashboard: React.FC = () => {
                                 </h2>
                                 {metric.description && (
                                     <p
+                                        title={metric.descriptionTitle}
                                         style={{
                                             margin: "0.25rem 0 0",
                                             color: "#6b7280",
@@ -434,6 +521,30 @@ const NetworkDashboard: React.FC = () => {
                                     >
                                         {metric.description}
                                     </p>
+                                )}
+                                {metric.progress != null && !metric.loading && (
+                                    <div
+                                        role="progressbar"
+                                        aria-label={`${metric.title} progress`}
+                                        aria-valuenow={metric.progress}
+                                        aria-valuemin={0}
+                                        aria-valuemax={100}
+                                        style={{
+                                            marginTop: "0.5rem",
+                                            height: "4px",
+                                            background: "var(--charcoal-400)",
+                                            borderRadius: "2px",
+                                            overflow: "hidden",
+                                        }}
+                                    >
+                                        <div
+                                            style={{
+                                                width: `${Math.max(0, Math.min(100, metric.progress))}%`,
+                                                height: "100%",
+                                                background: metric.color,
+                                            }}
+                                        />
+                                    </div>
                                 )}
                             </div>
                         </div>
