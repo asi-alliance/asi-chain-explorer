@@ -63,7 +63,8 @@ test('lists pending deploys with links and their buffer status (issue #70)', () 
   expect(within(cells[0][0]).getByRole('link')).toHaveAttribute('href', `/transaction/${SIG}`);
   expect(cells.map((row) => row[5].textContent)).toEqual(['Pending', 'Retrying after rejection', 'Included in block #42']);
   expect(screen.queryByRole('note')).not.toBeInTheDocument();
-  expect(screen.getByText(/3 validators/)).toHaveTextContent('Updates live.');
+  expect(screen.queryByText(/deploy buffers/)).not.toBeInTheDocument();
+  expect(screen.queryByText(/Updates live/)).not.toBeInTheDocument();
   // Only subscriptions while the WebSocket works: no HTTP requests.
   expect(new Set(requested)).toEqual(new Set(['WatchPendingDeploys', 'WatchPendingDeploysStatus']));
 });
