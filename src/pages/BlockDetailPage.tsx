@@ -1,7 +1,7 @@
 import React from 'react';
 import { useParams, Link, useSearchParams } from 'react-router-dom';
 import { useQuery } from '@apollo/client';
-import { ChevronRight } from 'lucide-react';
+import { AlertTriangle, ChevronRight, RefreshCw } from 'lucide-react';
 import { GET_BLOCK_DETAILS, GET_BLOCKS_AT_HEIGHT, GET_LATEST_HEIGHT } from '../graphql/queries';
 import { Block } from '../types';
 import { formatRelativeTime } from '../utils/time';
@@ -13,6 +13,34 @@ import { getBlockPath } from '../utils/blockPath';
 import CopyButton from '../components/CopyButton';
 import ShareLinkButton from '../components/ShareLinkButton';
 import '../styles/height.css';
+
+function HeightSkeleton() {
+  return (
+    <div className="height-skeleton" role="status" aria-label="Loading block details">
+      <div className="page-actions">
+        <span className="skeleton skeleton--button" aria-hidden="true" />
+      </div>
+      <div className="height-nav" aria-hidden="true">
+        <span className="skeleton skeleton--nav" />
+        <span className="skeleton skeleton--nav" />
+      </div>
+      <div className="summary-grid" aria-hidden="true">
+        {Array.from({ length: 4 }, (_, index) => (
+          <div className="asi-card glass" key={index}>
+            <span className="skeleton skeleton--row" style={{ width: '42%' }} />
+            <span className="skeleton skeleton--stat" />
+          </div>
+        ))}
+      </div>
+      <section className="asi-card" aria-hidden="true">
+        <span className="skeleton skeleton--title" />
+        {Array.from({ length: 8 }, (_, index) => (
+          <span className="skeleton skeleton--row" key={index} style={{ marginTop: '0.8rem', width: `${88 - index * 4}%` }} />
+        ))}
+      </section>
+    </div>
+  );
+}
 
 const BlockDetailPage: React.FC = () => {
   const { blockHash, blockNumber, height } = useParams<{
@@ -45,20 +73,23 @@ const BlockDetailPage: React.FC = () => {
   const activeResult = blockHash ? hashResult : heightResult;
   const { data, loading, error } = activeResult;
 
-  if (loading) {
-    return (
-      <div className="text-center">
-        <span className="loading"></span>
-        <p className="text-muted mt-2">Loading block details...</p>
-      </div>
-    );
+  if (loading && !data) {
+    return <HeightSkeleton />;
   }
 
-  if (error) {
+  if (error && !data) {
     return (
-      <div className="status-message error">
-        <strong>Error:</strong> {error.message}
-      </div>
+      <section className="asi-card height-error" role="alert">
+        <h1>Block details unavailable</h1>
+        <p>The explorer could not load this block or height.</p>
+        <p className="height-error__detail">{error.message}</p>
+        <div className="page-actions">
+          <button type="button" className="btn btn-primary" onClick={() => void activeResult.refetch()}>
+            <RefreshCw size={14} aria-hidden="true" /> Retry
+          </button>
+          <Link to="/" className="btn btn-secondary">← Back to home</Link>
+        </div>
+      </section>
     );
   }
 
@@ -73,6 +104,16 @@ const BlockDetailPage: React.FC = () => {
       </div>
     );
   }
+
+  const staleNotice = error ? (
+    <div className="data-state data-state--warning" role="status">
+      <AlertTriangle size={16} aria-hidden="true" />
+      <span>Block details could not be refreshed; showing the last loaded data.</span>
+      <button type="button" className="btn btn-secondary data-state__retry" onClick={() => void activeResult.refetch()}>
+        <RefreshCw size={14} aria-hidden="true" /> Retry
+      </button>
+    </div>
+  ) : null;
 
   const formatTimestamp = (timestamp: string | number) => formatRelativeTime(timestamp);
 
@@ -187,6 +228,7 @@ const BlockDetailPage: React.FC = () => {
 
     return (
       <>
+        {staleNotice}
         <nav className="page-actions">
           <Link to="/" className="btn btn-secondary">← Back to home</Link>
           <ShareLinkButton label="Copy height link" />
@@ -301,6 +343,7 @@ const BlockDetailPage: React.FC = () => {
 
   return (
     <>
+      {staleNotice}
       {/* Navigation */}
       <nav className="page-actions">
         <Link to="/" className="btn btn-secondary">← Back to home</Link>

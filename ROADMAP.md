@@ -1,9 +1,9 @@
 # Explorer roadmap
 
-Current focus: the frontend polish tracked in
+Current focus: PR #84 carries the frontend polish tracked in
 [asi-chain-explorer#83](https://github.com/asi-alliance/asi-chain-explorer/issues/83).
-This file records what PR #79 ships and what remains; backend-dependent scope
-lives in
+This file records what PR #79 and PR #84 ship and what remains;
+backend-dependent scope lives in
 [asi-chain-indexer#66](https://github.com/asi-alliance/asi-chain-indexer/issues/66).
 
 ## Shipped in PR #79
@@ -77,15 +77,15 @@ lives in
 - The DAG height overview moved to `/height/{height}`; legacy `/block/{number}`
   links redirect there and keep the `?status=` filter.
 
-## Frontend-only next
+## Shipped in PR #84
 
 Tracked in
 [asi-chain-explorer#83](https://github.com/asi-alliance/asi-chain-explorer/issues/83).
 
-- [ ] Loading skeletons and explicit error/retry states for stats, Recent
-      Blocks and height summaries.
-- [ ] Add a compact status legend to Recent Blocks (Confirmed / Unfinalized).
-- [ ] Revisit the home filter row on narrow screens after the mobile table work.
+- [x] Loading skeletons for stats, Recent Blocks and height summaries.
+- [x] Explicit error and Retry states that keep the last loaded data visible.
+- [x] Confirmed / Unfinalized status legend under the Recent Blocks filters.
+- [x] Home search and filter controls stack at 600 px with no overflow at 390 px.
 
 ## Blocked by the indexer / Hasura
 

@@ -60,7 +60,9 @@ The system indexes blockchain data including blocks, deployments, transfers, val
 - **Network Statistics**: Simplified Network Dashboard view
 - **Genesis Funding**: Complete visibility of initial token distribution
 - **Shareable views**: Home filters (`?q=`, `?finalized=1`), the `/transactions` tab (`?tab=transfers`) and transaction detail tabs (`?tab=code`, `?tab=transfers`, `?tab=block`) live in the URL; every route also sets a descriptive browser title
-- **Mobile Recent Blocks**: below 600 px the Height column stays pinned while the table scrolls horizontally
+- **Mobile Recent Blocks**: below 600 px the Height column stays pinned while the table scrolls horizontally; the search, Clear and Finalized-only controls stack without horizontal overflow
+- **Loading and Retry**: Recent Blocks uses skeleton rows, network cards and height summaries use skeleton cards, and failed stats/blocks/height reads show an explicit Retry without discarding the last loaded data
+- **Status Legend**: Confirmed and Unfinalized labels sit under the Recent Blocks filters with the same colours as the table and height overview
 - **Route fallback**: Unknown paths render a 404 page with the attempted path, chain search and recovery links; the legacy `/blocks` path redirects to `/`
 
 ## Architecture
@@ -497,7 +499,7 @@ Docker builds accept the same build argument. Changing a display setting does no
 rescale tokens or upgrade a chain's denomination.
 
 Validation: `CI=true npm test -- --watchAll=false --runInBand`,
-`npx tsc --noEmit`, and `npm run build`. The suite currently has 386 tests
+`npx tsc --noEmit`, and `npm run build`. The suite currently has 393 tests
 in 40 suites.
 The `Tests` workflow runs these checks on pull requests to `dev` and `main` and
 on pushes to `dev`. Its build runs with `CI=true`, so a lint warning fails the

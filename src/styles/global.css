@@ -406,6 +406,50 @@ code, .code {
     text-decoration: underline;
 }
 
+.home-status-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 16px;
+    margin: -0.25rem 0 1rem;
+    color: var(--text-secondary);
+    font-size: 12px;
+}
+
+.home-status-legend__item {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+}
+
+.status-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+}
+
+.status-dot--confirmed { background: var(--asi-lime); }
+.status-dot--unfinalized { background: var(--warning-orange); }
+
+@media (max-width: 600px) {
+    .home-search-box {
+        width: 100%;
+    }
+
+    .home-search-box .search-field {
+        flex: 1 1 100%;
+    }
+
+    .home-search-box .btn {
+        width: 100%;
+    }
+
+    .home-filter-row {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 8px;
+    }
+}
+
 .height-cell {
     vertical-align: top;
 }
@@ -472,6 +516,79 @@ code, .code {
 @keyframes spin {
     0% { transform: rotate(0deg); }
     100% { transform: rotate(360deg); }
+}
+
+/* Layout-preserving placeholders while data loads. */
+.skeleton {
+    display: block;
+    border-radius: 6px;
+    background: linear-gradient(
+        90deg,
+        rgba(255, 255, 255, 0.06) 25%,
+        rgba(255, 255, 255, 0.12) 37%,
+        rgba(255, 255, 255, 0.06) 63%
+    );
+    background-size: 400% 100%;
+    animation: skeleton-shimmer 1.4s ease infinite;
+}
+
+.skeleton--stat {
+    width: 55%;
+    height: 28px;
+    margin-top: 6px;
+}
+
+.skeleton--short { width: 40px; height: 14px; }
+.skeleton--hash { width: 118px; height: 14px; }
+.skeleton--validator { width: 96px; height: 14px; }
+.skeleton--time { width: 76px; height: 14px; }
+.skeleton--status { width: 82px; height: 14px; }
+
+@keyframes skeleton-shimmer {
+    0% { background-position: 100% 0; }
+    100% { background-position: 0 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .skeleton { animation: none; }
+}
+
+/* Explicit error or stale-data state that keeps the surrounding page stable. */
+.data-state {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin: 0 0 1rem;
+    padding: 12px 14px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 500;
+}
+
+.data-state--error {
+    border: 1px solid rgba(255, 77, 79, 0.55);
+    background: rgba(255, 77, 79, 0.08);
+    color: var(--alert-red);
+}
+
+.data-state--warning {
+    border: 1px solid rgba(255, 180, 60, 0.45);
+    background: rgba(255, 180, 60, 0.08);
+    color: var(--warning-orange);
+}
+
+.data-state__retry {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin-left: auto;
+    padding: 7px 12px;
+    font-size: 12px;
+}
+
+@media (max-width: 600px) {
+    .data-state__retry { margin-left: 0; }
 }
 
 /* Lazy route placeholder: keeps the shell stable while a page chunk loads. */

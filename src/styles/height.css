@@ -1,5 +1,35 @@
 /* Block-height overview: one row per DAG sibling at a height. */
 
+.height-skeleton .summary-grid {
+    margin-bottom: 1rem;
+}
+
+.height-skeleton .asi-card {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.skeleton--button { width: 120px; height: 38px; }
+.skeleton--nav { width: 140px; height: 34px; }
+.skeleton--title { width: 180px; height: 26px; margin-bottom: 0.5rem; }
+.skeleton--row { height: 13px; }
+
+.height-error {
+    max-width: 720px;
+    margin: 0 auto;
+}
+
+.height-error h1 {
+    margin-top: 0;
+}
+
+.height-error__detail {
+    color: var(--text-secondary);
+    font-size: 13px;
+    overflow-wrap: anywhere;
+}
+
 .page-actions {
     display: flex;
     flex-wrap: wrap;

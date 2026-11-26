@@ -38,17 +38,8 @@ const blocks = hashes.map((block_hash, index) => ({
   deployments: [],
 }));
 
-function renderHeight() {
-  const client = new ApolloClient({
-    cache: new InMemoryCache(),
-    link: new ApolloLink(operation => {
-      if (operation.operationName === 'GetLatestHeight') {
-        return Observable.of({ data: { blocks: [{ block_number: '72420', block_hash: 'c'.repeat(64) }] } });
-      }
-      expect(operation.operationName).toBe('GetBlocksAtHeight');
-      return Observable.of({ data: { blocks } });
-    }),
-  });
+function renderHeightWith(link: ApolloLink) {
+  const client = new ApolloClient({ cache: new InMemoryCache(), link });
   return render(
     <ApolloProvider client={client}>
       <MemoryRouter initialEntries={['/height/72418']}>
@@ -59,6 +50,16 @@ function renderHeight() {
       </MemoryRouter>
     </ApolloProvider>
   );
+}
+
+function renderHeight() {
+  return renderHeightWith(new ApolloLink(operation => {
+    if (operation.operationName === 'GetLatestHeight') {
+      return Observable.of({ data: { blocks: [{ block_number: '72420', block_hash: 'c'.repeat(64) }] } });
+    }
+    expect(operation.operationName).toBe('GetBlocksAtHeight');
+    return Observable.of({ data: { blocks } });
+  }));
 }
 
 test('shows one height overview with all siblings instead of an arbitrary first block', async () => {
@@ -76,4 +77,24 @@ test('shows one height overview with all siblings instead of an arbitrary first 
   expect(siblingLinks.map((link) => link.getAttribute('href'))).toEqual(
     hashes.map((hash) => `/block/hash/${hash}`)
   );
+});
+
+test('shows a loading skeleton for a height or block', () => {
+  renderHeightWith(new ApolloLink(operation => {
+    if (operation.operationName === 'GetLatestHeight') return Observable.of({ data: { blocks: [] } });
+    return new Observable(() => {});
+  }));
+
+  expect(screen.getByRole('status', { name: 'Loading block details' })).toBeInTheDocument();
+});
+
+test('shows a retryable error when block details fail to load', async () => {
+  renderHeightWith(new ApolloLink(operation => {
+    if (operation.operationName === 'GetLatestHeight') return Observable.of({ data: { blocks: [] } });
+    return Observable.of({ errors: [{ message: 'height failed' }] });
+  }));
+
+  expect(await screen.findByRole('heading', { name: 'Block details unavailable' })).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: /Retry/ })).toBeInTheDocument();
+  expect(screen.getByRole('link', { name: /Back to home/ })).toHaveAttribute('href', '/');
 });

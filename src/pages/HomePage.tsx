@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useQuery, gql } from "@apollo/client";
 import { Link, useSearchParams } from "react-router-dom";
+import { AlertTriangle, RefreshCw } from "lucide-react";
 import {
     GET_NETWORK_STATS,
     GET_LATEST_BLOCKS,
@@ -28,6 +29,35 @@ const GET_RECENT_BLOCKS = gql`
         }
     }
 `;
+
+function RecentBlocksSkeleton() {
+    return (
+        <div className="recent-blocks-skeleton" role="status" aria-label="Loading recent blocks">
+            <table className="recent-blocks-table" aria-hidden="true">
+                <thead className="text-1">
+                    <tr>
+                        <th scope="col">Height</th>
+                        <th scope="col">Block hash</th>
+                        <th scope="col">Validator</th>
+                        <th scope="col">Time</th>
+                        <th scope="col">Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {Array.from({ length: 6 }, (_, index) => (
+                        <tr key={index}>
+                            <td><span className="skeleton skeleton--short" /></td>
+                            <td><span className="skeleton skeleton--hash" /></td>
+                            <td><span className="skeleton skeleton--validator" /></td>
+                            <td><span className="skeleton skeleton--time" /></td>
+                            <td><span className="skeleton skeleton--status" /></td>
+                        </tr>
+                    ))}
+                </tbody>
+            </table>
+        </div>
+    );
+}
 
 const HomePage: React.FC = () => {
     const [searchParams, setSearchParams] = useSearchParams();
@@ -58,15 +88,22 @@ const HomePage: React.FC = () => {
     }, [searchQuery, urlQuery, setSearchParams]);
 
     // Get initial network statistics with polling
-    const { data: statsData, loading: statsLoading } = useQuery(
-        GET_NETWORK_STATS,
-        {
-            pollInterval: 3000, // Poll every 3 seconds
-        }
-    );
+    const {
+        data: statsData,
+        loading: statsLoading,
+        error: statsError,
+        refetch: refetchStats,
+    } = useQuery(GET_NETWORK_STATS, {
+        pollInterval: 3000, // Poll every 3 seconds
+    });
 
     // Get recent blocks for calculating average block time
-    const { data: blocksData } = useQuery(GET_RECENT_BLOCKS, {
+    const {
+        data: recentBlocksData,
+        loading: recentBlocksLoading,
+        error: recentBlocksError,
+        refetch: refetchRecentBlocks,
+    } = useQuery(GET_RECENT_BLOCKS, {
         pollInterval: 5000, // Poll every 5 seconds
     });
 
@@ -113,15 +150,17 @@ const HomePage: React.FC = () => {
         }
     }
 
-    const { data: blocksQueryData, loading: blocksLoading } = useQuery(
-        queryToUse,
-        {
-            variables: queryVariables,
-            // Only a text search pauses polling: its results do not change, while
-            // the finalized-only filter keeps showing new finalized blocks.
-            pollInterval: isSearching ? 0 : 2000,
-        }
-    );
+    const {
+        data: blocksQueryData,
+        loading: blocksLoading,
+        error: blocksError,
+        refetch: refetchBlocks,
+    } = useQuery(queryToUse, {
+        variables: queryVariables,
+        // Only a text search pauses polling: its results do not change, while
+        // the finalized-only filter keeps showing new finalized blocks.
+        pollInterval: isSearching ? 0 : 2000,
+    });
 
     const stats = statsData?.network_stats?.[0] as NetworkStats;
     // The lookahead row only decides whether Next is available.
@@ -137,14 +176,27 @@ const HomePage: React.FC = () => {
     };
 
     // Calculate average block time from recent blocks
-    const avgBlockTime = blocksData?.blocks
-        ? calculateAverageBlockTime(blocksData.blocks)
+    const avgBlockTime = recentBlocksData?.blocks
+        ? calculateAverageBlockTime(recentBlocksData.blocks)
         : null;
     // Use the actual latest block from blocks table, not network_stats
     const latestBlockNumber =
-        blocksData?.blocks?.[0]?.block_number ||
+        recentBlocksData?.blocks?.[0]?.block_number ||
         blocks?.[0]?.block_number ||
         "-";
+
+    const overviewError = statsError || recentBlocksError;
+    const overviewHasData = Boolean(stats || recentBlocksData);
+    const overviewLoading = (statsLoading && !stats) || (recentBlocksLoading && !recentBlocksData);
+    const overviewUnavailable = Boolean(overviewError) && !overviewHasData;
+    const retryOverview = () => {
+        if (statsError) void refetchStats();
+        if (recentBlocksError) void refetchRecentBlocks();
+    };
+    const recentNetworkActive = (recentBlocksData?.blocks?.length || blocks.length) > 0;
+    const networkStatusUnavailable = Boolean(recentBlocksError) && !recentBlocksData && blocks.length === 0;
+    const blocksUnavailable = Boolean(blocksError) && !blocksQueryData;
+    const blocksRefreshing = blocksLoading && Boolean(blocksQueryData);
 
     const handleSearch = (e: React.KeyboardEvent<HTMLInputElement>) => {
         if (e.key === "Enter") {
@@ -183,8 +235,24 @@ const HomePage: React.FC = () => {
             >
                 {/* Left Column - Main Content */}
                 <div style={{ flex: "1 1 0", minWidth: 0 }}>
+                    {overviewError && (
+                        <div
+                            className={`data-state ${overviewUnavailable ? 'data-state--error' : 'data-state--warning'}`}
+                            role={overviewUnavailable ? 'alert' : 'status'}
+                        >
+                            <AlertTriangle size={16} aria-hidden="true" />
+                            <span>
+                                {overviewUnavailable
+                                    ? 'Network overview is unavailable.'
+                                    : 'Some overview data could not be refreshed.'}
+                            </span>
+                            <button type="button" className="btn btn-secondary data-state__retry" onClick={retryOverview}>
+                                <RefreshCw size={14} aria-hidden="true" /> Retry
+                            </button>
+                        </div>
+                    )}
                     {/* Summary Cards Row */}
-                    <div className="summary-grid">
+                    <div className="summary-grid" aria-busy={overviewLoading}>
                         <div className="asi-card glass">
                             <h3
                                 className="text-muted"
@@ -194,7 +262,9 @@ const HomePage: React.FC = () => {
                                 Latest Height
                             </h3>
                             <h2 className="text-success" style={{ margin: 0 }}>
-                                {statsLoading ? "-" : latestBlockNumber}
+                                {recentBlocksLoading && !recentBlocksData
+                                    ? <span className="skeleton skeleton--stat" aria-hidden="true" />
+                                    : latestBlockNumber === "-" ? "—" : latestBlockNumber}
                             </h2>
                         </div>
                         <div className="asi-card glass">
@@ -205,9 +275,9 @@ const HomePage: React.FC = () => {
                                 Active Validators
                             </h3>
                             <h2 style={{ margin: 0 }}>
-                                {stats?.active_validators ||
-                                    stats?.total_validators ||
-                                    "-"}
+                                {statsLoading && !stats
+                                    ? <span className="skeleton skeleton--stat" aria-hidden="true" />
+                                    : stats?.active_validators || stats?.total_validators || "—"}
                             </h2>
                         </div>
                         <div className="asi-card glass">
@@ -218,9 +288,9 @@ const HomePage: React.FC = () => {
                                 Avg Block Time
                             </h3>
                             <h2 style={{ margin: 0 }}>
-                                {avgBlockTime !== null
-                                    ? `${(avgBlockTime as number).toFixed(1)}s`
-                                    : "N/A"}
+                                {recentBlocksLoading && !recentBlocksData
+                                    ? <span className="skeleton skeleton--stat" aria-hidden="true" />
+                                    : avgBlockTime !== null ? `${(avgBlockTime as number).toFixed(1)}s` : "N/A"}
                             </h2>
                         </div>
                         <div className="asi-card glass">
@@ -230,8 +300,10 @@ const HomePage: React.FC = () => {
                             >
                                 Network Status
                             </h3>
-                            <h2 className="text-success" style={{ margin: 0 }}>
-                                {blocks.length > 0 ? "Active" : "Inactive"}
+                            <h2 className={recentNetworkActive ? "text-success" : "text-muted"} style={{ margin: 0 }}>
+                                {recentBlocksLoading && !recentBlocksData
+                                    ? <span className="skeleton skeleton--stat" aria-hidden="true" />
+                                    : networkStatusUnavailable ? "—" : recentNetworkActive ? "Active" : "Inactive"}
                             </h2>
                         </div>
                     </div>
@@ -279,7 +351,7 @@ const HomePage: React.FC = () => {
                         </div>
                     </div>
                     <div className="section-controls">
-                        <div className="search-box">
+                        <div className="search-box home-search-box">
                             <SearchField
                                 placeholder="Height or hash"
                                 aria-label="Filter blocks by height or hash"
@@ -359,17 +431,43 @@ const HomePage: React.FC = () => {
                     )}
                 </div>
 
-                {blocksLoading ? (
-                    <div className="text-center">
-                        <span className="loading"></span>
-                        <p className="text-muted mt-2">Loading blocks...</p>
+                <div className="home-status-legend" role="group" aria-label="Block status legend">
+                    <span className="home-status-legend__item">
+                        <span className="status-dot status-dot--confirmed" aria-hidden="true" />
+                        Confirmed
+                    </span>
+                    <span className="home-status-legend__item">
+                        <span className="status-dot status-dot--unfinalized" aria-hidden="true" />
+                        Unfinalized
+                    </span>
+                </div>
+
+                {blocksError && blocksQueryData && (
+                    <div className="data-state data-state--warning" role="status">
+                        <AlertTriangle size={16} aria-hidden="true" />
+                        <span>Recent blocks could not be refreshed.</span>
+                        <button type="button" className="btn btn-secondary data-state__retry" onClick={() => void refetchBlocks()}>
+                            <RefreshCw size={14} aria-hidden="true" /> Retry
+                        </button>
                     </div>
+                )}
+
+                {blocksUnavailable ? (
+                    <div className="data-state data-state--error" role="alert">
+                        <AlertTriangle size={16} aria-hidden="true" />
+                        <span>Recent blocks are unavailable.</span>
+                        <button type="button" className="btn btn-secondary data-state__retry" onClick={() => void refetchBlocks()}>
+                            <RefreshCw size={14} aria-hidden="true" /> Retry
+                        </button>
+                    </div>
+                ) : blocksLoading && !blocksQueryData ? (
+                    <RecentBlocksSkeleton />
                 ) : blocks.length === 0 ? (
                     <div className="text-center" style={{ padding: "3rem" }}>
                         <p className="text-muted">No blocks found</p>
                     </div>
                 ) : (
-                    <div style={{ overflowX: "auto" }}>
+                    <div style={{ overflowX: "auto" }} aria-busy={blocksRefreshing}>
                         <table className="recent-blocks-table">
                             <thead className="text-1">
                                 <tr>
@@ -446,7 +544,7 @@ const HomePage: React.FC = () => {
                         </table>
                     </div>
                 )}
-                {!blocksLoading && blocks.length > 0 && (
+                {blocks.length > 0 && (
                     <p className="text-muted" style={{ marginTop: "0.75rem", fontSize: "0.8rem" }}>
                         A height can contain several DAG sibling blocks. The block hash identifies each block.
                     </p>
@@ -520,7 +618,7 @@ const HomePage: React.FC = () => {
                         </div>
                     </>
                 )}
-                {!blocksLoading && blocks.length > 0 && (
+                {blocks.length > 0 && (
                     <div className="table-footer">
                         <span className="text-muted">
                             {`Showing ${(currentPage - 1) * blocksPerPage + 1}-${(currentPage - 1) * blocksPerPage + blocks.length} blocks`}
