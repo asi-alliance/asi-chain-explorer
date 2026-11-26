@@ -99,6 +99,8 @@ Tracked in
 - [x] Removed explicit `any` from the activity feed, search index, block
       details, validator pages, Home query variables and CSV exporter
       (90 → 60 remaining, mostly tests and legacy components).
+- [x] Empty deployment Sequence Number and Shard ID values stay hidden instead
+      of rendering a blank row and `N/A`.
 
 ## Blocked by the indexer / Hasura
 

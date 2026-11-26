@@ -622,29 +622,33 @@ Exported at: ${new Date().toLocaleString()}
               </div>
             </div>
 
-            {transaction.seq_num !== undefined && (
+            {(transaction.seq_num != null || transaction.shard_id) && (
               <div style={{
                 display: 'grid',
-                gridTemplateColumns: '1fr 1fr',
+                gridTemplateColumns: transaction.seq_num != null && transaction.shard_id ? '1fr 1fr' : '1fr',
                 gap: '1rem'
               }}>
-                <div>
-                  <div style={{ fontSize: '0.875rem', color: '#9ca3af', marginBottom: '0.25rem' }}>
-                    Sequence Number
+                {transaction.seq_num != null && (
+                  <div>
+                    <div style={{ fontSize: '0.875rem', color: '#9ca3af', marginBottom: '0.25rem' }}>
+                      Sequence Number
+                    </div>
+                    <div style={{ fontSize: '1.125rem', fontWeight: '600' }}>
+                      {transaction.seq_num}
+                    </div>
                   </div>
-                  <div style={{ fontSize: '1.125rem', fontWeight: '600' }}>
-                    {transaction.seq_num}
-                  </div>
-                </div>
+                )}
 
-                <div>
-                  <div style={{ fontSize: '0.875rem', color: '#9ca3af', marginBottom: '0.25rem' }}>
-                    Shard ID
+                {transaction.shard_id && (
+                  <div>
+                    <div style={{ fontSize: '0.875rem', color: '#9ca3af', marginBottom: '0.25rem' }}>
+                      Shard ID
+                    </div>
+                    <div style={{ fontSize: '1.125rem', fontWeight: '600' }}>
+                      {transaction.shard_id}
+                    </div>
                   </div>
-                  <div style={{ fontSize: '1.125rem', fontWeight: '600' }}>
-                    {transaction.shard_id || 'N/A'}
-                  </div>
-                </div>
+                )}
               </div>
             )}
           </div>
