@@ -101,6 +101,9 @@ Tracked in
       (90 → 60 remaining, mostly tests and legacy components).
 - [x] Empty deployment Sequence Number and Shard ID values stay hidden instead
       of rendering a blank row and `N/A`.
+- [x] Removed the unrouted BlocksPage, TransfersPage and DeploymentsPage, the
+      unused BlockVisualization, BlockCard, LoadingSpinner and genesis-funding
+      utility, and their tests. ConnectionStatus remains live in Layout.
 
 ## Blocked by the indexer / Hasura
 

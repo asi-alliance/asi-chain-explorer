@@ -82,17 +82,6 @@ export interface Transfer {
   block?: Block;
 }
 
-export interface GenesisFunding {
-  id: string;
-  wallet_address: string;
-  amount_dust: string;
-  amount_asi: string;
-  status: 'genesis_funding';
-  timestamp: number;
-  deploy_id: string;
-  created_at: string;
-}
-
 // Hasura bigint heights arrive as decimal strings (HASURA_GRAPHQL_STRINGIFY_NUMERIC_TYPES);
 // legacy responses may still use safe integers. Compare them with utils/blockHeight.
 export type BlockHeight = string | number;
@@ -152,21 +141,6 @@ export interface AggregateData {
 export interface SearchProps {
   onSearch: (query: string) => void;
   placeholder?: string;
-}
-
-export interface BlockCardProps {
-  block: Block;
-  showDetails?: boolean;
-}
-
-export interface TransferCardProps {
-  transfer: Transfer;
-  showDetails?: boolean;
-}
-
-export interface ValidatorCardProps {
-  validator: Validator;
-  showDetails?: boolean;
 }
 
 export interface StatsCardProps {

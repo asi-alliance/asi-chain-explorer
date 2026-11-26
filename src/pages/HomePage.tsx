@@ -214,13 +214,6 @@ const HomePage: React.FC = () => {
 
     return (
         <>
-            {/* Connection Status Indicator */}
-            {/* <ConnectionStatus
-                position="top-right"
-                showDetails={true}
-                size="md"
-            /> */}
-
             {/* Main Dashboard Grid */}
             <div
                 style={{

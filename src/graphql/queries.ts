@@ -349,25 +349,6 @@ export const SUBSCRIBE_TO_NEW_DEPLOYMENTS = gql`
   }
 `;
 
-// Genesis Funding Query
-export const GET_GENESIS_FUNDING_DEPLOYMENT = gql`
-  query GetGenesisFundingDeployment {
-    deployments(
-      where: {
-        deploy_id: {_eq: "3045022100f39285089f6e50247620e71b79161ddc371c94e453f6bc12afd78bfe857640dd0220614965bda9c405816d6b5c7af9ad415149593a08e763835b621769059402524e"}
-      }
-    ) {
-      deploy_id
-      term
-      timestamp
-      deployment_type
-      created_at
-      block_number
-      block { block_hash token_decimals }
-    }
-  }
-`;
-
 // Indexer Status Query
 export const GET_INDEXER_STATUS = gql`
   query GetIndexerStatus {
