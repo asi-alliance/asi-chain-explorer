@@ -3,7 +3,7 @@ import { useParams, Link, useSearchParams } from 'react-router-dom';
 import { useQuery } from '@apollo/client';
 import { AlertTriangle, ChevronRight, RefreshCw } from 'lucide-react';
 import { GET_BLOCK_DETAILS, GET_BLOCKS_AT_HEIGHT, GET_LATEST_HEIGHT } from '../graphql/queries';
-import { Block } from '../types';
+import { Block, Deployment } from '../types';
 import { formatRelativeTime } from '../utils/time';
 import { CURRENT_TOKEN } from '../utils/constants';
 import { getParentHashes } from '../utils/blockParent';
@@ -133,7 +133,7 @@ const BlockDetailPage: React.FC = () => {
     return `${address.slice(0, 20)}...${address.slice(-20)}`;
   };
 
-  const getTransactionType = (deploy: any) => {
+  const getTransactionType = (deploy: Deployment) => {
     if (deploy.deployment_type) {
       return deploy.deployment_type;
     }
@@ -556,7 +556,7 @@ const BlockDetailPage: React.FC = () => {
               </tr>
             </thead>
             <tbody>
-              {block.bonds_map.map((bond: any, index: number) => (
+              {block.bonds_map.map((bond, index) => (
                 <tr key={index}>
                   <td className="mono" style={{ fontSize: '11px' }}>
                     {bond.validator}
@@ -584,7 +584,7 @@ const BlockDetailPage: React.FC = () => {
               </tr>
             </thead>
             <tbody>
-              {block.justifications.map((just: any, index: number) => (
+              {block.justifications.map((just, index) => (
                 <tr key={index}>
                   <td className="mono" style={{ fontSize: '11px' }}>
                     {just.validator ? `${just.validator.slice(0, 20)}...${just.validator.slice(-20)}` : 'N/A'}
@@ -609,7 +609,7 @@ const BlockDetailPage: React.FC = () => {
           </p>
           
           <div>
-            {block.deployments.map((deploy: any, index: number) => {
+            {block.deployments.map((deploy, index) => {
               const transactionType = getTransactionType(deploy);
               const isTransfer = transactionType === 'ASI Transfer';
               const transferDetails = isTransfer && deploy.term ? extractTransferDetails(deploy.term) : null;

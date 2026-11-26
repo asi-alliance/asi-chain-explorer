@@ -7,13 +7,37 @@ import { useQuery } from '@apollo/client';
 import { GET_LATEST_BLOCKS, GET_LATEST_TRANSFERS, GET_LATEST_DEPLOYMENTS } from '../graphql/queries';
 import { CURRENT_TOKEN } from '../utils/constants';
 
+interface ActivityBlock {
+  block_number: string | number;
+  block_hash?: string;
+  proposer?: string;
+  timestamp?: string | number;
+  deployment_count?: number;
+}
+
+interface ActivityTransfer {
+  id: string | number;
+  amount_asi?: string | number;
+  from_address?: string;
+  to_address?: string;
+  created_at?: string;
+  timestamp?: string | number;
+}
+
+interface ActivityDeployment {
+  deploy_id: string;
+  deployer?: string;
+  deployment_type?: string;
+  timestamp?: string | number;
+}
+
 interface ActivityItem {
   id: string;
   type: 'block' | 'transfer' | 'deployment';
   title: string;
   description: string;
   timestamp: number;
-  data: any;
+  data: ActivityBlock | ActivityTransfer | ActivityDeployment;
   icon: React.ReactNode;
   color: string;
 }
@@ -52,17 +76,17 @@ const RealtimeActivityFeed: React.FC<RealtimeActivityFeedProps> = ({
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   
   // Fetch real-time data using GraphQL queries with polling
-  const { data: blocksData, loading: blocksLoading } = useQuery(GET_LATEST_BLOCKS, {
+  const { data: blocksData, loading: blocksLoading } = useQuery<{ blocks: ActivityBlock[] }>(GET_LATEST_BLOCKS, {
     variables: { limit: 5 },
     pollInterval: 3000, // Poll every 3 seconds
   });
   
-  const { data: transfersData, loading: transfersLoading } = useQuery(GET_LATEST_TRANSFERS, {
+  const { data: transfersData, loading: transfersLoading } = useQuery<{ transfers: ActivityTransfer[] }>(GET_LATEST_TRANSFERS, {
     variables: { limit: 5 },
     pollInterval: 3000,
   });
   
-  const { data: deploymentsData, loading: deploymentsLoading } = useQuery(GET_LATEST_DEPLOYMENTS, {
+  const { data: deploymentsData, loading: deploymentsLoading } = useQuery<{ deployments: ActivityDeployment[] }>(GET_LATEST_DEPLOYMENTS, {
     variables: { limit: 5 },
     pollInterval: 3000,
   });
@@ -79,14 +103,14 @@ const RealtimeActivityFeed: React.FC<RealtimeActivityFeedProps> = ({
 
     // Add latest blocks. A DAG height can contain several sibling blocks, so
     // the hash, not the height, identifies the activity row.
-    blocks.slice(0, 5).forEach((block: any) => {
+    blocks.slice(0, 5).forEach(block => {
       const hash = block.block_hash ? String(block.block_hash) : '';
       newActivities.push({
         id: `block-${hash || block.block_number}`,
         type: 'block',
         title: `Block #${block.block_number}`,
         description: `${hash ? `${hash.slice(0, 8)}… · ` : ''}Proposed by ${block.proposer?.slice(0, 8) || 'Unknown'}... with ${block.deployment_count || 0} deployments`,
-        timestamp: parseInt(block.timestamp) || Date.now(),
+        timestamp: Number(block.timestamp) || Date.now(),
         data: block,
         icon: <Database size={16} />,
         color: '#10b981'
@@ -94,13 +118,13 @@ const RealtimeActivityFeed: React.FC<RealtimeActivityFeedProps> = ({
     });
 
     // Add latest transfers
-    transfers.slice(0, 5).forEach((transfer: any) => {
+    transfers.slice(0, 5).forEach(transfer => {
       newActivities.push({
         id: `transfer-${transfer.id}`,
         type: 'transfer',
         title: `Transfer: ${transfer.amount_asi || '0'} ${CURRENT_TOKEN}`,
         description: `From ${transfer.from_address?.slice(0, 8) || 'Unknown'}... to ${transfer.to_address?.slice(0, 8) || 'Unknown'}...`,
-        timestamp: transfer.created_at ? parseInt(transfer.timestamp) : Date.now(),
+        timestamp: transfer.created_at ? Number(transfer.timestamp) || Date.now() : Date.now(),
         data: transfer,
         icon: <TrendingUp size={16} />,
         color: '#3b82f6'
@@ -108,13 +132,13 @@ const RealtimeActivityFeed: React.FC<RealtimeActivityFeedProps> = ({
     });
 
     // Add latest deployments
-    deployments.slice(0, 5).forEach((deployment: any) => {
+    deployments.slice(0, 5).forEach(deployment => {
       newActivities.push({
         id: `deployment-${deployment.deploy_id}`,
         type: 'deployment',
         title: `New Deployment`,
         description: `By ${deployment.deployer?.slice(0, 8) || 'Unknown'}... - ${deployment.deployment_type || 'Unknown type'}`,
-        timestamp: parseInt(deployment.timestamp) || Date.now(),
+        timestamp: Number(deployment.timestamp) || Date.now(),
         data: deployment,
         icon: <Zap size={16} />,
         color: '#f59e0b'

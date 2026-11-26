@@ -2,12 +2,16 @@ import { normalizedRaw, formatRaw, percentage } from "../utils/amounts";
 import React from 'react';
 import { useQuery } from '@apollo/client';
 import { GET_ACTIVE_VALIDATORS } from '../graphql/queries';
-import { Validator } from '../types';
+import { Block, Validator, ValidatorBond } from '../types';
 import { CURRENT_TOKEN } from '../utils/constants';
 import { heightLabel, isNewerHeight } from '../utils/blockHeight';
 
 const ValidatorsPage: React.FC = () => {
-  const { data, loading, error } = useQuery(GET_ACTIVE_VALIDATORS, {
+  const { data, loading, error } = useQuery<{
+    validators: Validator[];
+    validator_bonds: ValidatorBond[];
+    blocks: Pick<Block, 'block_hash' | 'block_number' | 'proposer'>[];
+  }>(GET_ACTIVE_VALIDATORS, {
     pollInterval: 5000, // Poll every 5 seconds
   });
 
@@ -39,8 +43,8 @@ const ValidatorsPage: React.FC = () => {
   };
   
   // Deduplicate validators by normalized key prefix
-  const validatorMap = new Map<string, any>();
-  rawValidators.forEach((validator: any) => {
+  const validatorMap = new Map<string, Validator>();
+  rawValidators.forEach(validator => {
     const normalizedKey = normalizeValidatorKey(validator.public_key);
     const existing = validatorMap.get(normalizedKey);
     
@@ -71,16 +75,18 @@ const ValidatorsPage: React.FC = () => {
   // Create a map of validator public key to their latest bond
   // Map both full and normalized keys to handle duplicates.
   // Heights are bigint strings from Hasura: compare them exactly, never as strings ("99" > "100").
-  const bondsByValidator: { [key: string]: any } = {};
-  const bondsByNormalizedKey: { [key: string]: any } = {};
+  const bondsByValidator: Record<string, ValidatorBond> = {};
+  const bondsByNormalizedKey: Record<string, ValidatorBond> = {};
   
-  validatorBonds.forEach((bond: any) => {
-    const normalizedKey = normalizeValidatorKey(bond.validator_public_key);
+  validatorBonds.forEach(bond => {
+    const publicKey = bond.validator_public_key;
+    if (!publicKey) return;
+    const normalizedKey = normalizeValidatorKey(publicKey);
     
     // Store by original key
-    const existingBond = bondsByValidator[bond.validator_public_key];
+    const existingBond = bondsByValidator[publicKey];
     if (!existingBond || isNewerHeight(bond.block_number, existingBond.block_number)) {
-      bondsByValidator[bond.validator_public_key] = bond;
+      bondsByValidator[publicKey] = bond;
     }
     
     // Also store by normalized key for lookup

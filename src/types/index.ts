@@ -5,6 +5,16 @@ export interface BlockParent {
   block_hash?: string;
 }
 
+export interface BondMapEntry {
+  validator: string;
+  stake: string | number;
+}
+
+export interface Justification {
+  validator?: string;
+  latestBlockHash?: string;
+}
+
 export interface Block {
   block_number: number;
   block_hash: string;
@@ -17,11 +27,11 @@ export interface Block {
   state_hash?: string;
   pre_state_hash?: string;
   state_root_hash?: string;
-  bonds_map?: any;
+  bonds_map?: BondMapEntry[];
   token_decimals?: number;
   fault_tolerance?: number;
   finalization_status?: string;
-  justifications?: any[];
+  justifications?: Justification[];
   seq_num?: number;
   shard_id?: string;
   sig?: string;

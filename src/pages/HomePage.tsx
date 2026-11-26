@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useQuery, gql } from "@apollo/client";
+import type { OperationVariables } from "@apollo/client";
 import { Link, useSearchParams } from "react-router-dom";
 import { AlertTriangle, RefreshCw } from "lucide-react";
 import {
@@ -120,7 +121,7 @@ const HomePage: React.FC = () => {
 
     // Choose the appropriate query based on search type
     let queryToUse = GET_LATEST_BLOCKS;
-    let queryVariables: any = {
+    let queryVariables: OperationVariables = {
         // Fetch one extra row to know whether a next page exists without
         // treating a DAG height as a row count.
         limit: blocksPerPage + 1,

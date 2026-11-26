@@ -5,6 +5,7 @@ import { gql } from '@apollo/client';
 import { formatRelativeTime } from '../utils/time';
 import { CURRENT_TOKEN } from '../utils/constants';
 import { blockHeight, heightInput } from '../utils/blockHeight';
+import { ValidatorBond } from '../types';
 
 const GET_VALIDATOR_HISTORY = gql`
   query GetValidatorHistory($blockNumber: bigint) {
@@ -29,11 +30,21 @@ const GET_BLOCK_RANGE = gql`
   }
 `;
 
+interface HistoryBlock {
+  block_hash: string;
+  block_number: string | number;
+  timestamp: string | number;
+  proposer: string;
+  validator_bonds: ValidatorBond[];
+}
+
 const ValidatorHistoryPage: React.FC = () => {
   const [selectedBlock, setSelectedBlock] = useState<string | null>(null);
   const [selectedHash, setSelectedHash] = useState('');
   
-  const { data: rangeData, loading: rangeLoading, error: rangeError } = useQuery(GET_BLOCK_RANGE);
+  const { data: rangeData, loading: rangeLoading, error: rangeError } = useQuery<{
+    blocks: Array<{ block_hash: string; block_number: string | number }>;
+  }>(GET_BLOCK_RANGE);
   // Heights stay exact decimal strings: Hasura returns bigint heights as strings.
   // A failed, empty or invalid latest-block response is never read as height 0.
   const latestRow = rangeData?.blocks?.[0];
@@ -48,7 +59,7 @@ const ValidatorHistoryPage: React.FC = () => {
         : 'No blocks are indexed yet.';
 
   const currentBlock = selectedBlock ?? maxBlock;
-  const { data, loading, error } = useQuery(GET_VALIDATOR_HISTORY, {
+  const { data, loading, error } = useQuery<{ blocks: HistoryBlock[] }>(GET_VALIDATOR_HISTORY, {
     variables: { blockNumber: currentBlock },
     skip: currentBlock === null,
   });
@@ -78,11 +89,11 @@ const ValidatorHistoryPage: React.FC = () => {
   };
 
   const blocks = data?.blocks || [];
-  const blockInfo = blocks.find((block: any) => block.block_hash === selectedHash) || blocks[0];
+  const blockInfo = blocks.find(block => block.block_hash === selectedHash) || blocks[0];
   const validators = blockInfo?.validator_bonds || [];
 
   // Calculate total stake for percentage
-  const totalStake = validators.reduce((sum: bigint, v: any) => {
+  const totalStake = validators.reduce((sum, v) => {
     // Handle both string and number types
     const stake = normalizedRaw(v.stake, v.token_decimals);
     return sum + (stake || 0n);
@@ -125,7 +136,7 @@ const ValidatorHistoryPage: React.FC = () => {
         Block hash ({blocks.length} at this height)
         <select aria-label="Validator history block hash" value={blockInfo?.block_hash || ''}
           onChange={event => setSelectedHash(event.target.value)} style={{ maxWidth: '100%' }}>
-          {blocks.map((block: any) => <option key={block.block_hash} value={block.block_hash}>{block.block_hash}</option>)}
+          {blocks.map(block => <option key={block.block_hash} value={block.block_hash}>{block.block_hash}</option>)}
         </select>
       </label>}
 
@@ -188,16 +199,17 @@ const ValidatorHistoryPage: React.FC = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {validators.map((bond: any, index: number) => {
+                  {validators.map((bond, index) => {
+                    const publicKey = bond.validator_public_key ?? '';
                     const stakePercentage = percentage(normalizedRaw(bond.stake, bond.token_decimals), totalStake);
-                    const isProposer = bond.validator_public_key === blockInfo?.proposer;
+                    const isProposer = publicKey === blockInfo?.proposer;
                     
                     return (
-                      <tr key={bond.validator_public_key} className="fade-in">
+                      <tr key={publicKey || index} className="fade-in">
                         <td className="text-center">{index + 1}</td>
                         <td className="hash-cell">
-                          <span className="text-3 mono" title={bond.validator_public_key}>
-                            {truncateKey(bond.validator_public_key)}
+                          <span className="text-3 mono" title={publicKey}>
+                            {truncateKey(publicKey)}
                           </span>
                         </td>
                         <td style={{ fontWeight: 600 }}>
@@ -259,7 +271,7 @@ const ValidatorHistoryPage: React.FC = () => {
                     </dt>
                     <dd style={{ margin: 0, fontSize: '18px', fontWeight: 600 }}>
                       {validators.length > 0 
-                        ? formatRaw(validators.map((v: any) => normalizedRaw(v.stake, v.token_decimals)).reduce((a: bigint, b: bigint) => a < b ? a : b), 77)
+                        ? formatRaw(validators.map(v => normalizedRaw(v.stake, v.token_decimals)).reduce((a, b) => a < b ? a : b), 77)
                         : '0.00'
                       } {CURRENT_TOKEN}
                     </dd>
@@ -270,7 +282,7 @@ const ValidatorHistoryPage: React.FC = () => {
                     </dt>
                     <dd style={{ margin: 0, fontSize: '18px', fontWeight: 600 }}>
                       {validators.length > 0 
-                        ? formatRaw(validators.map((v: any) => normalizedRaw(v.stake, v.token_decimals)).reduce((a: bigint, b: bigint) => a > b ? a : b), 77)
+                        ? formatRaw(validators.map(v => normalizedRaw(v.stake, v.token_decimals)).reduce((a, b) => a > b ? a : b), 77)
                         : '0.00'
                       } {CURRENT_TOKEN}
                     </dd>

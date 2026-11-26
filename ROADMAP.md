@@ -96,6 +96,9 @@ Tracked in
 - [x] `/height/:height` always shows the height overview, including a single
       sibling, with singular `1 sibling block` copy.
 - [x] Live Activity shows skeleton rows while its three initial queries load.
+- [x] Removed explicit `any` from the activity feed, search index, block
+      details, validator pages, Home query variables and CSV exporter
+      (90 → 60 remaining, mostly tests and legacy components).
 
 ## Blocked by the indexer / Hasura
 
