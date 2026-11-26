@@ -70,6 +70,10 @@ backend-dependent scope lives in
   links the latest height and validator count, shows skeletons, a Retry state
   and a range-without-activity message, and keeps small rates readable instead
   of rounding them to zero.
+- The validators page shows consensus health, stake-share bars, copyable keys
+  and height links; proposer counts are labelled as the latest 1,000 blocks and
+  load separately from the validator list. Validator history links the height
+  and proposer and gives the block time an absolute-time tooltip.
 
 ## After PR #79
 

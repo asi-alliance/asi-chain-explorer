@@ -275,14 +275,27 @@ export const GET_ACTIVE_VALIDATORS = gql`
     validators(order_by: { total_stake: desc }) {
       ...ValidatorFragment
     }
-    # Get validator bonds separately since there's no relationship
+    # Latest bonds only; the proposer window is a separate, slower query.
     validator_bonds(order_by: { block_number: desc }, limit: 100) {
       validator_public_key
       stake
       token_decimals
       block_number
     }
-    # Get recent blocks to count proposers client-side
+    network_stats(limit: 1, order_by: { id: desc }) {
+      total_validators
+      active_validators
+      validators_in_quarantine
+      consensus_participation
+      consensus_status
+      block_number
+    }
+  }
+`;
+
+export const GET_RECENT_PROPOSERS = gql`
+  query GetRecentProposers {
+    # Counted in the browser over the latest 1,000 blocks.
     blocks(limit: 1000, order_by: { block_number: desc }) {
       block_hash
       block_number

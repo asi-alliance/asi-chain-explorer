@@ -268,7 +268,7 @@ test('validators select the bond at string height 100 over 99 and show its exact
 test.each([
   ['2^63', TWO_POW_63, 18, '9.223372036854775808'],
   ['10^19', TEN_POW_19, 18, '10'],
-  ['uint256 maximum', UINT256_MAX, 18, '115792089237316195423570985008687907853269984665640564039457.584007913129639935'],
+  ['uint256 maximum', UINT256_MAX, 18, '115,792,089,237,316,195,423,570,985,008,687,907,853,269,984,665,640,564,039,457.584007913129639935'],
   ['legacy 8 decimals', '100000000', 8, '1'],
 ])('validators show a %s stake exactly', async (_name, stake, token_decimals, shown) => {
   mount('/validators', '/validators', <ValidatorsPage />, op => (op === 'GetActiveValidators'
@@ -328,13 +328,13 @@ test('validator history requests and shows an exact height beyond 2^53', async (
   mountHistory(() => json({ blocks: [{ __typename: 'blocks', block_hash: 'h', block_number: latest }] }));
   await screen.findByRole('cell', { name: '1.000000000000000001 ASI' });
   expect(historyRequests()[0].variables).toEqual({ blockNumber: latest });
-  expect(screen.getByRole('heading', { name: '#9,007,199,254,740,995' })).toBeInTheDocument();
+  expect(screen.getByRole('link', { name: '#9,007,199,254,740,995' })).toBeInTheDocument();
   expect(screen.getByText('(0 - 9,007,199,254,740,995)')).toBeInTheDocument();
 
   fireEvent.change(screen.getByLabelText('Block:'), { target: { value: TWO_POW_53_PLUS_1 } });
   await waitFor(() => expect(historyRequests()).toHaveLength(2));
   expect(historyRequests()[1].variables).toEqual({ blockNumber: TWO_POW_53_PLUS_1 });
-  expect(await screen.findByRole('heading', { name: '#9,007,199,254,740,993' })).toBeInTheDocument();
+  expect(await screen.findByRole('link', { name: '#9,007,199,254,740,993' })).toBeInTheDocument();
   expect((screen.getByLabelText('Block:') as HTMLInputElement).value).toBe(TWO_POW_53_PLUS_1);
 });
 

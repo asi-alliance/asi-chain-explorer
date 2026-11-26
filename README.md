@@ -366,8 +366,8 @@ resolves before nginx starts.
 - `/transactions` - Non-overlapping All deploys, Contract deploys (no transfer events) and Transfers tabs with a footer CSV export; `?tab=contract` and `?tab=transfers` open a tab directly
 - `/pending` - Deploys in the validators' deploy buffers that no indexed block includes yet (the navigation tab appears only when the indexer tracks pending deploys)
 - `/transaction/:transactionId` - Deploy details: executed fee in ASI, code, transfers with native transfer calls and block. Shows one copyable ID, a status tooltip, local and relative timestamps; block-0 records carry a Genesis label. `?tab=code`, `?tab=transfers` and `?tab=block` open a tab directly. A pending deploy shows its pending state until it is indexed.
-- `/validators` - Current validators; inactive validators in a separate table
-- `/validator-history` - Validator history
+- `/validators` - Current validators with consensus health, stake-share bars, copyable keys, height links, proposer counts over the latest 1,000 blocks and a separate inactive table
+- `/validator-history` - Bond set at a chosen height; the height links to the height overview, the proposer links to the validators page, and the block time carries an absolute-time tooltip
 - `/statistics` - Network Dashboard with height, block time, TPS, validators and consensus health
 - `/search` - Search results for a height, hash, deploy ID or address, with type tabs and copy/share actions
 - `/address/:address` - Spendable balance at the latest finalized block and indexed transfer history

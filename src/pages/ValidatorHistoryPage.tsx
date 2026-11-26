@@ -1,11 +1,13 @@
-import { normalizedRaw, formatRaw, percentage } from "../utils/amounts";
+import { normalizedRaw, formatRaw, percentage, groupThousands } from "../utils/amounts";
 import React, { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useQuery } from '@apollo/client';
 import { gql } from '@apollo/client';
-import { formatRelativeTime } from '../utils/time';
+import { formatLocalTime, formatRelativeTime } from '../utils/time';
 import { CURRENT_TOKEN } from '../utils/constants';
 import { blockHeight, heightInput } from '../utils/blockHeight';
 import { ValidatorBond } from '../types';
+import '../styles/validators.css';
 
 const GET_VALIDATOR_HISTORY = gql`
   query GetValidatorHistory($blockNumber: bigint) {
@@ -91,6 +93,7 @@ const ValidatorHistoryPage: React.FC = () => {
   const blocks = data?.blocks || [];
   const blockInfo = blocks.find(block => block.block_hash === selectedHash) || blocks[0];
   const validators = blockInfo?.validator_bonds || [];
+  const blockInfoHeight = blockInfo ? blockHeight(blockInfo.block_number) : null;
 
   // Calculate total stake for percentage
   const totalStake = validators.reduce((sum, v) => {
@@ -102,7 +105,7 @@ const ValidatorHistoryPage: React.FC = () => {
   return (
     <section className="asi-card">
       <div className="section-header">
-        <h2>Validator History</h2>
+        <h1>Validator History</h1>
         <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
             <label htmlFor="block-input" className="text-muted" style={{ fontSize: '14px' }}>
@@ -158,26 +161,39 @@ const ValidatorHistoryPage: React.FC = () => {
           {/* Block Information */}
           {blockInfo && (
             <div className="summary-grid mb-3">
-              <div className="asi-card glass">
-                <p className="text-muted" style={{ marginBottom: '0.5rem' }}>Height</p>
-                <h3 style={{ margin: 0 }}>{returnedHeight(blockInfo.block_number)}</h3>
-              </div>
-              <div className="asi-card glass">
-                <p className="text-muted" style={{ marginBottom: '0.5rem' }}>Block Time</p>
-                <h3 style={{ margin: 0, fontSize: '1.2rem' }}>
+              <section className="asi-card glass" aria-labelledby="history-height-heading">
+                <h2 id="history-height-heading" className="summary-card__label">Height</h2>
+                <p className="summary-card__value">
+                  {blockInfoHeight !== null ? (
+                    <Link className="height-link" to={`/height/${blockInfoHeight.toString()}`}>
+                      {returnedHeight(blockInfo.block_number)}
+                    </Link>
+                  ) : (
+                    returnedHeight(blockInfo.block_number)
+                  )}
+                </p>
+              </section>
+              <section className="asi-card glass" aria-labelledby="history-time-heading">
+                <h2 id="history-time-heading" className="summary-card__label">Block Time</h2>
+                <p
+                  className="summary-card__value summary-card__value--small"
+                  title={formatLocalTime(blockInfo.timestamp)}
+                >
                   {formatTimestamp(blockInfo.timestamp)}
-                </h3>
-              </div>
-              <div className="asi-card glass">
-                <p className="text-muted" style={{ marginBottom: '0.5rem' }}>Proposer</p>
-                <h3 style={{ margin: 0, fontSize: '1rem' }} className="mono">
-                  {truncateKey(blockInfo.proposer)}
-                </h3>
-              </div>
-              <div className="asi-card glass">
-                <p className="text-muted" style={{ marginBottom: '0.5rem' }}>Active Validators</p>
-                <h3 style={{ margin: 0 }}>{validators.length}</h3>
-              </div>
+                </p>
+              </section>
+              <section className="asi-card glass" aria-labelledby="history-proposer-heading">
+                <h2 id="history-proposer-heading" className="summary-card__label">Proposer</h2>
+                <p className="summary-card__value summary-card__value--small mono">
+                  <Link className="height-link" to="/validators" title={blockInfo.proposer}>
+                    {truncateKey(blockInfo.proposer)}
+                  </Link>
+                </p>
+              </section>
+              <section className="asi-card glass" aria-labelledby="history-validators-heading">
+                <h2 id="history-validators-heading" className="summary-card__label">Active Validators</h2>
+                <p className="summary-card__value">{validators.length}</p>
+              </section>
             </div>
           )}
 
@@ -213,7 +229,7 @@ const ValidatorHistoryPage: React.FC = () => {
                           </span>
                         </td>
                         <td style={{ fontWeight: 600 }}>
-                          {calculateStake(bond.stake, bond.token_decimals)} {CURRENT_TOKEN}
+                          {groupThousands(calculateStake(bond.stake, bond.token_decimals))} {CURRENT_TOKEN}
                         </td>
                         <td>
                           <span style={{ color: 'var(--text-tertiary)' }}>
@@ -251,7 +267,7 @@ const ValidatorHistoryPage: React.FC = () => {
                       Total Stake
                     </dt>
                     <dd style={{ margin: 0, fontSize: '18px', fontWeight: 600 }}>
-                      {formatRaw(totalStake, 77)} {CURRENT_TOKEN}
+                      {groupThousands(formatRaw(totalStake, 77))} {CURRENT_TOKEN}
                     </dd>
                   </div>
                   <div>
@@ -260,7 +276,7 @@ const ValidatorHistoryPage: React.FC = () => {
                     </dt>
                     <dd style={{ margin: 0, fontSize: '18px', fontWeight: 600 }}>
                       {validators.length > 0 
-                        ? formatRaw(totalStake / BigInt(validators.length), 77)
+                        ? groupThousands(formatRaw(totalStake / BigInt(validators.length), 77))
                         : '0.00'
                       } {CURRENT_TOKEN}
                     </dd>
@@ -271,7 +287,7 @@ const ValidatorHistoryPage: React.FC = () => {
                     </dt>
                     <dd style={{ margin: 0, fontSize: '18px', fontWeight: 600 }}>
                       {validators.length > 0 
-                        ? formatRaw(validators.map(v => normalizedRaw(v.stake, v.token_decimals)).reduce((a, b) => a < b ? a : b), 77)
+                        ? groupThousands(formatRaw(validators.map(v => normalizedRaw(v.stake, v.token_decimals)).reduce((a, b) => a < b ? a : b), 77))
                         : '0.00'
                       } {CURRENT_TOKEN}
                     </dd>
@@ -282,7 +298,7 @@ const ValidatorHistoryPage: React.FC = () => {
                     </dt>
                     <dd style={{ margin: 0, fontSize: '18px', fontWeight: 600 }}>
                       {validators.length > 0 
-                        ? formatRaw(validators.map(v => normalizedRaw(v.stake, v.token_decimals)).reduce((a, b) => a > b ? a : b), 77)
+                        ? groupThousands(formatRaw(validators.map(v => normalizedRaw(v.stake, v.token_decimals)).reduce((a, b) => a > b ? a : b), 77))
                         : '0.00'
                       } {CURRENT_TOKEN}
                     </dd>
