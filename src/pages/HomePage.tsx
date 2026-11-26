@@ -520,8 +520,14 @@ const HomePage: React.FC = () => {
                                                 {truncateHash(block.block_hash)}
                                             </Link>
                                         </td>
-                                        <td className="text-3 mono" title={block.proposer}>
-                                            {truncateHash(block.proposer)}
+                                        <td className="text-3 mono validator-cell" title={block.proposer}>
+                                            <Link
+                                                to="/validators"
+                                                title={`View validators for proposer ${block.proposer}`}
+                                                aria-label={`View validators for proposer ${block.proposer}`}
+                                            >
+                                                {truncateHash(block.proposer)}
+                                            </Link>
                                         </td>
                                         <td className="timestamp" title={formatLocalTime(block.timestamp)}>
                                             {formatTimestamp(block.timestamp)}

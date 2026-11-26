@@ -90,6 +90,7 @@ Tracked in
       blocks.
 - [x] Recent Blocks hover uses a neutral tint so green stays reserved for the
       Confirmed status.
+- [x] Validator proposers in Recent Blocks link to the Validators page.
 
 ## Blocked by the indexer / Hasura
 

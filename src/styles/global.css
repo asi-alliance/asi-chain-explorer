@@ -455,6 +455,16 @@ code, .code {
     background-color: rgba(255, 255, 255, 0.035);
 }
 
+.validator-cell a {
+    color: var(--asi-pulse-blue);
+    text-decoration: none;
+}
+
+.validator-cell a:hover {
+    color: var(--asi-pulse-blue-dark);
+    text-decoration: underline;
+}
+
 .height-cell {
     vertical-align: top;
 }

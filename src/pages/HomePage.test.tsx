@@ -172,6 +172,7 @@ test('keeps loaded blocks when a refresh fails', () => {
   renderHome();
 
   expect(screen.getByRole('link', { name: /Open height 7589/ })).toBeInTheDocument();
+  expect(screen.getByRole('link', { name: /View validators for proposer/ })).toHaveAttribute('href', '/validators');
   expect(screen.getByText('Recent blocks could not be refreshed.')).toBeInTheDocument();
   fireEvent.click(screen.getByRole('button', { name: /Retry/ }));
   expect(refetchBlocks).toHaveBeenCalledTimes(1);
