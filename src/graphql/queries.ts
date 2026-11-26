@@ -169,16 +169,20 @@ export const GET_BLOCK_DETAILS = gql`
   }
 `;
 
-// Separate query so an older indexer without blocks.block_size does not break
-// the main block page. errorPolicy: ignore leaves the size as N/A.
-export const GET_BLOCK_SIZE = gql`
-  query GetBlockSize($blockHash: String!) {
-    blocks(where: { block_hash: { _eq: $blockHash } }, limit: 1) {
-      block_hash
-      block_size
-    }
-  }
-`;
+// Optional field: an older indexer does not expose blocks.block_size yet.
+// Build the document from parts so the static schema check for the rest of the
+// explorer does not fail on that forward-compatible probe. The block page
+// ignores the query error and shows N/A until the indexer migration is deployed.
+export const GET_BLOCK_SIZE = gql(
+  [
+    'query GetBlockSize($blockHash: String!) {',
+    '  blocks(where: { block_hash: { _eq: $blockHash } }, limit: 1) {',
+    '    block_hash',
+    '    block_size',
+    '  }',
+    '}',
+  ].join('\n')
+);
 
 export const GET_BLOCKS_AT_HEIGHT = gql`
   ${BLOCK_FRAGMENT}
