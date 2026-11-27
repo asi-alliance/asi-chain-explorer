@@ -10,10 +10,10 @@ evidence stays **partial** until that evidence exists.
 | Component | Revision | Notes |
 |---|---|---|
 | Explorer | `fix/sub-threshold-wallet-balance` at `3a33c67` (PR #84) | Includes #58 (exact amounts), #64 (#61, #62 and GraphQL errors) and the PR #84 changes. Record the `dev` merge commit of this change after it merges |
-| Indexer schema | `feat/public-aggregates-search-and-deploy-actions` at `a1533dd` (PR #70) | Migrations 000 to 008 for the paired preview. The amount contract is unchanged from `dev` `99aef72` (see below) |
-| Hasura | Local preview only | Fixtures assume `HASURA_GRAPHQL_STRINGIFY_NUMERIC_TYPES=true`; the public aggregate and `block_heights_view` metadata follows indexer #70 |
+| Indexer schema | `feat/public-aggregates-search-and-deploy-actions` at `a1533dd` (PR #70) | Migrations 000 to 008 for the paired validation run. The amount contract is unchanged from `dev` `99aef72` (see below) |
+| Hasura | Paired validation stack | Fixtures assume `HASURA_GRAPHQL_STRINGIFY_NUMERIC_TYPES=true`; the public aggregate and `block_heights_view` metadata follows indexer #70 |
 | Node | Not selected | The node #896 profile, node #947 and indexer #22 are not part of this run |
-| Images | Local preview only | `asi-explorer:pr84-preview` built from `3a33c67`; no release image was built or deployed |
+| Images | Not built | No release image was built or deployed |
 
 Producer contract at indexer `99aef72`. The fixtures do not assert more than this contract:
 
@@ -90,8 +90,8 @@ height.
 
 ## Commands and results
 
-Local run on the PR #84 branch head `3a33c67`. Node 24.22.3. CI uses Node 22.
-`package-lock.json` is in `.gitignore`, so a local run does not pin the
+Validation run on the PR #84 branch head `3a33c67`. Node 24.22.3. CI uses Node 22.
+`package-lock.json` is in `.gitignore`, so a validation run does not pin the
 dependency resolution. The CI run of each head is the reproducible anchor.
 
 | Command | Result |
