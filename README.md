@@ -468,12 +468,13 @@ be parsed as JavaScript floating-point numbers. Unsafe numeric responses are
 rejected instead of displaying a rounded balance.
 
 Deploy the matching indexer before this explorer: migrations through **008**,
-the documented history repair when required, the Indexer #70 code, and Hasura
-metadata from `scripts/full-init-hasura.sh`. That metadata exposes
-`pending_deploys`, `native_transfer_lifecycle`, `block_heights_view` and the
-public `blocks` aggregates. Blocks indexed before migration 008 show `N/A` for
-block size until they are re-indexed; other pages fall back cleanly on an older
-schema. Keep `HASURA_GRAPHQL_STRINGIFY_NUMERIC_TYPES=true`.
+the documented history repair when required, the indexer code that records
+`block_size` and maintains `block_heights`, and Hasura metadata from
+`scripts/full-init-hasura.sh`. That metadata exposes `pending_deploys`,
+`native_transfer_lifecycle`, `block_heights_view` and the public `blocks`
+aggregates. Blocks indexed before migration 008 show `N/A` for block size until
+they are re-indexed; other pages fall back cleanly on an older schema. Keep
+`HASURA_GRAPHQL_STRINGIFY_NUMERIC_TYPES=true`.
 
 Pending deploys are optional. A deploy waits only in the buffer of the validator
 that received it: nodes do not gossip deploys, and an observer rejects them. The
