@@ -118,13 +118,10 @@ Negative controls: with the page before the fixes, the exact-height test and the
 four latest-block failure tests fail. Before the first fix, the request had
 `blockNumber: 9007199254740992`.
 
-A headless Chrome check at `3a33c67` against the local indexer #70 stack
-confirmed that `/height/500002?status=finalized` shows `1 sibling block`,
-`1 of 101` and the finalized block while 100 unfinalized siblings sort first.
-The demo block page shows `4.10 KB` and its four deploy links. A second preview
-through a proxy that rejects `blocks.block_size` and `blocks_aggregate` still
-rendered the height overview with the loaded-sibling fallback and showed `N/A`
-for block size. This is local preview evidence, not release evidence.
+Browser smoke checks covered the finalized-before-limit case with 100
+unfinalized and one finalized sibling, block-size rendering, and the
+older-schema fallback where `blocks.block_size` and `blocks_aggregate` are not
+available. Those checks use disposable test data and are not release evidence.
 
 ## Not run
 
