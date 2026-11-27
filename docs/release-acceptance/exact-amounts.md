@@ -9,11 +9,11 @@ evidence stays **partial** until that evidence exists.
 
 | Component | Revision | Notes |
 |---|---|---|
-| Explorer | `fix/sub-threshold-wallet-balance` at `38ee9af` (PR #84) | Includes #58 (exact amounts), #64 (#61, #62 and GraphQL errors) and the PR #84 changes. Record the `dev` merge commit of this change after it merges |
-| Indexer schema | `asi-chain-indexer` `dev` at `99aef72` | Migrations 000 to 006. The fixtures follow this contract (see below) |
-| Hasura | Not run | Fixtures assume `HASURA_GRAPHQL_STRINGIFY_NUMERIC_TYPES=true` |
+| Explorer | `fix/sub-threshold-wallet-balance` at `3a33c67` (PR #84) | Includes #58 (exact amounts), #64 (#61, #62 and GraphQL errors) and the PR #84 changes. Record the `dev` merge commit of this change after it merges |
+| Indexer schema | `feat/public-aggregates-search-and-deploy-actions` at `a1533dd` (PR #70) | Migrations 000 to 008 for the paired preview. The amount contract is unchanged from `dev` `99aef72` (see below) |
+| Hasura | Local preview only | Fixtures assume `HASURA_GRAPHQL_STRINGIFY_NUMERIC_TYPES=true`; the public aggregate and `block_heights_view` metadata follows indexer #70 |
 | Node | Not selected | The node #896 profile, node #947 and indexer #22 are not part of this run |
-| Images | Local preview only | `asi-explorer:pr84-preview` built from `38ee9af`; no release image was built or deployed |
+| Images | Local preview only | `asi-explorer:pr84-preview` built from `3a33c67`; no release image was built or deployed |
 
 Producer contract at indexer `99aef72`. The fixtures do not assert more than this contract:
 
@@ -90,22 +90,23 @@ height.
 
 ## Commands and results
 
-Local run on the PR #84 branch head `38ee9af`. Node 24.22.3. CI uses Node 22.
+Local run on the PR #84 branch head `3a33c67`. Node 24.22.3. CI uses Node 22.
 `package-lock.json` is in `.gitignore`, so a local run does not pin the
 dependency resolution. The CI run of each head is the reproducible anchor.
 
 | Command | Result |
 |---|---|
 | `CI=true npx react-scripts test --watchAll=false src/acceptance` | 28 tests passed |
-| `CI=true npx react-scripts test --watchAll=false --runInBand` | 39 suites, 414 tests passed |
+| `CI=true npx react-scripts test --watchAll=false --runInBand` | 39 suites, 417 tests passed |
 | `npx tsc --noEmit` | Passed |
 | `CI=true npm run build` | Passed |
 
-CI runs on `38ee9af` (PR #84):
+CI runs on `3a33c67` (PR #84):
 
-- `Tests` run [45894454599](https://github.com/asi-alliance/asi-chain-explorer/actions/runs/45894454599): `test` and `docker-image` passed.
-- `GraphQL Schema` run [45894454499](https://github.com/asi-alliance/asi-chain-explorer/actions/runs/45894454499): passed.
-- `Sonar Analysis` run [45894454924](https://github.com/asi-alliance/asi-chain-explorer/actions/runs/45894454924): passed.
+- `Tests` run [45913682588](https://github.com/asi-alliance/asi-chain-explorer/actions/runs/45913682588): `test` and `docker-image`.
+- `GraphQL Schema` run [45913682546](https://github.com/asi-alliance/asi-chain-explorer/actions/runs/45913682546): passed against indexer `dev`.
+- `GraphQL Schema` paired run [45913682686](https://github.com/asi-alliance/asi-chain-explorer/actions/runs/45913682686): passed against indexer #70 `feat/public-aggregates-search-and-deploy-actions` with `require_block_size=true`, so `GetBlockSize`, `GetHeightCounts` and the public aggregate permissions were validated strictly.
+- `Sonar Analysis` run [45913682925](https://github.com/asi-alliance/asi-chain-explorer/actions/runs/45913682925): passed.
 
 A docs-only commit after that head changes the PR head without changing this
 record's code evidence; the PR check on the final head remains authoritative.
@@ -114,10 +115,13 @@ Negative controls: with the page before the fixes, the exact-height test and the
 four latest-block failure tests fail. Before the first fix, the request had
 `blockNumber: 9007199254740992`.
 
-A headless Chrome check at `38ee9af` confirmed that `/indexer-status` redirects
-to `/statistics`, the eight dashboard cards render (`Synced`, `100.00%`,
-`0 blocks behind node #10,450`, `Last indexed ... ago`) and the Indexer
-navigation tab is absent. This is local preview evidence, not release evidence.
+A headless Chrome check at `3a33c67` against the local indexer #70 stack
+confirmed that `/height/500002?status=finalized` shows `1 sibling block`,
+`1 of 101` and the finalized block while 100 unfinalized siblings sort first.
+The demo block page shows `4.10 KB` and its four deploy links. A second preview
+through a proxy that rejects `blocks.block_size` and `blocks_aggregate` still
+rendered the height overview with the loaded-sibling fallback and showed `N/A`
+for block size. This is local preview evidence, not release evidence.
 
 ## Not run
 

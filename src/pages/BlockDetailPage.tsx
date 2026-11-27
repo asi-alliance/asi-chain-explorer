@@ -270,7 +270,7 @@ const BlockDetailPage: React.FC = () => {
       ? undefined
       : earliestTimestamp === latestTimestamp
         ? formatDate(latestTimestamp)
-        : `${formatDate(earliestTimestamp)} - ${formatDate(latestTimestamp)}`;
+        : `${formatDate(earliestTimestamp)} – ${formatDate(latestTimestamp)}`;
 
     return (
       <>
