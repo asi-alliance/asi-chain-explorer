@@ -367,7 +367,7 @@ resolves before nginx starts.
 - `/` - Home dashboard with network overview and Recent Blocks with a footer CSV export; finalized-only is the default, `?q=` preserves the search and `?finalized=0` shows all blocks
 - `/blocks` - Redirects to `/`; the home page is the block list
 - `/height/:height` - Height overview; the `?status=finalized` and `?status=unfinalized` filters run in GraphQL before the 100-sibling sample, and exact sibling/finalized totals come from public `blocks` aggregates when the indexer exposes them (older indexers fall back to the loaded sample)
-- `/block/hash/:blockHash` - Details for one specific block, including its size when the indexer exposes `blocks.block_size` (older indexers show `N/A`), deployments and transfers; deploy IDs and transfer rows link to `/transaction/:id`
+- `/block/hash/:blockHash` - Details for one specific block, including its size when the indexer exposes `blocks.block_size` (older indexers and blocks indexed before migration 008 show `N/A`), deployments and transfers; deploy IDs and transfer rows link to `/transaction/:id`
 - `/block/:blockNumber` - Legacy height URL; redirects to `/height/:blockNumber` and preserves the query string
 - `/transactions` - Non-overlapping All deploys, Contract deploys (no transfer events) and Transfers tabs with a footer CSV export; `?tab=contract` and `?tab=transfers` open a tab directly
 - `/pending` - Deploys in the validators' deploy buffers that no indexed block includes yet (the navigation tab appears only when the indexer tracks pending deploys)
@@ -467,11 +467,13 @@ GraphQL as decimal strings and stay strings for display; monetary values must no
 be parsed as JavaScript floating-point numbers. Unsafe numeric responses are
 rejected instead of displaying a rounded balance.
 
-Deploy the matching indexer before this explorer: migrations through **006**,
-the documented history repair, and Hasura metadata from
-`scripts/full-init-hasura.sh`. The explorer reads `pending_deploys` and the
-`native_transfer_lifecycle` view, which only that metadata exposes. Keep
-`HASURA_GRAPHQL_STRINGIFY_NUMERIC_TYPES=true`.
+Deploy the matching indexer before this explorer: migrations through **008**,
+the documented history repair when required, the Indexer #70 code, and Hasura
+metadata from `scripts/full-init-hasura.sh`. That metadata exposes
+`pending_deploys`, `native_transfer_lifecycle`, `block_heights_view` and the
+public `blocks` aggregates. Blocks indexed before migration 008 show `N/A` for
+block size until they are re-indexed; other pages fall back cleanly on an older
+schema. Keep `HASURA_GRAPHQL_STRINGIFY_NUMERIC_TYPES=true`.
 
 Pending deploys are optional. A deploy waits only in the buffer of the validator
 that received it: nodes do not gossip deploys, and an observer rejects them. The

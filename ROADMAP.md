@@ -131,7 +131,8 @@ Tracked in
       rows to transaction details, and count the deployments in the loaded
       block instead of the denormalized counter. The optional
       `blocks.block_size` query stays in schema validation and degrades to
-      `N/A` on an indexer without migration 008.
+      `N/A` on an indexer without migration 008 and for blocks indexed before
+      that migration.
 - [x] The height overview applies `?status=finalized` and
       `?status=unfinalized` in GraphQL before the 100-sibling limit and reads
       exact sibling and finalized totals from `blocks_aggregate` when the
