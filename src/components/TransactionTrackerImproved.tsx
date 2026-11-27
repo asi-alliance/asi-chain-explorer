@@ -1,28 +1,44 @@
 import React, {
     useState,
+    useEffect,
     useMemo,
     useRef,
 } from "react";
 import { useQuery, gql, useLazyQuery } from "@apollo/client";
+import { useSearchParams } from "react-router-dom";
 import { motion } from "framer-motion";
 import {
   RefreshCw,
   ChevronLeft,
   ChevronRight,
   FileText,
+  Layers,
   ArrowRightLeft,
   Activity,
   CheckCircle,
   XCircle,
 } from 'lucide-react';
-import { formatDistanceToNow } from 'date-fns';
+import { formatLocalTime, formatRelativeTime, toMillis } from '../utils/time';
 import { CURRENT_TOKEN } from '../utils/constants';
 import RecentDataExporter, { ExportEntities } from "./RecentDataExporter";
+import SearchField from "./SearchField";
 
 // GraphQL Queries
 const GET_TRANSACTION_COUNTS = gql`
     query GetTransactionCounts {
         deployments_aggregate {
+            aggregate {
+                count
+            }
+        }
+        contract_deployments: deployments_aggregate(
+            where: { _not: { transfers: {} } }
+        ) {
+            aggregate {
+                count
+            }
+        }
+        transfer_deployments: deployments_aggregate(where: { transfers: {} }) {
             aggregate {
                 count
             }
@@ -76,6 +92,38 @@ const SEARCH_TRANSACTIONS = gql`
             block_number
             timestamp
             errored
+            transfers {
+                id
+            }
+        }
+
+        # Apply the Contract deploys partition before its cap. Otherwise newer
+        # deploy-with-transfer matches can hide every matching contract deploy.
+        contract_deployments: deployments(
+            where: {
+                _and: [
+                    {
+                        _or: [
+                            { deployer: { _ilike: $query } }
+                            { deploy_id: { _ilike: $query } }
+                            { block_hash: { _ilike: $query } }
+                        ]
+                    }
+                    { _not: { transfers: {} } }
+                ]
+            }
+            limit: 30
+            order_by: { timestamp: desc }
+        ) {
+            deploy_id
+            deployer
+            deployment_type
+            block_number
+            timestamp
+            errored
+            transfers {
+                id
+            }
         }
     }
 `;
@@ -84,12 +132,14 @@ const GET_PAGINATED_TRANSACTIONS = gql`
     query GetPaginatedTransactions(
         $deploymentLimit: Int!
         $deploymentOffset: Int!
+        $deploymentWhere: deployments_bool_exp!
         $transferLimit: Int!
         $transferOffset: Int!
     ) {
         deployments(
             limit: $deploymentLimit
             offset: $deploymentOffset
+            where: $deploymentWhere
             order_by: { timestamp: desc }
         ) {
             deploy_id
@@ -127,19 +177,41 @@ interface TransactionTrackerImprovedProps {
     embedded?: boolean;
 }
 
+type TransactionTab = "all" | "contract" | "transfers";
+
+const tabFromParam = (value: string | null): TransactionTab => {
+    if (value === "transfers") return "transfers";
+    if (value === "contract") return "contract";
+    // Older links used ?tab=deployments for the full deploy list.
+    return "all";
+};
+
 const TransactionTrackerImproved: React.FC<TransactionTrackerImprovedProps> = ({
     onTransactionSelect,
     embedded = false,
 }) => {
     const debounceRef = useRef<NodeJS.Timeout | undefined>(undefined);
+    const [searchParams, setSearchParams] = useSearchParams();
     // State
-    const [activeTab, setActiveTab] = useState<"deployments" | "transfers">(
-        "deployments"
-    );
-    // const [activeTab, setActiveTab] = useState<'all' | 'deployments' | 'transfers'>('all');
+    const [activeTab, setActiveTab] = useState<TransactionTab>(tabFromParam(searchParams.get("tab")));
     const [currentPage, setCurrentPage] = useState(1);
     const [itemsPerPage, setItemsPerPage] = useState(20);
     const [searchQuery, setSearchQuery] = useState("");
+
+    useEffect(() => {
+        const tab = tabFromParam(searchParams.get("tab"));
+        setActiveTab(previous => previous === tab ? previous : tab);
+        setCurrentPage(1);
+    }, [searchParams]);
+
+    const selectTab = (tab: TransactionTab) => {
+        setActiveTab(tab);
+        setCurrentPage(1);
+        const next = new URLSearchParams(searchParams);
+        if (tab === "all") next.delete("tab");
+        else next.set("tab", tab);
+        setSearchParams(next);
+    };
 
     // Fetch total counts
     const { data: countsData } = useQuery(GET_TRANSACTION_COUNTS, {
@@ -152,34 +224,40 @@ const TransactionTrackerImproved: React.FC<TransactionTrackerImprovedProps> = ({
     ] = useLazyQuery(SEARCH_TRANSACTIONS);
 
     const totalDeployments = countsData?.deployments_aggregate?.aggregate?.count || 0;
+    const contractDeployments = countsData?.contract_deployments?.aggregate?.count || 0;
+    const transferDeployments = countsData?.transfer_deployments?.aggregate?.count || 0;
     const totalTransfers = countsData?.transfers_aggregate?.aggregate?.count || 0;
 
-    const totalSearchDeployments = (() => {
-      if (!searchQuery) {
-        return totalDeployments;
-      }
-      
-      return transactionsSearchData?.deployments?.length || 0;
-    })()
-      
+    const allSearchDeployments = useMemo(
+        () => transactionsSearchData?.deployments ?? [],
+        [transactionsSearchData]
+    );
+    const contractSearchDeployments = useMemo(
+        () => transactionsSearchData?.contract_deployments ?? [],
+        [transactionsSearchData]
+    );
+    const searchDeployments = useMemo(
+        () => activeTab === "contract" ? contractSearchDeployments : allSearchDeployments,
+        [activeTab, allSearchDeployments, contractSearchDeployments]
+    );
 
-    const totalSearchTransfers = (() => {
-      if(!searchQuery) {
-        return totalTransfers;
-      }
-
-      return transactionsSearchData?.transfers?.length || 0
-    })()         
-
-    const totalTransactions = totalDeployments + totalTransfers;
+    const totalSearchDeployments = searchQuery ? allSearchDeployments.length : totalDeployments;
+    const totalSearchContract = searchQuery
+        ? contractSearchDeployments.length
+        : contractDeployments;
+    const totalSearchTransfers = searchQuery
+        ? transactionsSearchData?.transfers?.length || 0
+        : totalTransfers;
 
     // Calculate pagination
+    const deploymentWhere =
+        activeTab === "contract" ? { _not: { transfers: {} } } : {};
     const deploymentOffset =
         activeTab === "transfers" ? 0 : (currentPage - 1) * itemsPerPage;
     const transferOffset =
-        activeTab === "deployments" ? 0 : (currentPage - 1) * itemsPerPage;
+        activeTab === "all" || activeTab === "contract" ? 0 : (currentPage - 1) * itemsPerPage;
     const deploymentLimit = activeTab === "transfers" ? 0 : itemsPerPage;
-    const transferLimit = activeTab === "deployments" ? 0 : itemsPerPage;
+    const transferLimit = activeTab === "transfers" ? itemsPerPage : 0;
 
 
     const {
@@ -189,6 +267,7 @@ const TransactionTrackerImproved: React.FC<TransactionTrackerImprovedProps> = ({
         variables: {
             deploymentLimit,
             deploymentOffset,
+            deploymentWhere,
             transferLimit,
             transferOffset,
         },
@@ -214,44 +293,13 @@ const TransactionTrackerImproved: React.FC<TransactionTrackerImprovedProps> = ({
       setSearchQuery(value);
       debouncedSearch(value);
     }
-    /** Normalize any time-like value to epoch milliseconds. */
-    const toMillis = (input: string | number | undefined | null): number => {
-        if (input == null) return NaN;
-
-        if (typeof input === 'number' && Number.isFinite(input)) {
-            // Detect seconds vs milliseconds by magnitude
-            return input > 1e12 ? input : input * 1000;
-        }
-
-        if (typeof input === 'string') {
-            const s = input.trim();
-
-            // Pure digits → numeric epoch (seconds or milliseconds)
-            if (/^\d+$/.test(s)) {
-                const n = Number(s);
-                return n > 1e12 ? n : n * 1000;
-            }
-
-            // ISO-like string: trim microseconds to milliseconds
-            let normalized = s.replace(/(\.\d{3})\d+/, '$1'); // "....350416" → "....350"
-            // If there's time but no timezone, assume UTC
-            if (/[T ]\d{2}:\d{2}:\d{2}/.test(normalized) && !/[zZ]$/.test(normalized) && !/[+-]\d{2}:\d{2}$/.test(normalized)) {
-                normalized += 'Z';
-            }
-
-            const ms = Date.parse(normalized); // returns ms
-            return Number.isNaN(ms) ? NaN : ms;
-        }
-
-        return NaN;
-    };
 
     const searchResults = useMemo(() => {
 
       const results: any[] = [];
 
-      if (activeTab === "deployments") {
-            transactionsSearchData?.deployments?.forEach((deployment: any) => {
+      if (activeTab !== "transfers") {
+            searchDeployments.forEach((deployment: any) => {
                 results.push({
                     ...deployment,
                     type: "deployment",
@@ -281,11 +329,11 @@ const TransactionTrackerImproved: React.FC<TransactionTrackerImprovedProps> = ({
         }
 
       return results.sort((a, b) => {
-            const timeA = parseInt(a.displayTime);
-            const timeB = parseInt(b.displayTime);
+            const timeA = toMillis(a.displayTime);
+            const timeB = toMillis(b.displayTime);
             return timeB - timeA;
       });
-    }, [transactionsSearchData, activeTab])
+    }, [transactionsSearchData, activeTab, searchDeployments])
 
     const transactions = useMemo(() => {
 
@@ -300,7 +348,7 @@ const TransactionTrackerImproved: React.FC<TransactionTrackerImprovedProps> = ({
         const results: any[] = [];
 
         // if (activeTab === 'all' || activeTab === 'deployments') {
-        if (activeTab === "deployments") {
+        if (activeTab !== "transfers") {
             transactionData.deployments?.forEach((deployment: any) => {
                 results.push({
                     ...deployment,
@@ -331,19 +379,19 @@ const TransactionTrackerImproved: React.FC<TransactionTrackerImprovedProps> = ({
         }
 
         return results.sort((a, b) => {
-            const timeA = parseInt(a.displayTime);
-            const timeB = parseInt(b.displayTime);
+            const timeA = toMillis(a.displayTime);
+            const timeB = toMillis(b.displayTime);
             return timeB - timeA;
         });
     }, [searchQuery, searchResults, transactionData, activeTab]);
 
     // Calculate pagination info
     const totalItemsForTab =
-        activeTab === "deployments"
-            ? totalDeployments
+        activeTab === "contract"
+            ? contractDeployments
             : activeTab === "transfers"
             ? totalTransfers
-            : totalTransactions;
+            : totalDeployments;
 
     const totalPages = Math.ceil(totalItemsForTab / itemsPerPage);
     // const startIndex = (currentPage - 1) * itemsPerPage + 1;
@@ -351,30 +399,55 @@ const TransactionTrackerImproved: React.FC<TransactionTrackerImprovedProps> = ({
 
     // Get heading text based on context
     const getHeading = () => {
-        // if (activeTab === 'all') {
-        //   return {
-        //     title: "All Transactions",
-        //     subtitle: `Showing ${startIndex}-${Math.min(endIndex, transactions.length)} of ${totalTransactions} total (${totalDeployments} deployments, ${totalTransfers} transfers)`
-        //   };
-        // } else if (activeTab === 'deployments') {
-        if (activeTab === "deployments") {
+        if (activeTab === "contract") {
             return {
-                title: "Smart Contract Deployments",
-                subtitle: "",
-                // subtitle: `Showing ${startIndex}-${endIndex} of ${totalDeployments} total deployments`,
+                title: "Contract deploys",
+                subtitle: "Deploys without transfer events",
                 exportEntity: ExportEntities.DEPLOYMENTS
             };
-        } else {
+        }
+        if (activeTab === "transfers") {
             return {
-                title: "Token Transfers",
-                subtitle: "",
-                // subtitle: `Showing ${startIndex}-${endIndex} of ${totalTransfers} total transfers`,
+                title: "Transfers",
+                subtitle: "Transfer events emitted by deploys",
                 exportEntity: ExportEntities.TRANSFERS
             };
         }
+        return {
+            title: "All deploys",
+            subtitle: "Every deploy, including those that move tokens",
+            exportEntity: ExportEntities.DEPLOYMENTS
+        };
     };
 
     const heading = getHeading();
+
+    const deployPartition =
+        contractDeployments + transferDeployments === totalDeployments;
+    const deploySummary = deployPartition
+        ? `${totalDeployments} deploys: ${contractDeployments} contract + ${transferDeployments} with transfers`
+        : `${totalDeployments} deploys · ${transferDeployments} with transfers`;
+
+    const tabs = [
+        {
+            tab: "all" as const,
+            label: "All deploys",
+            count: searchQuery ? totalSearchDeployments : totalDeployments,
+            icon: <Layers size={15} aria-hidden="true" />,
+        },
+        {
+            tab: "contract" as const,
+            label: "Contract deploys",
+            count: searchQuery ? totalSearchContract : contractDeployments,
+            icon: <FileText size={15} aria-hidden="true" />,
+        },
+        {
+            tab: "transfers" as const,
+            label: "Transfers",
+            count: searchQuery ? totalSearchTransfers : totalTransfers,
+            icon: <ArrowRightLeft size={15} aria-hidden="true" />,
+        },
+    ];
 
     return (
         <div className={embedded ? "" : "asi-card"}>
@@ -383,9 +456,6 @@ const TransactionTrackerImproved: React.FC<TransactionTrackerImprovedProps> = ({
                 <div className="section-header transactions-tracker">
                     <div className="header-content-wrapper">
                         <h1 style={{ margin: "0 0 0.5rem 0" }}>{heading.title}</h1>
-                    </div>
-                    <div className="export-data-container">
-                        <RecentDataExporter entityToExport={heading.exportEntity} />
                     </div>
                 </div>
                 <p
@@ -398,115 +468,68 @@ const TransactionTrackerImproved: React.FC<TransactionTrackerImprovedProps> = ({
                 </p>
             </div>
 
-            {/* Summary Stats Bar */}
-            {!embedded && (
-                <div
-                    style={{
-                        display: "flex",
-                        gap: "1rem",
-                        marginBottom: "2rem",
-                        padding: "1rem",
-                        backgroundColor: "rgba(255, 255, 255, 0.05)",
-                        borderRadius: "8px",
-                    }}
-                >
-                    <div
-                        style={{
-                            display: "flex",
-                            alignItems: "center",
-                            gap: "0.5rem",
-                        }}
-                    >
-                        <FileText size={16} style={{ color: "#f59e0b" }} />
-                        <h3>{totalDeployments} Deployments</h3>
-                    </div>
-                    <div
-                        style={{
-                            display: "flex",
-                            alignItems: "center",
-                            gap: "0.5rem",
-                        }}
-                    >
-                        <ArrowRightLeft
-                            size={16}
-                            style={{ color: "#3b82f6" }}
-                        />
-                        <h3>{totalTransfers} Transfers</h3>
-                    </div>
-                    <div
-                        style={{
-                            display: "flex",
-                            alignItems: "center",
-                            gap: "0.5rem",
-                        }}
-                    >
-                        <Activity size={16} style={{ color: "#10b981" }} />
-                        <h3>{totalTransactions} Total</h3>
-                    </div>
-                </div>
-            )}
-
             {/* Tab Navigation */}
             <div
                 style={{
                     display: "flex",
+                    alignItems: "center",
                     gap: "1rem",
                     borderBottom: "1px solid rgba(255, 255, 255, 0.1)",
                     marginBottom: "2rem",
+                    flexWrap: "wrap",
                 }}
             >
-                {/* {(['all', 'deployments', 'transfers'] as const).map((tab) => ( */}
-                {(["deployments", "transfers"] as const).map((tab) => (
-                    <button
-                        className="text-1"
-                        key={tab}
-                        onClick={() => {
-                            setActiveTab(tab);
-                            setCurrentPage(1);
-                        }}
+                <div style={{ display: "flex", gap: "0.35rem" }}>
+                    {tabs.map(({ tab, label, count, icon }) => (
+                        <button
+                            className="text-1"
+                            key={tab}
+                            onClick={() => selectTab(tab)}
+                            aria-pressed={activeTab === tab}
+                            style={{
+                                display: "flex",
+                                alignItems: "center",
+                                gap: "0.4rem",
+                                padding: "0.75rem 1rem",
+                                background: "none",
+                                border: "none",
+                                borderBottom:
+                                    activeTab === tab
+                                        ? "2px solid #10b981"
+                                        : "2px solid transparent",
+                                color: activeTab === tab ? "#10b981" : "#9ca3af",
+                                cursor: "pointer",
+                                textTransform: "capitalize",
+                                fontWeight: activeTab === tab ? "600" : "400",
+                            }}
+                        >
+                            {icon}
+                            {`${label} (${count})`}
+                        </button>
+                    ))}
+                </div>
+                {!searchQuery && (
+                    <span
                         style={{
-                            padding: "0.75rem 1rem",
-                            background: "none",
-                            border: "none",
-                            borderBottom:
-                                activeTab === tab
-                                    ? "2px solid #10b981"
-                                    : "2px solid transparent",
-                            color: activeTab === tab ? "#10b981" : "#9ca3af",
-                            cursor: "pointer",
-                            textTransform: "capitalize",
-                            fontWeight: activeTab === tab ? "600" : "400",
+                            marginLeft: "auto",
+                            paddingBottom: "0.75rem",
+                            color: "#9ca3af",
+                            fontSize: "0.875rem",
                         }}
                     >
-                        {/* {tab === 'all' ? `All (${totalTransactions})` 
-              : tab === 'deployments' ? `Deployments (${totalDeployments})`
-              : `Transfers (${totalTransfers})`} */}
-                        {tab === "deployments"
-                            ? `Deployments (${searchQuery ? totalSearchDeployments : totalDeployments})`
-                            : `Transfers (${searchQuery ? totalSearchTransfers : totalTransfers})`}
-                    </button>
-                ))}
+                        {deploySummary}
+                    </span>
+                )}
             </div>
 
             {/* Search Bar */}
             <div style={{ marginBottom: "2rem" }}>
-                <div style={{ display: "flex", gap: "0.5rem" }}>
-                    <input
-                        className="text-3"
-                        type="text"
-                        placeholder="Search by ID, address, or block hash..."
-                        value={searchQuery}
-                        onChange={(e) => {handleSearchQueryChange(e.target.value)}}
-                        style={{
-                            flex: 1,
-                            padding: "0.75rem",
-                            borderRadius: "8px",
-                            border: "1px solid rgba(255, 255, 255, 0.2)",
-                            backgroundColor: "rgba(255, 255, 255, 0.05)",
-                            color: "#fff",
-                        }}
-                    />
-                </div>
+                <SearchField
+                    placeholder="Search by ID, address, or block hash..."
+                    aria-label="Search transactions by ID, address, or block hash"
+                    value={searchQuery}
+                    onChange={(e) => handleSearchQueryChange(e.target.value)}
+                />
             </div>
 
             {/* Transaction List */}
@@ -586,10 +609,11 @@ const TransactionTrackerImproved: React.FC<TransactionTrackerImprovedProps> = ({
                                         }}
                                     >
                                         Block #{tx.block_number} •{" "}
-                                        {formatDistanceToNow(
-                                            new Date(toMillis(tx.displayTime)),
-                                            { addSuffix: true }
-                                        )}
+                                        <span title={formatLocalTime(tx.displayTime)}>
+                                            {String(tx.block_number) === "0"
+                                                ? "Genesis"
+                                                : formatRelativeTime(tx.displayTime)}
+                                        </span>
                                     </div>
                                 </div>
 
@@ -713,6 +737,16 @@ const TransactionTrackerImproved: React.FC<TransactionTrackerImprovedProps> = ({
                     </div>
                 )}
             </div>
+            {!loading && !areTransactionsSearching && transactions.length > 0 && (
+                <div className="table-footer">
+                    <span className="text-muted">
+                        {searchQuery
+                            ? `${transactions.length} matching ${activeTab === "contract" ? "contract deploys" : activeTab === "transfers" ? "transfers" : "deploys"}`
+                            : `Showing ${(currentPage - 1) * itemsPerPage + 1}-${(currentPage - 1) * itemsPerPage + transactions.length} of ${totalItemsForTab}`}
+                    </span>
+                    <RecentDataExporter entityToExport={heading.exportEntity} />
+                </div>
+            )}
         </div>
     );
 };

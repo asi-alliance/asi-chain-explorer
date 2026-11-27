@@ -1,0 +1,103 @@
+/* Unknown route fallback */
+
+.not-found {
+    display: flex;
+    justify-content: center;
+    padding: 2.5rem 0 4rem;
+}
+
+.not-found__card {
+    width: 100%;
+    max-width: 640px;
+    text-align: center;
+    padding: 2.5rem 2rem;
+}
+
+.not-found__code {
+    margin: 0 0 0.4rem;
+    color: var(--asi-lime);
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+}
+
+.not-found h1 {
+    margin: 0 0 0.75rem;
+}
+
+.not-found__text {
+    max-width: 460px;
+    margin: 0 auto 0.85rem;
+    color: var(--text-secondary);
+    font-size: 14px;
+    line-height: 1.55;
+}
+
+.not-found__attempt {
+    margin: 0 0 1.5rem;
+    text-align: center;
+}
+
+.not-found__path {
+    display: inline-block;
+    max-width: 100%;
+    padding: 4px 10px;
+    border-radius: 6px;
+    background: var(--charcoal-500);
+    color: var(--off-white);
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 12.5px;
+    overflow-wrap: anywhere;
+}
+
+.not-found__search {
+    max-width: 460px;
+    margin: 0 auto 1.25rem;
+    text-align: left;
+}
+
+/* The page already has the palette hint in the header. */
+.not-found .asi-search__kbd {
+    display: none;
+}
+
+.not-found .asi-search__input {
+    padding-right: 46px;
+}
+
+.not-found__links {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 0.6rem;
+}
+
+.not-found__links .btn {
+    padding: 9px 16px;
+    font-size: 13px;
+}
+
+.not-found__hint {
+    margin: 1.25rem 0 0;
+    color: var(--text-tertiary);
+    font-size: 12px;
+}
+
+@media (max-width: 600px) {
+    .not-found {
+        padding: 1rem 0 2.5rem;
+    }
+
+    .not-found__card {
+        padding: 1.75rem 1.25rem;
+    }
+
+    .not-found__links {
+        flex-direction: column;
+    }
+
+    .not-found__links .btn {
+        width: 100%;
+    }
+}

@@ -1,0 +1,169 @@
+# Explorer roadmap
+
+Current focus: PR #84 carries the frontend polish tracked in
+[asi-chain-explorer#83](https://github.com/asi-alliance/asi-chain-explorer/issues/83).
+This file records what PR #79 and PR #84 ship and what remains; indexer health is now part of the Statistics dashboard.
+backend-dependent scope lives in
+[asi-chain-indexer#66](https://github.com/asi-alliance/asi-chain-indexer/issues/66).
+
+## Shipped in PR #79
+
+- Optional live pending deploys: one shared status subscription checks the
+  indexer capability, the list and detail pages update over the GraphQL
+  WebSocket with an HTTP fallback, and a per-signature watch follows a deploy
+  until it is indexed or expires.
+- Wallet address page: finalized spendable balance with an exact-value tooltip,
+  indexed transfer history with a direction filter and keyset pagination, and
+  outgoing pending deploys while tracking is enabled.
+- One header omnibox for heights, block hashes, transaction IDs, transfers and
+  wallet addresses, with grouped results and `Ctrl/Cmd+K` palette.
+- Recent searches in local storage.
+- Exact pending-deploy lookup by signature in the header and on `/search`.
+- Height-first numeric search; a numeric query no longer scans hashes and IDs.
+- `/block/{height}` sibling overview with prev/next height navigation,
+  finalized/unfinalized filtering, parent/child counts and block-hash rows
+  (moved to `/height/{height}` in #84).
+- Recent Blocks grouping: one height cell per sibling group, block count,
+  real finalization status and a local finalized-only filter. The finalized
+  filter keeps polling, while only a text search pauses it.
+- The legacy `/blocks` path redirects to the home page.
+- Search result type tabs and copy/share actions.
+- Mobile search panel and height overview.
+- A 404 page for unknown paths, with the attempted path, the chain search
+  and recovery links.
+- Absolute favicon and manifest links for every route, and no missing
+  `/favicon.svg` request in the browser console.
+- Route-level code splitting: the home page ships with the shell, while charts
+  and the syntax highlighter load only on the pages that use them. Removed the
+  unused `react-window`, `react-virtualized`, `react-qr-code` and `react-csv`
+  dependencies.
+- Native controls and scrollbars follow the dark theme (`color-scheme: dark`).
+- Transaction pages show the executed fee in ASI
+  (`phlo_cost × phlo_price`, using the block's token decimals) plus the phlo
+  breakdown and the `phlo_limit` precharge. Pending deploys still have no fee
+  until the node reports their executed cost.
+- Relative times read `just now` below 20 seconds and `a minute ago` below a
+  minute, then fall back to date-fns. Absolute timestamps use the browser's
+  local timezone and include its zone.
+- Deployments in block 0 are labelled `Genesis`; their original RChain mainnet
+  timestamp is available on hover instead of reading as the testnet's age.
+- Transaction details keep one transaction ID with its copy action; the
+  inclusion banner is replaced by a compact status icon whose tooltip explains
+  the state, and an identical Signature box is no longer repeated.
+- The transaction list splits deploys into non-overlapping All deploys,
+  Contract deploys and Transfers tabs, so the counts add up instead of
+  double-counting deploys that emitted a transfer.
+- CSV export is a labeled `Export CSV` action in the table footer for blocks,
+  deployments and transfers, with an entity-specific accessible name and the
+  existing filenames.
+- Home search and finalized-only filters, the `/transactions` tabs and
+  transaction detail tabs are URL-backed and survive copy/share.
+- Below 600 px the Recent Blocks Height column stays pinned while the table
+  scrolls horizontally.
+- Every route sets a descriptive browser title; unknown paths report
+  `Page not found`.
+- The `/search` Transfers tab restores filter-only ASI amount ranges.
+- Source and Docker fallback precision is 18; historical rows keep their own `token_decimals`.
+- Removed unused QR, Swagger, XLSX, Workbox and intersection-observer packages, updated the syntax highlighter and pinned nginx stable.
+- Transaction tabs wrap on narrow screens instead of overflowing the page.
+- The Statistics dashboard adds a consensus health card with participation,
+  links the latest height and validator count, shows skeletons, a Retry state
+  and a range-without-activity message, and keeps small rates readable instead
+  of rounding them to zero.
+- The validators page shows consensus health, stake-share bars, copyable keys
+  and height links; proposer counts are labelled as the latest 1,000 blocks and
+  load separately from the validator list. Validator history links the height
+  and proposer and gives the block time an absolute-time tooltip.
+
+## After PR #79
+
+- A positive wallet balance below the eight-decimal display precision reads
+  `<0.00000001 ASI`; the exact amount stays in the hover/focus tooltip and the
+  accessible description. A dotted underline marks a truncated balance.
+- Live Activity identifies DAG sibling blocks by hash, so blocks at one height
+  no longer share a React key or read as duplicate rows.
+- A single search match reads `Showing 1 result`; later pages keep the absolute
+  result position.
+- The DAG height overview moved to `/height/{height}`; legacy `/block/{number}`
+  links redirect there and keep the `?status=` filter.
+
+## Shipped in PR #84
+
+Tracked in
+[asi-chain-explorer#83](https://github.com/asi-alliance/asi-chain-explorer/issues/83).
+
+- [x] Loading skeletons for stats, Recent Blocks and height summaries.
+- [x] Explicit error and Retry states that keep the last loaded data visible.
+- [x] Confirmed / Unfinalized status legend under the Recent Blocks filters.
+- [x] Home search and filter controls stack at 600 px with no overflow at 390 px.
+- [x] Finalized only is checked by default; `?finalized=0` explicitly shows all
+      blocks, and the browser title follows the same default.
+- [x] Recent Blocks rows have no hover tint, because the rows are not clickable;
+      links keep their own hover affordance and green stays reserved for the
+      Confirmed status.
+- [x] Validator proposers in Recent Blocks link to the Validators page.
+- [x] `/height/:height` always shows the height overview, including a single
+      sibling, with singular `1 sibling block` copy.
+- [x] Height copy sits next to the height value, sibling rows copy their block
+      hashes, the sibling-count pill explains DAG siblings on hover, and copy
+      actions report through a toast.
+- [x] Live Activity shows skeleton rows while its three initial queries load.
+- [x] Removed explicit `any` from the activity feed, search index, block
+      details, validator pages, Home query variables and CSV exporter
+      (90 → 60 remaining, mostly tests and legacy components).
+- [x] Deployment cards and transaction pages no longer show block-level
+      Sequence Number and Shard ID metadata; the block page keeps the real values.
+- [x] Removed the unrouted BlocksPage, TransfersPage and DeploymentsPage, the
+      unused BlockVisualization, BlockCard, LoadingSpinner and genesis-funding
+      utility, and their tests. ConnectionStatus remains live in Layout.
+- [x] Indexer health moved into the Statistics dashboard: eight cards in two
+      rows show the indexer status, sync progress and last indexed block with
+      its lag. `/indexer-status` redirects to `/statistics`, and the separate
+      Indexer navigation tab is gone.
+- [x] The last indexed block time is labelled as block time, not as the status
+      refresh time; the status card states that it polls every five seconds.
+- [x] The SPA entry HTML revalidates (`Cache-Control: no-cache`) while hashed
+      assets keep their long expiry, and the docker-image check asserts both
+      the entry HTML and a deep route.
+- [x] A missing `valid_after_block_number` no longer renders an empty row on a
+      block deployment card; zero still renders.
+- [x] Block pages show the node-reported block size, link deploy and transfer
+      rows to transaction details, and count the deployments in the loaded
+      block instead of the denormalized counter. The optional
+      `blocks.block_size` query stays in schema validation and degrades to
+      `N/A` on an indexer without migration 008 and for blocks indexed before
+      that migration.
+- [x] The height overview applies `?status=finalized` and
+      `?status=unfinalized` in GraphQL before the 100-sibling limit and reads
+      exact sibling and finalized totals from `blocks_aggregate` when the
+      indexer exposes that public aggregate, with a loaded-sibling fallback.
+- [x] Search on the Contract deploys tab applies `_not: { transfers: {} }`
+      before its 30-row limit, so newer transfer deploys cannot hide matching
+      contract deploys.
+- [x] The validators table labels `validator_bonds` heights as the latest stake
+      snapshot, because the indexer writes a row for each block even when stake
+      is unchanged.
+- [x] CI uses `actions/checkout@v7` and `actions/setup-node@v7`; the suite has
+      417 tests in 39 suites.
+
+## Blocked by the indexer / Hasura
+
+Tracked in
+[asi-chain-indexer#66](https://github.com/asi-alliance/asi-chain-indexer/issues/66).
+[Indexer #70](https://github.com/asi-alliance/asi-chain-indexer/pull/70) adds the
+public aggregates, grouped height view and search indexes. The explorer uses
+them where deployed and keeps its capped fallback on older schemas:
+
+- Exact height counts and grouped-by-height pagination across pages.
+- Counts on `/search` type tabs (currently capped at the 30-row search limit).
+- `pg_trgm` indexes and a ranked unified search surface for `%term%` queries.
+- Removing the `6+`/`100+` count caps once public aggregates are available.
+
+## Next
+
+- [Explorer #85](https://github.com/asi-alliance/asi-chain-explorer/issues/85):
+  explain the earliest possible proposal height on pending deploy details. The
+  long pending-list explainer stays removed; this is a separate, factual note
+  on the detail page.
+- [Explorer #80](https://github.com/asi-alliance/asi-chain-explorer/issues/80):
+  move the remaining polling pages to GraphQL subscriptions.

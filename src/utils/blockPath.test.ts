@@ -6,6 +6,6 @@ describe('getBlockPath', () => {
   });
 
   it('keeps block-number URLs as a legacy fallback', () => {
-    expect(getBlockPath(undefined, 42)).toBe('/block/42');
+    expect(getBlockPath(undefined, 42)).toBe('/height/42');
   });
 });

@@ -11,7 +11,8 @@ Console:        http://localhost:8080/console
 
 ## Authentication
 
-For production deployments, include the Hasura admin secret in request headers:
+Read queries need no credential. The admin secret is only for metadata and
+administrative requests; never send it from a browser:
 
 ```http
 x-hasura-admin-secret: your-admin-secret-here
@@ -22,13 +23,14 @@ For public read access, Hasura must be configured with an unauthorized role
 (`scripts/full-init-hasura.sh` in the indexer repo) grants the `public` role
 SELECT on every tracked table/view with `limit: 5000`, plus EXECUTE on the
 tracked SQL functions. **Aggregate queries (`<table>_aggregate { ... }`) are
-only enabled for `deployments`, `transfers`, and `transaction_history_view`**
+only enabled for `deployments`, `transfers`, `transaction_history_view` and
+`pending_deploys`**
 (`allow_aggregations: true`). All other tables/views keep
 `allow_aggregations: false` — calling `<table>_aggregate` on them returns a
 `validation-failed` error for the public role. If the explorer frontend hits
-such an aggregate, it stays anonymous and the request fails silently
-(Apollo `errorPolicy: "ignore"`) — keep that in mind when adding new
-count-style queries.
+such an aggregate, the request fails with that error (Apollo
+`errorPolicy: "none"`, see `src/apolloDefaults.ts`). The `GraphQL Schema` CI
+check (`npm run validate:graphql`) rejects such a query before merge.
 
 ## GraphQL Schema
 
@@ -283,9 +285,95 @@ type indexer_state {
 }
 ```
 
+#### pending_deploys
+
+Merged deploy buffers of the validators that the indexer lists in
+`PENDING_DEPLOYS_NODES`, read about every second. A deploy leaves the table when
+its validator includes it in a block or drops it. Rows change only when the
+buffers change, and the last snapshot of an unreachable validator is kept.
+`fetched_at` (UTC, without a time-zone suffix) is when the indexer first saw the
+deploy. The table is empty when the indexer does not track pending deploys.
+
+```graphql
+type pending_deploys {
+  sig: String!                 # becomes deployments.deploy_id after inclusion
+  deployer: String!
+  deployer_address: String!
+  term: String!
+  timestamp: bigint!           # milliseconds
+  phlo_price: numeric          # exact decimal string
+  phlo_limit: bigint
+  valid_after_block_number: bigint
+  shard_id: String
+  expiration_timestamp: bigint
+  is_rejected: Boolean         # in the node's rejected-recovery buffer
+  fetched_at: timestamp
+  included_deployment: deployments   # set during the overlap before the next snapshot
+}
+```
+
+`indexer_state` key `pending_deploys_status` holds JSON
+`{"nodes", "reachable", "count", "total_available", "interval_ms"}`. The indexer
+rewrites it on each change and at least every 10 seconds, so an `updated_at` older
+than 30 seconds marks a stale view; a missing row means pending deploys are not
+tracked. `total_available` larger than `count` means the validators' responses
+were truncated. The explorer reads both through subscriptions
+(`WatchPendingDeploys`, `WatchPendingDeploysStatus`); Hasura allows one root field
+per subscription.
+
 ### Views
 
 Tracking-only views exposed via GraphQL (read-only).
+
+#### native_transfer_lifecycle
+
+One row per observed outcome of a native transfer call (indexer migration 003,
+query plans from migration 006). Count movements from `transfers`, not from these
+rows: a fork can record more than one outcome for one call.
+
+```graphql
+type native_transfer_lifecycle {
+  call_id: String!
+  call_index: Int!
+  initiation_block_hash: String!
+  initiation_block_number: bigint!
+  initiation_deploy_id: String!
+  initiation_timestamp: bigint!
+  from_address: String
+  to_address: String
+  requested_amount: String!     # signed integer text in raw units
+  token_decimals: Int!
+  status: String!               # pending | completed | rejected | coalesced
+  result_id: String
+  result_success: Boolean
+  completion_block_hash: String
+  completion_block_number: bigint
+  completion_deploy_id: String
+  completion_timestamp: bigint
+  transfer_id: bigint           # ledger row of a completed call
+}
+```
+
+Relationships: `initiation_deployment`, `completion_deployment`,
+`initiation_block`, `completion_block`, `transfer`; on `deployments`:
+`native_transfer_calls` and `completed_native_transfers`. Aggregates are disabled.
+Filter by one deploy column per root field. An `_or` over
+`initiation_deploy_id` and `completion_deploy_id` reads the whole view:
+
+```graphql
+query NativeTransferLifecycle($deployId: String!) {
+  initiated: native_transfer_lifecycle(
+    where: { initiation_deploy_id: { _eq: $deployId } }
+    order_by: [{ initiation_block_number: asc }, { call_index: asc }]
+  ) { call_id status requested_amount token_decimals completion_deploy_id }
+  completedHere: native_transfer_lifecycle(
+    where: {
+      completion_deploy_id: { _eq: $deployId }
+      initiation_deploy_id: { _neq: $deployId }
+    }
+  ) { call_id status initiation_deploy_id }
+}
+```
 
 #### network_stats_view
 
@@ -685,14 +773,30 @@ query GetLatestDeployments($limit: Int = 5) {
 
 ### Get Indexer Status
 
-```graphql
-query GetIndexerStatus {
-  blocks(order_by: { block_number: desc }, limit: 1) {
-    block_number
-    timestamp
+The Network Dashboard reads the indexer monitoring endpoint through the public
+same-origin proxy:
+
+```http
+GET /api/indexer/status
+```
+
+```json
+{
+  "indexer": {
+    "running": true,
+    "last_indexed_block": 10450,
+    "last_sync_time": "2026-11-26T20:19:00.049566"
+  },
+  "node": {
+    "connected": true,
+    "latest_block": 10450
   }
 }
 ```
+
+`last_sync_time` is the timestamp of the last indexed block, not the time of the
+status request. The dashboard polls the endpoint every five seconds and renders
+the status, sync progress and last indexed block cards.
 
 ### Aggregate Queries
 

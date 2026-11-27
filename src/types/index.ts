@@ -2,6 +2,17 @@
 export interface BlockParent {
   parent_hash: string;
   parent_index: number;
+  block_hash?: string;
+}
+
+export interface BondMapEntry {
+  validator: string;
+  stake: string | number;
+}
+
+export interface Justification {
+  validator?: string;
+  latestBlockHash?: string;
 }
 
 export interface Block {
@@ -9,22 +20,25 @@ export interface Block {
   block_hash: string;
   parent_hash?: string;
   parent_links?: BlockParent[];
+  child_links?: BlockParent[];
   timestamp: number;
   proposer: string;
   deployment_count: number;
   state_hash?: string;
   pre_state_hash?: string;
   state_root_hash?: string;
-  bonds_map?: any;
+  bonds_map?: BondMapEntry[];
+  token_decimals?: number;
   fault_tolerance?: number;
   finalization_status?: string;
-  justifications?: any[];
+  justifications?: Justification[];
   seq_num?: number;
   shard_id?: string;
   sig?: string;
   sig_algorithm?: string;
   version?: number;
   extra_bytes?: string;
+  block_size?: number | string | null;
   created_at: string;
   deployments?: Deployment[];
   validator_bonds?: ValidatorBond[];
@@ -36,15 +50,13 @@ export interface Deployment {
   term: string;
   timestamp: number;
   deployment_type?: string;
-  phlo_cost?: number;
-  phlo_price?: number;
-  phlo_limit?: number;
-  valid_after_block_number?: number;
+  phlo_cost?: string | number;
+  phlo_price?: string | number;
+  phlo_limit?: string | number;
+  valid_after_block_number?: string | number | null;
   status?: string;
   block_number?: number;
   block_hash?: string;
-  seq_num?: number;
-  shard_id?: string;
   sig?: string;
   sig_algorithm?: string;
   errored: boolean;
@@ -60,7 +72,8 @@ export interface Transfer {
   from_address: string;
   to_address: string;
   amount_asi: number | string;
-  amount_dust?: number;
+  amount_dust?: string;
+  token_decimals?: number;
   status: string;
   block_number?: number | string;
   created_at: string;
@@ -68,24 +81,18 @@ export interface Transfer {
   block?: Block;
 }
 
-export interface GenesisFunding {
-  id: string;
-  wallet_address: string;
-  amount_dust: number;
-  amount_asi: number;
-  status: 'genesis_funding';
-  timestamp: number;
-  deploy_id: string;
-  created_at: string;
-}
+// Hasura bigint heights arrive as decimal strings (HASURA_GRAPHQL_STRINGIFY_NUMERIC_TYPES);
+// legacy responses may still use safe integers. Compare them with utils/blockHeight.
+export type BlockHeight = string | number;
 
 export interface Validator {
   public_key: string;
   name?: string;
   status?: string;
-  total_stake?: number;
-  first_seen_block?: number;
-  last_seen_block?: number;
+  token_decimals?: number;
+  total_stake?: string;
+  first_seen_block?: BlockHeight;
+  last_seen_block?: BlockHeight;
   created_at: string;
   updated_at?: string;
   validator_bonds?: ValidatorBond[];
@@ -93,8 +100,9 @@ export interface Validator {
 
 export interface ValidatorBond {
   id?: number;
-  block_number: number;
-  stake: number;
+  block_number: BlockHeight;
+  token_decimals?: number;
+  stake: string;
   block_hash?: string;
   validator_public_key?: string;
   validator?: Validator;
@@ -120,11 +128,11 @@ export interface NetworkStats {
 export interface AggregateData {
   count: number;
   avg?: {
-    phlo_cost?: number;
+    phlo_cost?: string | number;
   };
   sum?: {
-    amount_asi?: number;
-    phlo_cost?: number;
+    amount_asi?: string | number;
+    phlo_cost?: string | number;
   };
 }
 
@@ -132,21 +140,6 @@ export interface AggregateData {
 export interface SearchProps {
   onSearch: (query: string) => void;
   placeholder?: string;
-}
-
-export interface BlockCardProps {
-  block: Block;
-  showDetails?: boolean;
-}
-
-export interface TransferCardProps {
-  transfer: Transfer;
-  showDetails?: boolean;
-}
-
-export interface ValidatorCardProps {
-  validator: Validator;
-  showDetails?: boolean;
 }
 
 export interface StatsCardProps {
@@ -213,4 +206,25 @@ export interface GraphQLError {
 export interface ErrorBoundaryState {
   hasError: boolean;
   error?: Error;
+}
+
+// Snapshot of the node deploy buffers (indexer table pending_deploys).
+export interface PendingDeploy {
+  sig: string;
+  deployer: string;
+  deployer_address: string;
+  term?: string;
+  timestamp: string | number;
+  phlo_price?: string | null;
+  phlo_limit?: string | number | null;
+  valid_after_block_number?: string | number | null;
+  shard_id?: string | null;
+  expiration_timestamp?: string | number | null;
+  is_rejected?: boolean | null;
+  fetched_at?: string | null;
+  included_deployment?: {
+    deploy_id: string;
+    block_number: string | number;
+    block_hash: string;
+  } | null;
 }

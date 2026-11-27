@@ -60,7 +60,6 @@ Cargo.lock
 *.sqlite3
 
 # Docker
-.dockerignore
 docker-compose.override.yml
 
 # Temporary files
@@ -104,3 +103,5 @@ test_*.html
 *_test.*
 *.test.*
 !src/utils/blockPath.test.ts
+!src/**/*.test.ts
+!src/**/*.test.tsx

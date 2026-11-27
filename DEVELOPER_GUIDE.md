@@ -9,8 +9,8 @@ This guide provides detailed information for developers working on the ASI Chain
 - Operating System: Linux, macOS, or Windows with WSL2
 - Docker Desktop 20.10+
 - Python 3.11+
-- Node.js 20+
-- PostgreSQL 14+ (for local development without Docker)
+- Node.js 22 (the Docker build and CI use Node.js 22)
+- PostgreSQL 18.6 (indexer stack, for local development without Docker)
 - Git
 
 ### IDE Recommendations
@@ -82,50 +82,52 @@ indexer/src/
 explorer/src/
 ├── components/          # Reusable UI components
 │   ├── Layout.tsx
-│   ├── BlockCard.tsx
 │   ├── StatsCard.tsx
-│   ├── LoadingSpinner.tsx
 │   ├── NetworkDashboard.tsx
-│   ├── BlockVisualization.tsx
-│   ├── WalletSearch.tsx
 │   ├── TransactionTrackerImproved.tsx
 │   ├── AdvancedSearch.tsx
-│   ├── RecentTransactionsExporter.tsx
+│   ├── RecentDataExporter.tsx
 │   ├── AnimatePresenceWrapper.tsx
 │   ├── ConnectionStatus.tsx
-│   ├── TransactionTracker.tsx
 │   ├── RealtimeActivityFeed.tsx
 │   └── Logo.tsx
 │
 ├── pages/              # Route components
 │   ├── HomePage.tsx
-│   ├── BlocksPage.tsx
 │   ├── BlockDetailPage.tsx
 │   ├── TransactionsPage.tsx
 │   ├── TransactionDetailPage.tsx
-│   ├── TransfersPage.tsx
 │   ├── ValidatorsPage.tsx
 │   ├── ValidatorHistoryPage.tsx
 │   ├── StatisticsPage.tsx
-│   ├── DeploymentsPage.tsx
 │   ├── SearchResultsPage.tsx
-│   └── IndexerStatusPage.tsx
+│   ├── AddressPage.tsx
+│   ├── PendingPage.tsx
+│   └── NotFoundPage.tsx
 │
 ├── graphql/            # GraphQL operations
-│   ├── queries.ts      # Query and subscription definitions
-│   └── combined-advanced-search.graphql
+│   └── queries.ts      # Query and subscription definitions
 │
 ├── services/           # Business logic
 │   ├── websocketService.ts
 │   └── walletService.ts
 │
 ├── hooks/              # Custom React hooks
-│   └── useGenesisFunding.ts
+│   ├── useLiveQuery.ts
+│   ├── usePendingDeploysStatus.tsx
+│   ├── useSearchResults.ts
+│   ├── useRecentSearches.ts
+│   ├── useIndexerStatus.ts
+│   └── useNow.ts
 │
 ├── utils/              # Utility functions
 │   ├── constants.ts
-│   ├── parseGenesisFunding.ts
-│   └── calculateBlockTime.ts
+│   ├── calculateBlockTime.ts
+│   ├── blockPath.ts
+│   ├── time.ts
+│   ├── amounts.ts
+│   ├── search.ts
+│   └── deployFee.ts
 │
 └── types/              # TypeScript definitions
     └── index.ts
@@ -337,7 +339,7 @@ const { data } = useQuery(gql`
 ```typescript
 import { memo, useMemo } from 'react';
 
-const BlockCard = memo(({ block }) => {
+const BlockRow = memo(({ block }) => {
   const formattedDate = useMemo(
     () => new Date(block.timestamp).toLocaleString(),
     [block.timestamp]

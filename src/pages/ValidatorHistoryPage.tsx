@@ -1,29 +1,24 @@
+import { normalizedRaw, formatRaw, percentage, groupThousands } from "../utils/amounts";
 import React, { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useQuery } from '@apollo/client';
 import { gql } from '@apollo/client';
-import { formatDistanceToNow } from 'date-fns';
+import { formatLocalTime, formatRelativeTime } from '../utils/time';
 import { CURRENT_TOKEN } from '../utils/constants';
-import { fromCogs } from '../utils/calculateBlockTime';
+import { blockHeight, heightInput } from '../utils/blockHeight';
+import { ValidatorBond } from '../types';
+import '../styles/validators.css';
 
 const GET_VALIDATOR_HISTORY = gql`
   query GetValidatorHistory($blockNumber: bigint) {
-    validator_bonds(
-      where: { block_number: { _eq: $blockNumber } }
-      order_by: { stake: desc }
-    ) {
-      block_number
-      stake
-      validator_public_key
-    }
-    validators {
-      public_key
-      name
-    }
-    blocks(where: { block_number: { _eq: $blockNumber } }) {
+    blocks(where: { block_number: { _eq: $blockNumber } }, order_by: {block_hash: asc}) {
       block_number
       timestamp
       block_hash
       proposer
+      validator_bonds(order_by: [{stake: desc}, {validator_public_key: asc}]) {
+        id block_hash block_number stake token_decimals validator_public_key
+      }
     }
   }
 `;
@@ -31,27 +26,51 @@ const GET_VALIDATOR_HISTORY = gql`
 const GET_BLOCK_RANGE = gql`
   query GetBlockRange {
     blocks(order_by: { block_number: desc }, limit: 1) {
+      block_hash
       block_number
     }
   }
 `;
 
+interface HistoryBlock {
+  block_hash: string;
+  block_number: string | number;
+  timestamp: string | number;
+  proposer: string;
+  validator_bonds: ValidatorBond[];
+}
+
 const ValidatorHistoryPage: React.FC = () => {
-  const [selectedBlock, setSelectedBlock] = useState<number | null>(null);
+  const [selectedBlock, setSelectedBlock] = useState<string | null>(null);
+  const [selectedHash, setSelectedHash] = useState('');
   
-  const { data: rangeData } = useQuery(GET_BLOCK_RANGE);
-  const maxBlock = rangeData?.blocks?.[0]?.block_number || 0;
-  const minBlock = 0; // We don't need min block for this functionality
-  
-  const { data, loading, error } = useQuery(GET_VALIDATOR_HISTORY, {
-    variables: { blockNumber: selectedBlock || maxBlock },
-    skip: !selectedBlock && !maxBlock,
+  const { data: rangeData, loading: rangeLoading, error: rangeError } = useQuery<{
+    blocks: Array<{ block_hash: string; block_number: string | number }>;
+  }>(GET_BLOCK_RANGE);
+  // Heights stay exact decimal strings: Hasura returns bigint heights as strings.
+  // A failed, empty or invalid latest-block response is never read as height 0.
+  const latestRow = rangeData?.blocks?.[0];
+  const maxBlock = blockHeight(latestRow?.block_number)?.toString() ?? null;
+  const minBlock = '0';
+  const rangeProblem = rangeError
+    ? `Could not load the latest block: ${rangeError.message}`
+    : rangeLoading || maxBlock !== null
+      ? null
+      : latestRow
+        ? 'The latest block has an invalid height.'
+        : 'No blocks are indexed yet.';
+
+  const currentBlock = selectedBlock ?? maxBlock;
+  const { data, loading, error } = useQuery<{ blocks: HistoryBlock[] }>(GET_VALIDATOR_HISTORY, {
+    variables: { blockNumber: currentBlock },
+    skip: currentBlock === null,
   });
 
   const handleBlockChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = parseInt(e.target.value);
-    if (!isNaN(value) && value >= minBlock && value <= maxBlock) {
+    const value = heightInput(e.target.value);
+    if (value !== null && maxBlock !== null && BigInt(value) <= BigInt(maxBlock)) {
       setSelectedBlock(value);
+      setSelectedHash('');
     }
   };
 
@@ -60,54 +79,33 @@ const ValidatorHistoryPage: React.FC = () => {
     return `${key.slice(0, 16)}...${key.slice(-16)}`;
   };
 
-  const formatTimestamp = (timestamp: string | number) => {
-    try {
-      const ts = parseInt(timestamp.toString());
-      const date = new Date(ts);
-      if (isNaN(date.getTime())) return 'Invalid date';
-      return formatDistanceToNow(date, { addSuffix: true });
-    } catch (e) {
-      return 'Invalid date';
-    }
+  const formatTimestamp = (timestamp: string | number) => formatRelativeTime(timestamp);
+
+  const calculateStake = (stake: unknown, decimals?: number): string => formatRaw(stake, decimals);
+
+  // Intl formats a bigint exactly, so separators do not cost precision.
+  const grouped = (height: string) => BigInt(height).toLocaleString('en-US');
+  const returnedHeight = (value: unknown) => {
+    const height = blockHeight(value);
+    return height === null ? 'Invalid height' : `#${height.toLocaleString('en-US')}`;
   };
 
-  const calculateStake = (stake: number | string): string => {
-    const stakeNum = typeof stake === 'string' ? parseFloat(stake) : stake;
-    if (!stakeNum || stakeNum === 0 || isNaN(stakeNum)) return '0.00';
-    // Stake values from API appear to already be in ASI
-    const revAmount = fromCogs(stakeNum);
-    
-    if (revAmount >= 1000000) {
-      return (revAmount / 1000000).toFixed(2) + 'M';
-    } else if (revAmount >= 1000) {
-      return (revAmount / 1000).toFixed(2) + 'K';
-    } else {
-      return revAmount.toFixed(2);
-    }
-  };
-
-  const validators = data?.validator_bonds || [];
-  const allValidators = data?.validators || [];
-  const currentBlock = selectedBlock || maxBlock;
-  const blockInfo = data?.blocks?.[0];
-  
-  // Create a map of public key to validator info
-  const validatorMap: { [key: string]: any } = {};
-  allValidators.forEach((v: any) => {
-    validatorMap[v.public_key] = v;
-  });
+  const blocks = data?.blocks || [];
+  const blockInfo = blocks.find(block => block.block_hash === selectedHash) || blocks[0];
+  const validators = blockInfo?.validator_bonds || [];
+  const blockInfoHeight = blockInfo ? blockHeight(blockInfo.block_number) : null;
 
   // Calculate total stake for percentage
-  const totalStake = validators.reduce((sum: number, v: any) => {
+  const totalStake = validators.reduce((sum, v) => {
     // Handle both string and number types
-    const stake = typeof v.stake === 'string' ? parseFloat(v.stake) : v.stake;
-    return sum + (stake || 0);
-  }, 0);
+    const stake = normalizedRaw(v.stake, v.token_decimals);
+    return sum + (stake || 0n);
+  }, 0n);
 
   return (
     <section className="asi-card">
       <div className="section-header">
-        <h2>Validator History</h2>
+        <h1>Validator History</h1>
         <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
             <label htmlFor="block-input" className="text-muted" style={{ fontSize: '14px' }}>
@@ -117,8 +115,9 @@ const ValidatorHistoryPage: React.FC = () => {
               id="block-input"
               type="number"
               min={minBlock}
-              max={maxBlock}
-              value={currentBlock}
+              max={maxBlock ?? undefined}
+              value={currentBlock ?? ''}
+              disabled={maxBlock === null}
               onChange={handleBlockChange}
               style={{
                 padding: '0.5rem',
@@ -130,13 +129,25 @@ const ValidatorHistoryPage: React.FC = () => {
               }}
             />
             <span className="text-muted" style={{ fontSize: '12px' }}>
-              ({minBlock.toLocaleString()} - {maxBlock.toLocaleString()})
+              ({grouped(minBlock)} - {maxBlock === null ? '--' : grouped(maxBlock)})
             </span>
           </div>
         </div>
       </div>
 
-      {loading ? (
+      {blocks.length > 0 && <label style={{ display: 'block', marginBottom: '1rem' }}>
+        Block hash ({blocks.length} at this height)
+        <select aria-label="Validator history block hash" value={blockInfo?.block_hash || ''}
+          onChange={event => setSelectedHash(event.target.value)} style={{ maxWidth: '100%' }}>
+          {blocks.map(block => <option key={block.block_hash} value={block.block_hash}>{block.block_hash}</option>)}
+        </select>
+      </label>}
+
+      {rangeProblem ? (
+        <div className="status-message error">
+          <strong>Error:</strong> {rangeProblem}
+        </div>
+      ) : loading || currentBlock === null ? (
         <div className="text-center">
           <span className="loading"></span>
           <p className="text-muted mt-2">Loading validator history...</p>
@@ -150,33 +161,46 @@ const ValidatorHistoryPage: React.FC = () => {
           {/* Block Information */}
           {blockInfo && (
             <div className="summary-grid mb-3">
-              <div className="asi-card glass">
-                <p className="text-muted" style={{ marginBottom: '0.5rem' }}>Block Number</p>
-                <h3 style={{ margin: 0 }}>#{currentBlock.toLocaleString()}</h3>
-              </div>
-              <div className="asi-card glass">
-                <p className="text-muted" style={{ marginBottom: '0.5rem' }}>Block Time</p>
-                <h3 style={{ margin: 0, fontSize: '1.2rem' }}>
+              <section className="asi-card glass" aria-labelledby="history-height-heading">
+                <h2 id="history-height-heading" className="summary-card__label">Height</h2>
+                <p className="summary-card__value">
+                  {blockInfoHeight !== null ? (
+                    <Link className="height-link" to={`/height/${blockInfoHeight.toString()}`}>
+                      {returnedHeight(blockInfo.block_number)}
+                    </Link>
+                  ) : (
+                    returnedHeight(blockInfo.block_number)
+                  )}
+                </p>
+              </section>
+              <section className="asi-card glass" aria-labelledby="history-time-heading">
+                <h2 id="history-time-heading" className="summary-card__label">Block Time</h2>
+                <p
+                  className="summary-card__value summary-card__value--small"
+                  title={formatLocalTime(blockInfo.timestamp)}
+                >
                   {formatTimestamp(blockInfo.timestamp)}
-                </h3>
-              </div>
-              <div className="asi-card glass">
-                <p className="text-muted" style={{ marginBottom: '0.5rem' }}>Proposer</p>
-                <h3 style={{ margin: 0, fontSize: '1rem' }} className="mono">
-                  {truncateKey(blockInfo.proposer)}
-                </h3>
-              </div>
-              <div className="asi-card glass">
-                <p className="text-muted" style={{ marginBottom: '0.5rem' }}>Active Validators</p>
-                <h3 style={{ margin: 0 }}>{validators.length}</h3>
-              </div>
+                </p>
+              </section>
+              <section className="asi-card glass" aria-labelledby="history-proposer-heading">
+                <h2 id="history-proposer-heading" className="summary-card__label">Proposer</h2>
+                <p className="summary-card__value summary-card__value--small mono">
+                  <Link className="height-link" to="/validators" title={blockInfo.proposer}>
+                    {truncateKey(blockInfo.proposer)}
+                  </Link>
+                </p>
+              </section>
+              <section className="asi-card glass" aria-labelledby="history-validators-heading">
+                <h2 id="history-validators-heading" className="summary-card__label">Active Validators</h2>
+                <p className="summary-card__value">{validators.length}</p>
+              </section>
             </div>
           )}
 
           {/* Validators Table */}
           {validators.length === 0 ? (
             <div className="text-center" style={{ padding: '3rem' }}>
-              <p className="text-muted">No validator data available for block #{currentBlock}</p>
+              <p className="text-muted">No validator data available for block #{grouped(currentBlock)}</p>
             </div>
           ) : (
             <div style={{ overflowX: 'auto' }}>
@@ -191,22 +215,21 @@ const ValidatorHistoryPage: React.FC = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {validators.map((bond: any, index: number) => {
-                    const stakePercentage = totalStake > 0 
-                      ? ((bond.stake / totalStake) * 100).toFixed(2) 
-                      : '0.00';
-                    const isProposer = bond.validator_public_key === blockInfo?.proposer;
+                  {validators.map((bond, index) => {
+                    const publicKey = bond.validator_public_key ?? '';
+                    const stakePercentage = percentage(normalizedRaw(bond.stake, bond.token_decimals), totalStake);
+                    const isProposer = publicKey === blockInfo?.proposer;
                     
                     return (
-                      <tr key={bond.validator_public_key} className="fade-in">
+                      <tr key={publicKey || index} className="fade-in">
                         <td className="text-center">{index + 1}</td>
                         <td className="hash-cell">
-                          <span className="text-3 mono" title={bond.validator_public_key}>
-                            {truncateKey(bond.validator_public_key)}
+                          <span className="text-3 mono" title={publicKey}>
+                            {truncateKey(publicKey)}
                           </span>
                         </td>
                         <td style={{ fontWeight: 600 }}>
-                          {calculateStake(bond.stake)} {CURRENT_TOKEN}
+                          {groupThousands(calculateStake(bond.stake, bond.token_decimals))} {CURRENT_TOKEN}
                         </td>
                         <td>
                           <span style={{ color: 'var(--text-tertiary)' }}>
@@ -244,10 +267,7 @@ const ValidatorHistoryPage: React.FC = () => {
                       Total Stake
                     </dt>
                     <dd style={{ margin: 0, fontSize: '18px', fontWeight: 600 }}>
-                      {(fromCogs(totalStake)).toLocaleString(undefined, {
-                        minimumFractionDigits: 2,
-                        maximumFractionDigits: 2
-                      })} {CURRENT_TOKEN}
+                      {groupThousands(formatRaw(totalStake, 77))} {CURRENT_TOKEN}
                     </dd>
                   </div>
                   <div>
@@ -256,10 +276,7 @@ const ValidatorHistoryPage: React.FC = () => {
                     </dt>
                     <dd style={{ margin: 0, fontSize: '18px', fontWeight: 600 }}>
                       {validators.length > 0 
-                        ? (fromCogs(totalStake) / validators.length).toLocaleString(undefined, {
-                            minimumFractionDigits: 2,
-                            maximumFractionDigits: 2
-                          })
+                        ? groupThousands(formatRaw(totalStake / BigInt(validators.length), 77))
                         : '0.00'
                       } {CURRENT_TOKEN}
                     </dd>
@@ -270,10 +287,7 @@ const ValidatorHistoryPage: React.FC = () => {
                     </dt>
                     <dd style={{ margin: 0, fontSize: '18px', fontWeight: 600 }}>
                       {validators.length > 0 
-                        ? (fromCogs(Math.min(...validators.map((v: any) => v.stake || 0)))).toLocaleString(undefined, {
-                            minimumFractionDigits: 2,
-                            maximumFractionDigits: 2
-                          })
+                        ? groupThousands(formatRaw(validators.map(v => normalizedRaw(v.stake, v.token_decimals)).reduce((a, b) => a < b ? a : b), 77))
                         : '0.00'
                       } {CURRENT_TOKEN}
                     </dd>
@@ -284,10 +298,7 @@ const ValidatorHistoryPage: React.FC = () => {
                     </dt>
                     <dd style={{ margin: 0, fontSize: '18px', fontWeight: 600 }}>
                       {validators.length > 0 
-                        ? (fromCogs(Math.max(...validators.map((v: any) => v.stake || 0)))).toLocaleString(undefined, {
-                            minimumFractionDigits: 2,
-                            maximumFractionDigits: 2
-                          })
+                        ? groupThousands(formatRaw(validators.map(v => normalizedRaw(v.stake, v.token_decimals)).reduce((a, b) => a > b ? a : b), 77))
                         : '0.00'
                       } {CURRENT_TOKEN}
                     </dd>
@@ -302,4 +313,4 @@ const ValidatorHistoryPage: React.FC = () => {
   );
 };
 
-export default ValidatorHistoryPage;
+export default ValidatorHistoryPage;

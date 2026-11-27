@@ -1,0 +1,96 @@
+/* Shared search input used below the header omnibox. */
+
+.search-field {
+    position: relative;
+    display: flex;
+    align-items: center;
+    flex: 1 1 auto;
+    width: 100%;
+    min-width: 0;
+    min-height: 44px;
+    background: var(--charcoal-700);
+    border: 1px solid var(--border-light);
+    border-radius: 10px;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease, background-color 0.15s ease;
+}
+
+.search-field:hover {
+    border-color: rgba(255, 255, 255, 0.2);
+}
+
+.search-field:focus-within {
+    background: var(--charcoal-500);
+    border-color: var(--asi-lime);
+    box-shadow: 0 0 0 3px rgba(147, 226, 124, 0.16);
+}
+
+.search-field__leading {
+    position: absolute;
+    left: 14px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--text-tertiary);
+    pointer-events: none;
+}
+
+.search-field__input {
+    width: 100%;
+    min-width: 0;
+    margin: 0;
+    padding: 11px 14px 11px 42px;
+    border: 0;
+    border-radius: 10px;
+    background: transparent;
+    color: var(--off-white);
+    font: inherit;
+    font-size: 14px;
+    line-height: 20px;
+    outline: none;
+    appearance: none;
+}
+
+.search-field__input:focus-visible {
+    outline: none;
+}
+
+/* Keep the input transparent inside the rounded surface when it receives
+   focus; the wrapper owns the focus border and shadow. */
+.search-field__input:focus,
+.search-field__input:focus-visible {
+    border: 0;
+    border-radius: 10px;
+    background: transparent;
+}
+
+.search-field__input::placeholder {
+    color: rgba(247, 249, 250, 0.58);
+    opacity: 1;
+}
+
+.search-field__input::-webkit-search-cancel-button,
+.search-field__input::-webkit-search-decoration {
+    display: none;
+}
+
+.search-box .search-field {
+    flex: 0 1 300px;
+}
+
+.search-box {
+    flex-wrap: wrap;
+}
+
+@media (max-width: 600px) {
+    .search-field__input {
+        padding: 11px 14px 11px 38px;
+        font-size: 13px;
+    }
+
+    .search-field__leading {
+        left: 12px;
+    }
+
+    .search-box .search-field {
+        flex: 1 1 100%;
+    }
+}
