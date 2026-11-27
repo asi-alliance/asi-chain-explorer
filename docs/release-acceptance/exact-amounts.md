@@ -108,8 +108,11 @@ CI runs on `3a33c67` (PR #84):
 - `GraphQL Schema` paired run [45913682686](https://github.com/asi-alliance/asi-chain-explorer/actions/runs/45913682686): passed against indexer #70 `feat/public-aggregates-search-and-deploy-actions` with `require_block_size=true`, so `GetBlockSize`, `GetHeightCounts` and the public aggregate permissions were validated strictly.
 - `Sonar Analysis` run [45913682925](https://github.com/asi-alliance/asi-chain-explorer/actions/runs/45913682925): passed.
 
-A docs-only commit after that head changes the PR head without changing this
+A follow-up commit after that head changes the PR head without changing this
 record's code evidence; the PR check on the final head remains authoritative.
+The paired schema check was repeated on `677a2e9` in run
+[45914862151](https://github.com/asi-alliance/asi-chain-explorer/actions/runs/45914862151)
+and passed.
 
 Negative controls: with the page before the fixes, the exact-height test and the
 four latest-block failure tests fail. Before the first fix, the request had
