@@ -91,7 +91,6 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
         // { name: "Deployments", href: "/deployments" },
         { name: "Validators", href: "/validators" },
         { name: "Statistics", href: "/statistics" },
-        { name: "Indexer", href: "/indexer-status" },
     ];
 
     const goHome = () => {

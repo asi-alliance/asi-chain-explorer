@@ -1,9 +1,9 @@
 # Explorer roadmap
 
-Current focus: the frontend polish tracked in
+Current focus: PR #84 carries the frontend polish tracked in
 [asi-chain-explorer#83](https://github.com/asi-alliance/asi-chain-explorer/issues/83).
-This file records what PR #79 ships and what remains; backend-dependent scope
-lives in
+This file records what PR #79 and PR #84 ship and what remains; indexer health is now part of the Statistics dashboard.
+backend-dependent scope lives in
 [asi-chain-indexer#66](https://github.com/asi-alliance/asi-chain-indexer/issues/66).
 
 ## Shipped in PR #79
@@ -21,7 +21,8 @@ lives in
 - Exact pending-deploy lookup by signature in the header and on `/search`.
 - Height-first numeric search; a numeric query no longer scans hashes and IDs.
 - `/block/{height}` sibling overview with prev/next height navigation,
-  finalized/unfinalized filtering, parent/child counts and block-hash rows.
+  finalized/unfinalized filtering, parent/child counts and block-hash rows
+  (moved to `/height/{height}` in #84).
 - Recent Blocks grouping: one height cell per sibling group, block count,
   real finalization status and a local finalized-only filter. The finalized
   filter keeps polling, while only a text search pauses it.
@@ -49,12 +50,13 @@ lives in
 - Transaction details keep one transaction ID with its copy action; the
   inclusion banner is replaced by a compact status icon whose tooltip explains
   the state, and an identical Signature box is no longer repeated.
-- The transaction list uses one tab row with icons and counts plus a total;
-  the duplicate summary bar is gone.
+- The transaction list splits deploys into non-overlapping All deploys,
+  Contract deploys and Transfers tabs, so the counts add up instead of
+  double-counting deploys that emitted a transfer.
 - CSV export is a labeled `Export CSV` action in the table footer for blocks,
   deployments and transfers, with an entity-specific accessible name and the
   existing filenames.
-- Home search and finalized-only filters, the `/transactions` tab and
+- Home search and finalized-only filters, the `/transactions` tabs and
   transaction detail tabs are URL-backed and survive copy/share.
 - Below 600 px the Recent Blocks Height column stays pinned while the table
   scrolls horizontally.
@@ -64,23 +66,104 @@ lives in
 - Source and Docker fallback precision is 18; historical rows keep their own `token_decimals`.
 - Removed unused QR, Swagger, XLSX, Workbox and intersection-observer packages, updated the syntax highlighter and pinned nginx stable.
 - Transaction tabs wrap on narrow screens instead of overflowing the page.
+- The Statistics dashboard adds a consensus health card with participation,
+  links the latest height and validator count, shows skeletons, a Retry state
+  and a range-without-activity message, and keeps small rates readable instead
+  of rounding them to zero.
+- The validators page shows consensus health, stake-share bars, copyable keys
+  and height links; proposer counts are labelled as the latest 1,000 blocks and
+  load separately from the validator list. Validator history links the height
+  and proposer and gives the block time an absolute-time tooltip.
 
-## Frontend-only next
+## After PR #79
+
+- A positive wallet balance below the eight-decimal display precision reads
+  `<0.00000001 ASI`; the exact amount stays in the hover/focus tooltip and the
+  accessible description. A dotted underline marks a truncated balance.
+- Live Activity identifies DAG sibling blocks by hash, so blocks at one height
+  no longer share a React key or read as duplicate rows.
+- A single search match reads `Showing 1 result`; later pages keep the absolute
+  result position.
+- The DAG height overview moved to `/height/{height}`; legacy `/block/{number}`
+  links redirect there and keep the `?status=` filter.
+
+## Shipped in PR #84
 
 Tracked in
 [asi-chain-explorer#83](https://github.com/asi-alliance/asi-chain-explorer/issues/83).
 
-- [ ] Loading skeletons and explicit error/retry states for stats, Recent
-      Blocks and height summaries.
-- [ ] Add a compact status legend to Recent Blocks (Confirmed / Unfinalized).
-- [ ] Revisit the home filter row on narrow screens after the mobile table work.
+- [x] Loading skeletons for stats, Recent Blocks and height summaries.
+- [x] Explicit error and Retry states that keep the last loaded data visible.
+- [x] Confirmed / Unfinalized status legend under the Recent Blocks filters.
+- [x] Home search and filter controls stack at 600 px with no overflow at 390 px.
+- [x] Finalized only is checked by default; `?finalized=0` explicitly shows all
+      blocks, and the browser title follows the same default.
+- [x] Recent Blocks rows have no hover tint, because the rows are not clickable;
+      links keep their own hover affordance and green stays reserved for the
+      Confirmed status.
+- [x] Validator proposers in Recent Blocks link to the Validators page.
+- [x] `/height/:height` always shows the height overview, including a single
+      sibling, with singular `1 sibling block` copy.
+- [x] Height copy sits next to the height value, sibling rows copy their block
+      hashes, the sibling-count pill explains DAG siblings on hover, and copy
+      actions report through a toast.
+- [x] Live Activity shows skeleton rows while its three initial queries load.
+- [x] Removed explicit `any` from the activity feed, search index, block
+      details, validator pages, Home query variables and CSV exporter
+      (90 → 60 remaining, mostly tests and legacy components).
+- [x] Deployment cards and transaction pages no longer show block-level
+      Sequence Number and Shard ID metadata; the block page keeps the real values.
+- [x] Removed the unrouted BlocksPage, TransfersPage and DeploymentsPage, the
+      unused BlockVisualization, BlockCard, LoadingSpinner and genesis-funding
+      utility, and their tests. ConnectionStatus remains live in Layout.
+- [x] Indexer health moved into the Statistics dashboard: eight cards in two
+      rows show the indexer status, sync progress and last indexed block with
+      its lag. `/indexer-status` redirects to `/statistics`, and the separate
+      Indexer navigation tab is gone.
+- [x] The last indexed block time is labelled as block time, not as the status
+      refresh time; the status card states that it polls every five seconds.
+- [x] The SPA entry HTML revalidates (`Cache-Control: no-cache`) while hashed
+      assets keep their long expiry, and the docker-image check asserts both
+      the entry HTML and a deep route.
+- [x] A missing `valid_after_block_number` no longer renders an empty row on a
+      block deployment card; zero still renders.
+- [x] Block pages show the node-reported block size, link deploy and transfer
+      rows to transaction details, and count the deployments in the loaded
+      block instead of the denormalized counter. The optional
+      `blocks.block_size` query stays in schema validation and degrades to
+      `N/A` on an indexer without migration 008 and for blocks indexed before
+      that migration.
+- [x] The height overview applies `?status=finalized` and
+      `?status=unfinalized` in GraphQL before the 100-sibling limit and reads
+      exact sibling and finalized totals from `blocks_aggregate` when the
+      indexer exposes that public aggregate, with a loaded-sibling fallback.
+- [x] Search on the Contract deploys tab applies `_not: { transfers: {} }`
+      before its 30-row limit, so newer transfer deploys cannot hide matching
+      contract deploys.
+- [x] The validators table labels `validator_bonds` heights as the latest stake
+      snapshot, because the indexer writes a row for each block even when stake
+      is unchanged.
+- [x] CI uses `actions/checkout@v7` and `actions/setup-node@v7`; the suite has
+      417 tests in 39 suites.
 
 ## Blocked by the indexer / Hasura
 
 Tracked in
-[asi-chain-indexer#66](https://github.com/asi-alliance/asi-chain-indexer/issues/66):
+[asi-chain-indexer#66](https://github.com/asi-alliance/asi-chain-indexer/issues/66).
+[Indexer #70](https://github.com/asi-alliance/asi-chain-indexer/pull/70) adds the
+public aggregates, grouped height view and search indexes. The explorer uses
+them where deployed and keeps its capped fallback on older schemas:
 
 - Exact height counts and grouped-by-height pagination across pages.
-- Counts on `/search` type tabs.
+- Counts on `/search` type tabs (currently capped at the 30-row search limit).
 - `pg_trgm` indexes and a ranked unified search surface for `%term%` queries.
 - Removing the `6+`/`100+` count caps once public aggregates are available.
+
+## Next
+
+- [Explorer #85](https://github.com/asi-alliance/asi-chain-explorer/issues/85):
+  explain the earliest possible proposal height on pending deploy details. The
+  long pending-list explainer stays removed; this is a separate, factual note
+  on the detail page.
+- [Explorer #80](https://github.com/asi-alliance/asi-chain-explorer/issues/80):
+  move the remaining polling pages to GraphQL subscriptions.

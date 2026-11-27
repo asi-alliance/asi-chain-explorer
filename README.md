@@ -50,17 +50,21 @@ The system indexes blockchain data including blocks, deployments, transfers, val
 
 ## Core Functionality
 - **Block Explorer**: Real-time block monitoring with detailed information, grouped by DAG height
-- **Height Overview**: A height can contain several sibling blocks; `/block/{height}` lists every sibling with finalization status, parent/child links and previous/next height navigation
+- **Height Overview**: A height can contain several sibling blocks; `/height/{height}` lists every sibling with finalization status, parent/child links, previous/next height navigation, a copy-height action and per-sibling block-hash copy buttons
 - **Search**: One header omnibox for heights, block hashes, deploy IDs, indexed transfers and vault addresses, with grouped results, a `Ctrl/Cmd+K` palette, recent searches and ASI amount-range filters on the Transfers tab
-- **Transaction Viewer**: Details with the executed fee in ASI (`phlo_cost × phlo_price`), one copyable transaction ID, a compact status tooltip, local absolute timestamps, relative age and `Genesis` labels for block-0 RChain mainnet records
+- **Transaction Viewer**: Details with the executed fee in ASI (`phlo_cost × phlo_price`), one copyable transaction ID, a compact status tooltip, local absolute timestamps, relative age and `Genesis` labels for block-0 RChain mainnet records; deployment cards and transaction pages no longer repeat block-level Sequence Number and Shard ID metadata
 - **CSV Export**: An `Export CSV` action at the bottom of Recent Blocks and the transaction tables downloads up to 5000 recent rows (`recent_blocks.csv`, `recent_deployments.csv` or `recent_transfers.csv`)
 - **Pending Deploys** (optional): Deploys in the validators' deploy buffers that no indexed block includes yet, updated live over the GraphQL WebSocket (Pending page). Shown only when the indexer reads validator buffers
 - **Native Transfer Calls**: Calls that a deploy started or completed, with pending, completed, rejected or coalesced status (Transfers tab of a deploy)
 - **Validator Dashboard**: Current validators with stake distribution; inactive validators are listed separately and are not counted in totals
-- **Network Statistics**: Simplified Network Dashboard view
+- **Network Statistics**: Network Dashboard with latest height, block time, TPS, validator and consensus cards, links into the height and validators pages, and explicit loading, retry and empty-range states
 - **Genesis Funding**: Complete visibility of initial token distribution
-- **Shareable views**: Home filters (`?q=`, `?finalized=1`), the `/transactions` tab (`?tab=transfers`) and transaction detail tabs (`?tab=code`, `?tab=transfers`, `?tab=block`) live in the URL; every route also sets a descriptive browser title
-- **Mobile Recent Blocks**: below 600 px the Height column stays pinned while the table scrolls horizontally
+- **Shareable views**: Home filters (`?q=`, `?finalized=0` for all blocks), the `/transactions` tabs (`?tab=contract`, `?tab=transfers`) and transaction detail tabs (`?tab=code`, `?tab=transfers`, `?tab=block`) live in the URL; every route also sets a descriptive browser title
+- **Finalized by default**: Recent Blocks starts with Finalized only checked; `?finalized=0` explicitly shows all blocks, and the browser title follows the selected view
+- **Validator links**: proposer addresses in Recent Blocks open the Validators page with the full public key in the tooltip and accessible name
+- **Mobile Recent Blocks**: below 600 px the Height column stays pinned while the table scrolls horizontally; the search, Clear and Finalized-only controls stack without horizontal overflow
+- **Loading and Retry**: Recent Blocks uses skeleton rows, network cards and height summaries use skeleton cards, Live Activity shows activity skeletons, and failed stats/blocks/height reads show an explicit Retry without discarding the last loaded data
+- **Status Legend**: Confirmed and Unfinalized labels sit under the Recent Blocks filters with the same colours as the table and height overview
 - **Route fallback**: Unknown paths render a 404 page with the attempted path, chain search and recovery links; the legacy `/blocks` path redirects to `/`
 
 ## Architecture
@@ -94,7 +98,7 @@ The system indexes blockchain data including blocks, deployments, transfers, val
 2. **Data Processing**: Each block is processed to extract deployments, transfers, validator bonds, and network state
 3. **Database Storage**: Processed data is stored in PostgreSQL with proper relationships and indices
 4. **GraphQL Exposure**: Hasura automatically generates GraphQL API from database schema
-5. **Frontend Query**: React application queries the GraphQL API over HTTP and polls for block and statistics updates; pending deploys, indexer status and outgoing pending deploys use WebSocket subscriptions with an HTTP fallback
+5. **Frontend Query**: React application queries the GraphQL API over HTTP and polls for block and statistics updates; pending deploys and outgoing pending deploys use WebSocket subscriptions with an HTTP fallback, while indexer status polls its `/status` endpoint every five seconds
 6. **User Interface**: Data is rendered in the web interface with visualizations and navigation
 
 ## Technology Stack
@@ -286,12 +290,16 @@ Hasura has:
 - `HASURA_GRAPHQL_UNAUTHORIZED_ROLE=public`. Without it, every page fails.
 - The public-role permissions of the indexer's `scripts/full-init-hasura.sh`:
   `select` on the explorer tables and views with `limit: 5000`, and aggregates
-  on `deployments`, `transfers`, `transaction_history_view` and `pending_deploys`.
+  on `blocks`, `block_heights_view`, `deployments`, `transfers`,
+  `transaction_history_view` and `pending_deploys`.
 
 The `GraphQL Schema` workflow validates every explorer operation against the
 schema that Hasura gives to an unauthenticated request after that script. It does
 not check the row limit. The CSV export requests 5000 rows, so a lower limit
-shortens the export.
+shortens the export. A documented optional field such as `blocks.block_size` is
+skipped only while the target indexer does not expose it; the strict paired run
+described under [GraphQL schema compatibility](#graphql-schema-compatibility)
+fails if the field is missing.
 
 Run the published image with the public endpoints of the target network:
 
@@ -307,10 +315,12 @@ docker run -p 3001:80 \
 
 ## API Endpoints
 
-The indexer status page polls the current indexer's `/status` response every five
-seconds after the preceding request completes. It displays the stored sync cursor
-against the node's finalized height. Missing data and failed requests show an
-unavailable state; failed refreshes clear the previous status.
+The indexer cards on the Network Dashboard poll the current indexer's `/status`
+response every five seconds after the preceding request completes. They show the
+stored sync cursor, the node's finalized height, sync progress and the time of the
+last indexed block, not the time of the latest status check. Missing data and
+failed requests show an unavailable state; failed refreshes clear the previous
+status.
 
 Production nginx proxies `GET /api/indexer/status` to `INDEXER_STATUS_URL`.
 For `GET /api/indexer/address/{address}` it replaces the upstream `/status`
@@ -325,7 +335,9 @@ finalized balance and return to the first page of newly indexed history with the
 same direction filter. A refresh keeps the previous balance visible while the
 lookup runs; if the lookup fails, the page reports the error and labels the block
 as the last loaded one. The balance keeps at most eight decimals, truncated
-without rounding up; hover or focus it to see the exact amount in a tooltip. A
+without rounding up; a positive balance below that precision reads
+`<0.00000001 ASI`. A dotted underline marks a truncated balance; hover or focus
+it to see the exact amount in a tooltip. A
 failed read is retried twice; the warning offers **Retry**, and leaving the page
 does not cancel a read that is still in flight. A back/forward-cache restore
 refreshes the snapshot. When the indexer tracks pending deploys, the page also
@@ -352,18 +364,20 @@ resolves before nginx starts.
 
 ## Available Pages
 
-- `/` - Home dashboard with network overview and Recent Blocks with a footer CSV export; `?q=` and `?finalized=1` preserve the filters
+- `/` - Home dashboard with network overview and Recent Blocks with a footer CSV export; finalized-only is the default, `?q=` preserves the search and `?finalized=0` shows all blocks
 - `/blocks` - Redirects to `/`; the home page is the block list
-- `/block/:blockNumber`, `/block/hash/:blockHash` - Block details; a height with several DAG siblings shows the height overview
-- `/transactions` - Transaction list with one icon tab row and a footer CSV export; `?tab=transfers` opens the Transfers tab
+- `/height/:height` - Height overview; the `?status=finalized` and `?status=unfinalized` filters run in GraphQL before the 100-sibling sample, and exact sibling/finalized totals come from public `blocks` aggregates when the indexer exposes them (older indexers fall back to the loaded sample)
+- `/block/hash/:blockHash` - Details for one specific block, including its size when the indexer exposes `blocks.block_size` (older indexers and blocks indexed before migration 008 show `N/A`), deployments and transfers; deploy IDs and transfer rows link to `/transaction/:id`
+- `/block/:blockNumber` - Legacy height URL; redirects to `/height/:blockNumber` and preserves the query string
+- `/transactions` - Non-overlapping All deploys, Contract deploys (no transfer events) and Transfers tabs with a footer CSV export; `?tab=contract` and `?tab=transfers` open a tab directly
 - `/pending` - Deploys in the validators' deploy buffers that no indexed block includes yet (the navigation tab appears only when the indexer tracks pending deploys)
 - `/transaction/:transactionId` - Deploy details: executed fee in ASI, code, transfers with native transfer calls and block. Shows one copyable ID, a status tooltip, local and relative timestamps; block-0 records carry a Genesis label. `?tab=code`, `?tab=transfers` and `?tab=block` open a tab directly. A pending deploy shows its pending state until it is indexed.
-- `/validators` - Current validators; inactive validators in a separate table
-- `/validator-history` - Validator history
-- `/statistics` - Network Dashboard only
+- `/validators` - Current validators with consensus health, stake-share bars, copyable keys, height links, the latest stake snapshot (labelled as a snapshot, not a new bond event), proposer counts over the latest 1,000 blocks and a separate inactive table
+- `/validator-history` - Bond set at a chosen height; the height links to the height overview, the proposer links to the validators page, and the block time carries an absolute-time tooltip
+- `/statistics` - Network Dashboard with height, block time, TPS, validators, consensus, indexer status, sync progress and the last indexed block
 - `/search` - Search results for a height, hash, deploy ID or address, with type tabs and copy/share actions
 - `/address/:address` - Spendable balance at the latest finalized block and indexed transfer history
-- `/indexer-status` - Indexer health monitoring
+- `/indexer-status` - Redirects to `/statistics`; indexer health is part of the Network Dashboard
 - Any unknown path - 404 page with the chain search and recovery links
 
 The `/transfers` and `/deployments` routes are disabled in `src/App.tsx`.
@@ -453,10 +467,13 @@ GraphQL as decimal strings and stay strings for display; monetary values must no
 be parsed as JavaScript floating-point numbers. Unsafe numeric responses are
 rejected instead of displaying a rounded balance.
 
-Deploy the matching indexer before this explorer: migrations through **006**,
-the documented history repair, and Hasura metadata from
-`scripts/full-init-hasura.sh`. The explorer reads `pending_deploys` and the
-`native_transfer_lifecycle` view, which only that metadata exposes. Keep
+Deploy the matching indexer before this explorer: migrations through **008**,
+the documented history repair when required, the indexer code that records
+`block_size` and maintains `block_heights`, and Hasura metadata from
+`scripts/full-init-hasura.sh`. That metadata exposes `pending_deploys`,
+`native_transfer_lifecycle`, `block_heights_view` and the public `blocks`
+aggregates. Blocks indexed before migration 008 show `N/A` for block size until
+they are re-indexed; other pages fall back cleanly on an older schema. Keep
 `HASURA_GRAPHQL_STRINGIFY_NUMERIC_TYPES=true`.
 
 Pending deploys are optional. A deploy waits only in the buffer of the validator
@@ -493,7 +510,7 @@ Docker builds accept the same build argument. Changing a display setting does no
 rescale tokens or upgrade a chain's denomination.
 
 Validation: `CI=true npm test -- --watchAll=false --runInBand`,
-`npx tsc --noEmit`, and `npm run build`. The suite currently has 378 tests
+`npx tsc --noEmit`, and `npm run build`. The suite currently has 417 tests
 in 39 suites.
 The `Tests` workflow runs these checks on pull requests to `dev` and `main` and
 on pushes to `dev`. Its build runs with `CI=true`, so a lint warning fails the
@@ -507,7 +524,19 @@ operation under `src/` against the schema that Hasura exposes to the public role
 The check reports unknown fields, wrong argument and variable types, and
 aggregates that the public role cannot read. It does not run the queries.
 
+`GetBlockSize` probes the optional `blocks.block_size` field. `GetHeightCounts`
+probes the optional public `blocks_aggregate` root field. Both operations stay
+discoverable, so a schema that exposes them validates the full documents. On an
+older schema the validator skips only the documented unknown-field errors and
+reports them as skips. Pass `--require-optional-fields` to make a skip fail:
+
+```bash
+npm run validate:graphql -- http://127.0.0.1:8080/v1/graphql --require-optional-fields
+```
+
 The `GraphQL Schema` workflow runs this check against the indexer stack: the
 indexer `docker-compose.yml` with its migrations and `scripts/full-init-hasura.sh`.
 It runs on pull requests to `dev`, on pushes to `dev` and once a day, against
-indexer `dev`. A manual run can select another indexer branch, tag or commit.
+indexer `dev`. A manual run can select another indexer branch, tag or commit and
+set `require_block_size` to make the paired schema check strict, including
+`blocks.block_size` and the public aggregate permissions.

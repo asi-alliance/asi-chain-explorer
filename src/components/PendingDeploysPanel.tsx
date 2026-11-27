@@ -47,13 +47,16 @@ const PendingDeploysPanel: React.FC = () => {
     const live = status.live && list.live;
     body = (
       <>
-        <p className="text-muted" style={{ fontSize: '14px' }}>
-          Deploys in the deploy buffers of {status.status.nodes === 1 ? '1 validator' : `${status.status.nodes} validators`} that
-          are not in a block yet. A deploy usually stays here only until its validator proposes the next block.
-          {status.status.intervalMs !== null && ` The indexer checks every ${status.status.intervalMs} ms.`}
-          {' '}{live ? 'Updates live.' : 'Live updates are not available; the list refreshes every 5 seconds.'}
-          {count !== undefined && count > deploys.length && ` Showing the latest ${deploys.length} of ${count}.`}
-        </p>
+        {!live && (
+          <p className="text-muted" style={{ fontSize: '14px' }}>
+            Live updates are not available; the list refreshes every 5 seconds.
+          </p>
+        )}
+        {count !== undefined && count > deploys.length && (
+          <p className="text-muted" style={{ fontSize: '14px' }}>
+            Showing the latest {deploys.length} of {count}.
+          </p>
+        )}
         <PendingSourceNotes status={status.status} />
         {total !== null && (
           <p className="text-warning" role="note" style={{ fontSize: '14px' }}>

@@ -41,8 +41,6 @@ query GetDeploymentsCSV {
         timestamp
         block_hash
         created_at
-        seq_num
-        shard_id
         sig
         sig_algorithm
         deployer
@@ -111,7 +109,7 @@ const ExportEntitiesRecords: Record<ExportEntities, ExportEntitiesMeta> = {
     },
 };
 
-const downloadExportData = (data: any, name: string): void => {
+const downloadExportData = (data: string, name: string): void => {
     const blob = new Blob(["\uFEFF", data], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
@@ -172,22 +170,20 @@ const RecentDataExporter = ({entityToExport}: RecentDataExporterProps): ReactEle
             setHasRequestedExport(false);
         } else if (dataForExport) {
             const EXPORT_DATA_KEY: string = ExportEntitiesRecords[entityToExport].EXPORT_DATA_KEY;
-            let records = dataForExport[EXPORT_DATA_KEY];
+            const records = (dataForExport[EXPORT_DATA_KEY] || []) as Array<Record<string, unknown> & {
+                parent_links?: Array<{ parent_hash: string }>;
+            }>;
+            let rows: Array<Record<string, unknown>> = records;
 
             // Flatten DAG `parent_links` into a single `parent_hash` CSV column
             if (entityToExport === ExportEntities.BLOCKS) {
-                records = (records || []).map((b: any) => {
-                    const { parent_links, ...rest } = b;
-                    return {
-                        ...rest,
-                        parent_hash: (parent_links || [])
-                            .map((p: any) => p.parent_hash)
-                            .join(";"),
-                    };
-                });
+                rows = records.map(({ parent_links, ...rest }) => ({
+                    ...rest,
+                    parent_hash: (parent_links || []).map(parent => parent.parent_hash).join(";"),
+                }));
             }
 
-            const csvData = convertDataArrayToCSV(records, EXCLUDE_FIELDS);
+            const csvData = convertDataArrayToCSV(rows, EXCLUDE_FIELDS);
             if (csvData) {
                 downloadExportData(csvData, EXPORT_DATA_KEY);
             }

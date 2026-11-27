@@ -403,18 +403,19 @@ Configuration in docker-compose.yml:
 Hasura implements several optimizations:
 
 1. **Query Multiplexing**: Batches similar queries for efficiency
-2. **Live updates**: Periodic queries for blocks, transactions and statistics; WebSocket subscriptions for pending deploys and indexer status
+2. **Live updates**: Periodic queries for blocks, transactions and statistics; WebSocket subscriptions for pending deploys; HTTP polling for indexer status
 3. **Connection Pooling**: Reuses database connections
 4. **Query Depth Limiting**: Prevents overly complex nested queries
 
 #### Real-time Updates
 
 The system provides live updates in two ways. Most tables refresh through Apollo
-Client polling with intervals chosen per view. Pending deploys, indexer status
-and outgoing pending deploys use GraphQL subscriptions over the existing
-WebSocket link, with HTTP polling as a fallback when the socket is unavailable.
-Database triggers (notify_new_block, notify_new_transfer) are available but the
-explorer does not read them.
+Client polling with intervals chosen per view. Pending deploys and outgoing
+pending deploys use GraphQL subscriptions over the existing WebSocket link, with
+HTTP polling as a fallback when the socket is unavailable. The indexer status
+cards inside the Network Dashboard poll the indexer's `/status` endpoint every
+five seconds. Database triggers (notify_new_block, notify_new_transfer) are
+available but the explorer does not read them.
 
 ### Frontend Architecture
 
@@ -422,30 +423,34 @@ explorer does not read them.
 
 ```
 App
-├── Layout (Navigation, Header)
-│   ├── HomePage
-│   │   ├── NetworkDashboard
-│   │   ├── RecentTransactionsExporter
-│   │   └── RealtimeActivityFeed
-│   ├── BlocksPage
-│   │   └── BlockCard (list)
-│   ├── BlockDetailPage
-│   │   └── BlockVisualization
-│   ├── TransactionsPage
-│   │   └── TransactionTrackerImproved
-│   ├── TransactionDetailPage
-│   ├── TransfersPage
-│   ├── ValidatorsPage
-│   │   └── StatsCard (list)
-│   ├── ValidatorHistoryPage
-│   ├── StatisticsPage
-│   ├── DeploymentsPage
-│   ├── SearchResultsPage
-│   ├── IndexerStatusPage
-│   ├── AdvancedSearch
-│   └── Logo
-└── ConnectionStatus
+└── Layout (Navigation, Header)
+    ├── HomePage
+    │   ├── SearchField
+    │   ├── RealtimeActivityFeed
+    │   └── RecentDataExporter
+    ├── BlockDetailPage
+    ├── TransactionsPage
+    │   └── TransactionTrackerImproved
+    ├── TransactionDetailPage
+    ├── ValidatorsPage
+    ├── ValidatorHistoryPage
+    ├── StatisticsPage
+    │   └── NetworkDashboard
+    ├── SearchResultsPage
+    ├── AddressPage
+    │   ├── AddressPendingDeploys
+    │   └── AddressTransferHistory
+    ├── PendingPage
+    │   └── PendingDeploysPanel
+    ├── NotFoundPage
+    ├── AdvancedSearch
+    └── Logo
 ```
+
+Routes use `/height/:height` for the DAG height overview and
+`/block/hash/:blockHash` for one specific block. The legacy
+`/block/:blockNumber` path redirects to `/height/:blockNumber` and preserves the
+query string; `/blocks` redirects to `/`.
 
 #### State Management
 

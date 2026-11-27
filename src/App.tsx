@@ -1,19 +1,21 @@
 import { lazy, Suspense } from "react";
 import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
 import { ApolloClient, ApolloProvider } from "@apollo/client";
+import { ToastContainer } from "react-toastify";
 import { PendingDeploysStatusProvider } from "./hooks/usePendingDeploysStatus";
 import Layout from "./components/Layout";
+import LegacyBlockRedirect from "./components/LegacyBlockRedirect";
 import RouteFallback from "./components/RouteFallback";
 import RouteTitle from "./components/RouteTitle";
 import HomePage from "./pages/HomePage";
 import FeedbackForm from "./components/community/FeedbackForm";
+import "react-toastify/dist/ReactToastify.css";
 import "./styles/global.css";
 
 // Home ships with the shell; the heavier routes load on first visit.
 const BlockDetailPage = lazy(() => import("./pages/BlockDetailPage"));
 const ValidatorsPage = lazy(() => import("./pages/ValidatorsPage"));
 const StatisticsPage = lazy(() => import("./pages/StatisticsPage"));
-const IndexerStatusPage = lazy(() => import("./pages/IndexerStatusPage"));
 const ValidatorHistoryPage = lazy(() => import("./pages/ValidatorHistoryPage"));
 const SearchResultsPage = lazy(() => import("./pages/SearchResultsPage"));
 const AddressPage = lazy(() => import("./pages/AddressPage"));
@@ -42,12 +44,16 @@ function App({ client }: { client: ApolloClient<unknown> }) {
                             {/* The legacy block list is replaced by the home page. */}
                             <Route path="/blocks" element={<Navigate to="/" replace />} />
                             <Route
-                                path="/block/:blockNumber"
+                                path="/height/:height"
                                 element={<BlockDetailPage />}
                             />
                             <Route
                                 path="/block/hash/:blockHash"
                                 element={<BlockDetailPage />}
+                            />
+                            <Route
+                                path="/block/:blockNumber"
+                                element={<LegacyBlockRedirect />}
                             />
                             <Route
                                 path="/validators"
@@ -63,7 +69,7 @@ function App({ client }: { client: ApolloClient<unknown> }) {
                             />
                             <Route
                                 path="/indexer-status"
-                                element={<IndexerStatusPage />}
+                                element={<Navigate to="/statistics" replace />}
                             />
                             <Route path="/search" element={<SearchResultsPage />} />
                             <Route path="/address/:address" element={<AddressPage />} />
@@ -82,6 +88,14 @@ function App({ client }: { client: ApolloClient<unknown> }) {
                 </Layout>
             </Router>
             <FeedbackForm />
+            <ToastContainer
+                position="bottom-right"
+                autoClose={2500}
+                newestOnTop
+                closeOnClick
+                pauseOnFocusLoss={false}
+                theme="dark"
+            />
         </ExplorerProviders>
     );
 }

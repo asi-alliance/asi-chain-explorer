@@ -56,6 +56,15 @@
     outline: none;
 }
 
+/* The shared input reset changes background and radius on focus; keep the
+   omnibox surface (and its rounded focus border) intact. */
+.asi-search__input:focus,
+.asi-search__input:focus-visible {
+    border: 0;
+    border-radius: 10px;
+    background: transparent;
+}
+
 .asi-search__input::placeholder {
     color: rgba(247, 249, 250, 0.58);
     opacity: 1;

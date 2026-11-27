@@ -22,7 +22,18 @@
     border-radius: 999px;
     background: rgba(16, 185, 129, 0.12);
     cursor: help;
+    line-height: 0;
     outline: none;
+}
+
+.transaction-status > span {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.transaction-status svg {
+    display: block;
 }
 
 .transaction-status:focus-visible {

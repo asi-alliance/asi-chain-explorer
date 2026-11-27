@@ -1,16 +1,27 @@
 import React from 'react';
 import { cleanup, render, screen, within } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
 import { useQuery } from '@apollo/client';
 import ValidatorsPage from './ValidatorsPage';
 
 jest.mock('@apollo/client', () => ({ ...jest.requireActual('@apollo/client'), useQuery: jest.fn() }));
+jest.mock('react-router-dom', () => {
+  Object.assign(global, { TextEncoder: require('util').TextEncoder });
+  // CRA's Jest resolver predates react-router-dom's react-router/dom export.
+  return jest.requireActual('react-router');
+});
 
 const KEY = '04' + 'ab'.repeat(40);
 
 function renderValidators(data: any) {
   cleanup();
-  (useQuery as jest.Mock).mockReturnValue({ data, loading: false, error: undefined });
-  render(<ValidatorsPage />);
+  (useQuery as jest.Mock).mockReturnValue({
+    data,
+    loading: false,
+    error: undefined,
+    refetch: jest.fn(),
+  });
+  render(<MemoryRouter><ValidatorsPage /></MemoryRouter>);
   const rows = screen.getAllByRole('row').slice(1);
   return rows.map(row => within(row).getAllByRole('cell').map(cell => cell.textContent));
 }
@@ -121,8 +132,9 @@ test('keeps inactive validators out of the count, total, average and percentages
     },
     loading: false,
     error: undefined,
+    refetch: jest.fn(),
   });
-  render(<ValidatorsPage />);
+  render(<MemoryRouter><ValidatorsPage /></MemoryRouter>);
 
   const cells = (table: HTMLElement) => within(table).getAllByRole('row').slice(1)
     .map(row => within(row).getAllByRole('cell').map(cell => cell.textContent));
@@ -130,14 +142,14 @@ test('keeps inactive validators out of the count, total, average and percentages
   const current = cells(screen.getByRole('table', { name: 'Current validators' }));
   expect(current.map(row => row[1])).toEqual(['3', '1']);
   expect(current.map(row => row[2])).toEqual(['75%', '25%']);
-  expect(screen.getByRole('heading', { level: 1, name: '2' })).toBeInTheDocument();
+  expect(screen.getByText('2', { selector: '.summary-card__value' })).toBeInTheDocument();
   expect(screen.getByText(/^4 ASI$/)).toBeInTheDocument();
   expect(screen.getByText(/^2 ASI$/)).toBeInTheDocument();
 
   const inactiveRows = cells(screen.getByRole('table', { name: 'Inactive Validators' }));
   expect(inactiveRows).toHaveLength(1);
   expect(inactiveRows[0][1]).toBe('50');
-  expect(inactiveRows[0][5]).toBe('inactive');
+  expect(inactiveRows[0][5]).toBe('Inactive');
 });
 
 test('shows no current validators when every validator is inactive', () => {
@@ -146,20 +158,72 @@ test('shows no current validators when every validator is inactive', () => {
     data: { validators: [validator({ status: 'inactive', total_stake: '1000000000000000000' })], validator_bonds: [], blocks: [] },
     loading: false,
     error: undefined,
+    refetch: jest.fn(),
   });
-  render(<ValidatorsPage />);
+  render(<MemoryRouter><ValidatorsPage /></MemoryRouter>);
 
   expect(screen.queryByRole('table', { name: 'Current validators' })).not.toBeInTheDocument();
-  expect(screen.getByRole('heading', { level: 1, name: '0' })).toBeInTheDocument();
+  expect(screen.getByText('0', { selector: '.summary-card__value' })).toBeInTheDocument();
   expect(screen.getByText(/^0 ASI$/)).toBeInTheDocument();
   expect(screen.getByRole('table', { name: 'Inactive Validators' })).toBeInTheDocument();
 });
 
 test('reports a failed validator query instead of zero stake', () => {
   cleanup();
-  (useQuery as jest.Mock).mockReturnValue({ data: undefined, loading: false, error: new Error('database timeout') });
-  jest.spyOn(console, 'error').mockImplementation(() => {});
-  render(<ValidatorsPage />);
-  expect(screen.getByText('database timeout')).toBeInTheDocument();
+  (useQuery as jest.Mock).mockReturnValue({
+    data: undefined,
+    loading: false,
+    error: new Error('database timeout'),
+    refetch: jest.fn(),
+  });
+  render(<MemoryRouter><ValidatorsPage /></MemoryRouter>);
+
+  const alert = screen.getByRole('alert');
+  expect(alert).toHaveTextContent('Validator data is unavailable: database timeout');
+  expect(within(alert).getByRole('button', { name: /Retry/ })).toBeInTheDocument();
   expect(screen.queryByText(/ASI Staked/)).not.toBeInTheDocument();
+});
+
+test('shows consensus health and the snapshot height', () => {
+  renderValidators({
+    validators: [validator()],
+    validator_bonds: [],
+    blocks: [],
+    network_stats: [{
+      consensus_status: 'healthy',
+      consensus_participation: '100.00',
+      validators_in_quarantine: 0,
+      block_number: '10319',
+    }],
+  });
+
+  const strip = screen.getByRole('status');
+  expect(strip).toHaveTextContent('Consensus: Healthy');
+  expect(strip).toHaveTextContent('100.00% participation');
+  expect(strip).toHaveTextContent('0 in quarantine');
+  expect(strip).toHaveTextContent('as of #10,319');
+});
+
+test('labels proposed blocks with their window and share', () => {
+  renderValidators({
+    validators: [validator()],
+    validator_bonds: [],
+    blocks: [
+      { block_hash: 'a', block_number: '1', proposer: KEY },
+      { block_hash: 'b', block_number: '2', proposer: KEY },
+      { block_hash: 'c', block_number: '3', proposer: 'other' },
+      { block_hash: 'd', block_number: '4', proposer: 'other' },
+    ],
+  });
+
+  expect(screen.getByRole('columnheader', { name: 'Proposed (last 1,000)' })).toBeInTheDocument();
+  expect(screen.getAllByText('(50.0%)').length).toBeGreaterThan(0);
+});
+
+test('offers a copy action for the full validator key', () => {
+  renderValidators({ validators: [validator()], validator_bonds: [], blocks: [] });
+
+  expect(screen.getByRole('button', {
+    name: `Copy validator public key ${KEY}`,
+  })).toBeInTheDocument();
 });

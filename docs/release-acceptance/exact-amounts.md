@@ -9,11 +9,11 @@ evidence stays **partial** until that evidence exists.
 
 | Component | Revision | Notes |
 |---|---|---|
-| Explorer | `dev` at `69af4e5`, plus the change that adds this record | Includes #58 (exact amounts) and #64 (#61, #62 and GraphQL errors). Record the `dev` merge commit of this change after it merges |
-| Indexer schema | `asi-chain-indexer` `dev` at `99aef72` | Migrations 000 to 006. The fixtures follow this contract (see below) |
-| Hasura | Not run | Fixtures assume `HASURA_GRAPHQL_STRINGIFY_NUMERIC_TYPES=true` |
+| Explorer | `fix/sub-threshold-wallet-balance` at `3a33c67` (PR #84) | Includes #58 (exact amounts), #64 (#61, #62 and GraphQL errors) and the PR #84 changes. Record the `dev` merge commit of this change after it merges |
+| Indexer schema | `feat/public-aggregates-search-and-deploy-actions` at `a1533dd` (PR #70) | Migrations 000 to 008 for the paired validation run. The amount contract is unchanged from `dev` `99aef72` (see below) |
+| Hasura | Paired validation stack | Fixtures assume `HASURA_GRAPHQL_STRINGIFY_NUMERIC_TYPES=true`; the public aggregate and `block_heights_view` metadata follows indexer #70 |
 | Node | Not selected | The node #896 profile, node #947 and indexer #22 are not part of this run |
-| Images | None | No image was built or deployed for this record |
+| Images | Not built | No release image was built or deployed |
 
 Producer contract at indexer `99aef72`. The fixtures do not assert more than this contract:
 
@@ -57,7 +57,7 @@ evidence.
 | Historical stakes (validator history) | Passed (fixtures), with two fixes | Acceptance fixture. See "Fixes" |
 | Header search with exact heights | Unit test only | `AdvancedSearch.test.tsx` checks the query variables |
 | CSV export | Unit test only | `RecentDataExporter.test.tsx` |
-| Transfers list, search results, pending deploys | Unit test only | `TransfersPage.test.tsx`, `SearchResultsPage.test.tsx`, `PendingPage.test.tsx` |
+| Transfers list, search results, pending deploys | Unit test only | `TransactionTrackerImproved.test.tsx`, `SearchResultsPage.test.tsx`, `PendingPage.test.tsx` |
 | Sorting and filtering of amounts | Not covered | No test sorts or filters by an amount |
 
 ### Row 6 breakdown
@@ -90,25 +90,38 @@ height.
 
 ## Commands and results
 
-Local run on the branch that adds this record. Node 18.19.1. CI uses Node 22.
-`package-lock.json` is in `.gitignore`, so a local run does not pin the
+Validation run on the PR #84 branch head `3a33c67`. Node 24.22.3. CI uses Node 22.
+`package-lock.json` is in `.gitignore`, so a validation run does not pin the
 dependency resolution. The CI run of each head is the reproducible anchor.
 
 | Command | Result |
 |---|---|
-| `CI=true npx react-scripts test --watchAll=false src/acceptance` | 26 tests passed |
-| `CI=true npx react-scripts test --watchAll=false --runInBand` | 23 suites, 183 tests passed |
+| `CI=true npx react-scripts test --watchAll=false src/acceptance` | 28 tests passed |
+| `CI=true npx react-scripts test --watchAll=false --runInBand` | 39 suites, 417 tests passed |
 | `npx tsc --noEmit` | Passed |
-| `CI=true npm run build` | Passed. Only the existing `waf-captcha-frontend` source-map warnings |
+| `CI=true npm run build` | Passed |
 
-CI runs:
+CI runs on `3a33c67` (PR #84):
 
-- First head `76c9b39`: `Tests` run [43203577531](https://github.com/asi-alliance/asi-chain-explorer/actions/runs/43203577531), 23 suites and 175 tests.
-- Later heads: the `Tests` check of the pull request. A record cannot name the CI run of its own commit.
+- `Tests` run [45913682588](https://github.com/asi-alliance/asi-chain-explorer/actions/runs/45913682588): `test` and `docker-image`.
+- `GraphQL Schema` run [45913682546](https://github.com/asi-alliance/asi-chain-explorer/actions/runs/45913682546): passed against indexer `dev`.
+- `GraphQL Schema` paired run [45913682686](https://github.com/asi-alliance/asi-chain-explorer/actions/runs/45913682686): passed against indexer #70 `feat/public-aggregates-search-and-deploy-actions` with `require_block_size=true`, so `GetBlockSize`, `GetHeightCounts` and the public aggregate permissions were validated strictly.
+- `Sonar Analysis` run [45913682925](https://github.com/asi-alliance/asi-chain-explorer/actions/runs/45913682925): passed.
+
+A follow-up commit after that head changes the PR head without changing this
+record's code evidence; the PR check on the final head remains authoritative.
+The paired schema check was repeated on `677a2e9` in run
+[45914862151](https://github.com/asi-alliance/asi-chain-explorer/actions/runs/45914862151)
+and passed.
 
 Negative controls: with the page before the fixes, the exact-height test and the
 four latest-block failure tests fail. Before the first fix, the request had
 `blockNumber: 9007199254740992`.
+
+Browser smoke checks covered the finalized-before-limit case with 100
+unfinalized and one finalized sibling, block-size rendering, and the
+older-schema fallback where `blocks.block_size` and `blocks_aggregate` are not
+available. Those checks use disposable test data and are not release evidence.
 
 ## Not run
 

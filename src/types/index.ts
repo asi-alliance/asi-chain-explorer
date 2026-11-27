@@ -5,6 +5,16 @@ export interface BlockParent {
   block_hash?: string;
 }
 
+export interface BondMapEntry {
+  validator: string;
+  stake: string | number;
+}
+
+export interface Justification {
+  validator?: string;
+  latestBlockHash?: string;
+}
+
 export interface Block {
   block_number: number;
   block_hash: string;
@@ -17,17 +27,18 @@ export interface Block {
   state_hash?: string;
   pre_state_hash?: string;
   state_root_hash?: string;
-  bonds_map?: any;
+  bonds_map?: BondMapEntry[];
   token_decimals?: number;
   fault_tolerance?: number;
   finalization_status?: string;
-  justifications?: any[];
+  justifications?: Justification[];
   seq_num?: number;
   shard_id?: string;
   sig?: string;
   sig_algorithm?: string;
   version?: number;
   extra_bytes?: string;
+  block_size?: number | string | null;
   created_at: string;
   deployments?: Deployment[];
   validator_bonds?: ValidatorBond[];
@@ -42,12 +53,10 @@ export interface Deployment {
   phlo_cost?: string | number;
   phlo_price?: string | number;
   phlo_limit?: string | number;
-  valid_after_block_number?: number;
+  valid_after_block_number?: string | number | null;
   status?: string;
   block_number?: number;
   block_hash?: string;
-  seq_num?: number;
-  shard_id?: string;
   sig?: string;
   sig_algorithm?: string;
   errored: boolean;
@@ -70,17 +79,6 @@ export interface Transfer {
   created_at: string;
   deployment?: Deployment;
   block?: Block;
-}
-
-export interface GenesisFunding {
-  id: string;
-  wallet_address: string;
-  amount_dust: string;
-  amount_asi: string;
-  status: 'genesis_funding';
-  timestamp: number;
-  deploy_id: string;
-  created_at: string;
 }
 
 // Hasura bigint heights arrive as decimal strings (HASURA_GRAPHQL_STRINGIFY_NUMERIC_TYPES);
@@ -142,21 +140,6 @@ export interface AggregateData {
 export interface SearchProps {
   onSearch: (query: string) => void;
   placeholder?: string;
-}
-
-export interface BlockCardProps {
-  block: Block;
-  showDetails?: boolean;
-}
-
-export interface TransferCardProps {
-  transfer: Transfer;
-  showDetails?: boolean;
-}
-
-export interface ValidatorCardProps {
-  validator: Validator;
-  showDetails?: boolean;
 }
 
 export interface StatsCardProps {

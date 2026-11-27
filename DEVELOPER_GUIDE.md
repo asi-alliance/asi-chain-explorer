@@ -82,14 +82,11 @@ indexer/src/
 explorer/src/
 ├── components/          # Reusable UI components
 │   ├── Layout.tsx
-│   ├── BlockCard.tsx
 │   ├── StatsCard.tsx
-│   ├── LoadingSpinner.tsx
 │   ├── NetworkDashboard.tsx
-│   ├── BlockVisualization.tsx
 │   ├── TransactionTrackerImproved.tsx
 │   ├── AdvancedSearch.tsx
-│   ├── RecentTransactionsExporter.tsx
+│   ├── RecentDataExporter.tsx
 │   ├── AnimatePresenceWrapper.tsx
 │   ├── ConnectionStatus.tsx
 │   ├── RealtimeActivityFeed.tsx
@@ -97,17 +94,16 @@ explorer/src/
 │
 ├── pages/              # Route components
 │   ├── HomePage.tsx
-│   ├── BlocksPage.tsx
 │   ├── BlockDetailPage.tsx
 │   ├── TransactionsPage.tsx
 │   ├── TransactionDetailPage.tsx
-│   ├── TransfersPage.tsx
 │   ├── ValidatorsPage.tsx
 │   ├── ValidatorHistoryPage.tsx
 │   ├── StatisticsPage.tsx
-│   ├── DeploymentsPage.tsx
 │   ├── SearchResultsPage.tsx
-│   └── IndexerStatusPage.tsx
+│   ├── AddressPage.tsx
+│   ├── PendingPage.tsx
+│   └── NotFoundPage.tsx
 │
 ├── graphql/            # GraphQL operations
 │   └── queries.ts      # Query and subscription definitions
@@ -117,12 +113,21 @@ explorer/src/
 │   └── walletService.ts
 │
 ├── hooks/              # Custom React hooks
-│   └── useGenesisFunding.ts
+│   ├── useLiveQuery.ts
+│   ├── usePendingDeploysStatus.tsx
+│   ├── useSearchResults.ts
+│   ├── useRecentSearches.ts
+│   ├── useIndexerStatus.ts
+│   └── useNow.ts
 │
 ├── utils/              # Utility functions
 │   ├── constants.ts
-│   ├── parseGenesisFunding.ts
-│   └── calculateBlockTime.ts
+│   ├── calculateBlockTime.ts
+│   ├── blockPath.ts
+│   ├── time.ts
+│   ├── amounts.ts
+│   ├── search.ts
+│   └── deployFee.ts
 │
 └── types/              # TypeScript definitions
     └── index.ts
@@ -334,7 +339,7 @@ const { data } = useQuery(gql`
 ```typescript
 import { memo, useMemo } from 'react';
 
-const BlockCard = memo(({ block }) => {
+const BlockRow = memo(({ block }) => {
   const formattedDate = useMemo(
     () => new Date(block.timestamp).toLocaleString(),
     [block.timestamp]

@@ -44,8 +44,6 @@ export const DEPLOYMENT_FRAGMENT = gql`
     status
     block_number
     block_hash
-    seq_num
-    shard_id
     sig
     sig_algorithm
     errored
@@ -171,13 +169,27 @@ export const GET_BLOCK_DETAILS = gql`
   }
 `;
 
+// Optional field: an older indexer does not expose blocks.block_size yet. The
+// operation stays a regular gql document so scripts/validate-graphql.js checks
+// it against any schema that exposes the field. On an older schema the
+// validator skips only this documented optional field; the block page ignores
+// the query error and shows N/A until the indexer migration is deployed.
+export const GET_BLOCK_SIZE = gql`
+  query GetBlockSize($blockHash: String!) {
+    blocks(where: { block_hash: { _eq: $blockHash } }, limit: 1) {
+      block_hash
+      block_size
+    }
+  }
+`;
+
 export const GET_BLOCKS_AT_HEIGHT = gql`
   ${BLOCK_FRAGMENT}
   ${DEPLOYMENT_FRAGMENT}
   ${TRANSFER_FRAGMENT}
-  query GetBlocksAtHeight($blockNumber: bigint!) {
+  query GetBlocksAtHeight($filter: blocks_bool_exp!) {
     blocks(
-      where: { block_number: { _eq: $blockNumber } }
+      where: $filter
       order_by: { block_hash: asc }
       limit: 100
     ) {
@@ -192,6 +204,27 @@ export const GET_BLOCKS_AT_HEIGHT = gql`
           ...TransferFragment
         }
       }
+    }
+  }
+`;
+
+// Optional aggregate: only an indexer with the public blocks aggregate
+// permission can answer this. It stays discoverable for schema validation and
+// the height page falls back to the loaded sibling list on an older schema.
+export const GET_HEIGHT_COUNTS = gql`
+  query GetHeightCounts($blockNumber: bigint!) {
+    height_total: blocks_aggregate(
+      where: { block_number: { _eq: $blockNumber } }
+    ) {
+      aggregate { count }
+    }
+    height_finalized: blocks_aggregate(
+      where: {
+        block_number: { _eq: $blockNumber }
+        finalization_status: { _eq: "finalized" }
+      }
+    ) {
+      aggregate { count }
     }
   }
 `;
@@ -277,14 +310,27 @@ export const GET_ACTIVE_VALIDATORS = gql`
     validators(order_by: { total_stake: desc }) {
       ...ValidatorFragment
     }
-    # Get validator bonds separately since there's no relationship
+    # Latest bonds only; the proposer window is a separate, slower query.
     validator_bonds(order_by: { block_number: desc }, limit: 100) {
       validator_public_key
       stake
       token_decimals
       block_number
     }
-    # Get recent blocks to count proposers client-side
+    network_stats(limit: 1, order_by: { id: desc }) {
+      total_validators
+      active_validators
+      validators_in_quarantine
+      consensus_participation
+      consensus_status
+      block_number
+    }
+  }
+`;
+
+export const GET_RECENT_PROPOSERS = gql`
+  query GetRecentProposers {
+    # Counted in the browser over the latest 1,000 blocks.
     blocks(limit: 1000, order_by: { block_number: desc }) {
       block_hash
       block_number
@@ -345,25 +391,6 @@ export const SUBSCRIBE_TO_NEW_DEPLOYMENTS = gql`
       order_by: { created_at: desc }
     ) {
       ...DeploymentFragment
-    }
-  }
-`;
-
-// Genesis Funding Query
-export const GET_GENESIS_FUNDING_DEPLOYMENT = gql`
-  query GetGenesisFundingDeployment {
-    deployments(
-      where: {
-        deploy_id: {_eq: "3045022100f39285089f6e50247620e71b79161ddc371c94e453f6bc12afd78bfe857640dd0220614965bda9c405816d6b5c7af9ad415149593a08e763835b621769059402524e"}
-      }
-    ) {
-      deploy_id
-      term
-      timestamp
-      deployment_type
-      created_at
-      block_number
-      block { block_hash token_decimals }
     }
   }
 `;

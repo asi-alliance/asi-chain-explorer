@@ -55,7 +55,7 @@ const follows = (row: SearchResult, cursor: SearchCursor, order: 'asc' | 'desc')
   if (row.timestamp !== Number(cursor.timestamp)) return order === 'asc'
     ? row.timestamp > Number(cursor.timestamp) : row.timestamp < Number(cursor.timestamp);
   if (row.type !== cursor.type) return row.type > cursor.type;
-  return row.type === 'transfer' ? BigInt(row.data.id) > BigInt(cursor.id) : row.data.id > cursor.id;
+  return row.type === 'transfer' ? BigInt(String(row.data.id)) > BigInt(cursor.id) : String(row.data.id ?? '') > cursor.id;
 };
 const streamReader = (streams: Record<SearchStream, SearchResult[]>, order: 'asc' | 'desc' = 'asc') => jest.fn(
   async (stream: SearchStream, offset: number, limit: number, cursor?: SearchCursor) =>

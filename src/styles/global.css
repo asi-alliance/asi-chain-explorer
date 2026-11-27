@@ -406,6 +406,65 @@ code, .code {
     text-decoration: underline;
 }
 
+.home-status-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 16px;
+    margin: -0.25rem 0 1rem;
+    color: var(--text-secondary);
+    font-size: 12px;
+}
+
+.home-status-legend__item {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+}
+
+.status-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+}
+
+.status-dot--confirmed { background: var(--asi-lime); }
+.status-dot--unfinalized { background: var(--warning-orange); }
+
+@media (max-width: 600px) {
+    .home-search-box {
+        width: 100%;
+    }
+
+    .home-search-box .search-field {
+        flex: 1 1 100%;
+    }
+
+    .home-search-box .btn {
+        width: 100%;
+    }
+
+    .home-filter-row {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 8px;
+    }
+}
+
+.recent-blocks-table tbody tr:hover {
+    /* Rows are not clickable; links inside keep their own hover affordance. */
+    background-color: transparent;
+}
+
+.validator-cell a {
+    color: var(--asi-pulse-blue);
+    text-decoration: none;
+}
+
+.validator-cell a:hover {
+    color: var(--asi-pulse-blue-dark);
+    text-decoration: underline;
+}
+
 .height-cell {
     vertical-align: top;
 }
@@ -472,6 +531,120 @@ code, .code {
 @keyframes spin {
     0% { transform: rotate(0deg); }
     100% { transform: rotate(360deg); }
+}
+
+/* Inline refresh icons while a list is loading. */
+.spinning {
+    animation: spin 0.9s linear infinite;
+    transform-origin: center;
+}
+
+/* Layout-preserving placeholders while data loads. */
+.skeleton {
+    display: block;
+    border-radius: 6px;
+    background: linear-gradient(
+        90deg,
+        rgba(255, 255, 255, 0.06) 25%,
+        rgba(255, 255, 255, 0.12) 37%,
+        rgba(255, 255, 255, 0.06) 63%
+    );
+    background-size: 400% 100%;
+    animation: skeleton-shimmer 1.4s ease infinite;
+}
+
+.skeleton--stat {
+    width: 55%;
+    height: 28px;
+    margin-top: 6px;
+}
+
+.live-activity-skeleton {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 0 0.5rem;
+}
+
+.live-activity-skeleton__row {
+    display: flex;
+    gap: 12px;
+    padding: 10px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.02);
+}
+
+.live-activity-skeleton__icon {
+    flex: 0 0 auto;
+    width: 30px;
+    height: 30px;
+    border-radius: 8px;
+}
+
+.live-activity-skeleton__body {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    gap: 8px;
+    min-width: 0;
+}
+
+.live-activity-skeleton__title { width: 45%; height: 12px; }
+.live-activity-skeleton__line { width: 80%; height: 10px; }
+
+.skeleton--short { width: 40px; height: 14px; }
+.skeleton--hash { width: 118px; height: 14px; }
+.skeleton--validator { width: 96px; height: 14px; }
+.skeleton--time { width: 76px; height: 14px; }
+.skeleton--status { width: 82px; height: 14px; }
+
+@keyframes skeleton-shimmer {
+    0% { background-position: 100% 0; }
+    100% { background-position: 0 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .skeleton,
+    .spinning { animation: none; }
+}
+
+/* Explicit error or stale-data state that keeps the surrounding page stable. */
+.data-state {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin: 0 0 1rem;
+    padding: 12px 14px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 500;
+}
+
+.data-state--error {
+    border: 1px solid rgba(255, 77, 79, 0.55);
+    background: rgba(255, 77, 79, 0.08);
+    color: var(--alert-red);
+}
+
+.data-state--warning {
+    border: 1px solid rgba(255, 180, 60, 0.45);
+    background: rgba(255, 180, 60, 0.08);
+    color: var(--warning-orange);
+}
+
+.data-state__retry {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin-left: auto;
+    padding: 7px 12px;
+    font-size: 12px;
+}
+
+@media (max-width: 600px) {
+    .data-state__retry { margin-left: 0; }
 }
 
 /* Lazy route placeholder: keeps the shell stable while a page chunk loads. */
@@ -979,6 +1152,30 @@ input::-webkit-inner-spin-button {
     border: none;
 
     transform: translateX(115%) !important;
+}
+
+.copy-button.copy-button--labeled {
+    position: static;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 14px;
+    border: 1px solid var(--border-light);
+    border-radius: 8px;
+    transform: none !important;
+    color: var(--text-secondary);
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.copy-button.copy-button--labeled:hover {
+    border-color: var(--asi-lime);
+    color: var(--asi-lime);
+}
+
+.copy-button.copy-button--labeled:focus-visible {
+    outline: 2px solid var(--asi-lime);
+    outline-offset: 2px;
 }
 
 .share-button {

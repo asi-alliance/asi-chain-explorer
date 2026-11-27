@@ -773,14 +773,30 @@ query GetLatestDeployments($limit: Int = 5) {
 
 ### Get Indexer Status
 
-```graphql
-query GetIndexerStatus {
-  blocks(order_by: { block_number: desc }, limit: 1) {
-    block_number
-    timestamp
+The Network Dashboard reads the indexer monitoring endpoint through the public
+same-origin proxy:
+
+```http
+GET /api/indexer/status
+```
+
+```json
+{
+  "indexer": {
+    "running": true,
+    "last_indexed_block": 10450,
+    "last_sync_time": "2026-11-26T20:19:00.049566"
+  },
+  "node": {
+    "connected": true,
+    "latest_block": 10450
   }
 }
 ```
+
+`last_sync_time` is the timestamp of the last indexed block, not the time of the
+status request. The dashboard polls the endpoint every five seconds and renders
+the status, sync progress and last indexed block cards.
 
 ### Aggregate Queries
 

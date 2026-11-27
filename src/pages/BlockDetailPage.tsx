@@ -1,34 +1,64 @@
 import React from 'react';
 import { useParams, Link, useSearchParams } from 'react-router-dom';
 import { useQuery } from '@apollo/client';
-import { ChevronRight } from 'lucide-react';
-import { GET_BLOCK_DETAILS, GET_BLOCKS_AT_HEIGHT, GET_LATEST_HEIGHT } from '../graphql/queries';
-import { Block } from '../types';
+import { AlertTriangle, ChevronRight, RefreshCw } from 'lucide-react';
+import { GET_BLOCK_DETAILS, GET_BLOCKS_AT_HEIGHT, GET_HEIGHT_COUNTS, GET_LATEST_HEIGHT, GET_BLOCK_SIZE } from '../graphql/queries';
+import { Block, Deployment } from '../types';
 import { formatRelativeTime } from '../utils/time';
 import { CURRENT_TOKEN } from '../utils/constants';
 import { getParentHashes } from '../utils/blockParent';
 import { heightInput } from '../utils/blockHeight';
-import { formatRaw } from '../utils/amounts';
+import { formatRaw, groupThousands } from '../utils/amounts';
 import { getBlockPath } from '../utils/blockPath';
 import CopyButton from '../components/CopyButton';
 import ShareLinkButton from '../components/ShareLinkButton';
 import '../styles/height.css';
 
+function HeightSkeleton() {
+  return (
+    <div className="height-skeleton" role="status" aria-label="Loading block details">
+      <div className="page-actions">
+        <span className="skeleton skeleton--button" aria-hidden="true" />
+      </div>
+      <div className="height-nav" aria-hidden="true">
+        <span className="skeleton skeleton--nav" />
+        <span className="skeleton skeleton--nav" />
+      </div>
+      <div className="summary-grid" aria-hidden="true">
+        {Array.from({ length: 4 }, (_, index) => (
+          <div className="asi-card glass" key={index}>
+            <span className="skeleton skeleton--row" style={{ width: '42%' }} />
+            <span className="skeleton skeleton--stat" />
+          </div>
+        ))}
+      </div>
+      <section className="asi-card" aria-hidden="true">
+        <span className="skeleton skeleton--title" />
+        {Array.from({ length: 8 }, (_, index) => (
+          <span className="skeleton skeleton--row" key={index} style={{ marginTop: '0.8rem', width: `${88 - index * 4}%` }} />
+        ))}
+      </section>
+    </div>
+  );
+}
+
+const DEPLOYMENT_TYPE_LABELS: Record<string, string> = {
+  asi_transfer: 'ASI Transfer',
+  validator_operation: 'Validator Operation',
+  registry_lookup: 'Registry Lookup',
+  smart_contract: 'Contract Call',
+  genesis_mint: 'Genesis Mint',
+  genesis_bond: 'Genesis Bond',
+};
+
 const BlockDetailPage: React.FC = () => {
-  const { blockHash, blockNumber } = useParams<{
+  const { blockHash, blockNumber, height } = useParams<{
     blockHash?: string;
     blockNumber?: string;
+    height?: string;
   }>();
+  const routeHeight = height ?? blockNumber;
 
-  const hashResult = useQuery(GET_BLOCK_DETAILS, {
-    variables: { blockHash: blockHash || '' },
-    skip: !blockHash,
-  });
-  const heightResult = useQuery(GET_BLOCKS_AT_HEIGHT, {
-    variables: { blockNumber: blockNumber || '0' },
-    skip: !blockNumber,
-  });
-  const latestHeightResult = useQuery<{ blocks: Array<{ block_number: string }> }>(GET_LATEST_HEIGHT);
   const [searchParams, setSearchParams] = useSearchParams();
   const statusFilter = searchParams.get('status') === 'finalized'
     ? 'finalized'
@@ -39,38 +69,95 @@ const BlockDetailPage: React.FC = () => {
     else next.set('status', value);
     setSearchParams(next);
   };
+  const heightFilter = {
+    block_number: { _eq: routeHeight },
+    ...(statusFilter === 'finalized'
+      ? { finalization_status: { _eq: 'finalized' } }
+      : statusFilter === 'unfinalized'
+        ? { finalization_status: { _neq: 'finalized' } }
+        : {}),
+  };
+
+  const hashResult = useQuery(GET_BLOCK_DETAILS, {
+    variables: { blockHash: blockHash || '' },
+    skip: !blockHash,
+  });
+  const heightResult = useQuery(GET_BLOCKS_AT_HEIGHT, {
+    variables: { filter: heightFilter },
+    skip: !routeHeight,
+  });
+  const latestHeightResult = useQuery<{ blocks: Array<{ block_number: string }> }>(GET_LATEST_HEIGHT);
+  const heightCountsResult = useQuery<{
+    height_total?: { aggregate?: { count?: number } };
+    height_finalized?: { aggregate?: { count?: number } };
+  }>(GET_HEIGHT_COUNTS, {
+    variables: { blockNumber: routeHeight || '0' },
+    skip: !routeHeight,
+    errorPolicy: 'ignore',
+  });
 
   const activeResult = blockHash ? hashResult : heightResult;
   const { data, loading, error } = activeResult;
+  const activeBlockForSize = (data?.blocks || [])[0] as Block | undefined;
+  const { data: blockSizeData } = useQuery<{
+    blocks: Array<{ block_hash: string; block_size?: number | string | null }>;
+  }>(GET_BLOCK_SIZE, {
+    variables: { blockHash: activeBlockForSize?.block_hash || '' },
+    skip: !activeBlockForSize?.block_hash,
+    errorPolicy: 'ignore',
+    fetchPolicy: 'cache-first',
+  });
 
-  if (loading) {
-    return (
-      <div className="text-center">
-        <span className="loading"></span>
-        <p className="text-muted mt-2">Loading block details...</p>
-      </div>
-    );
+  if (loading && !data) {
+    return <HeightSkeleton />;
   }
 
-  if (error) {
+  if (error && !data) {
     return (
-      <div className="status-message error">
-        <strong>Error:</strong> {error.message}
-      </div>
+      <section className="asi-card height-error" role="alert">
+        <h1>Block details unavailable</h1>
+        <p>The explorer could not load this block or height.</p>
+        <p className="height-error__detail">{error.message}</p>
+        <div className="page-actions">
+          <button type="button" className="btn btn-primary" onClick={() => void activeResult.refetch()}>
+            <RefreshCw size={14} aria-hidden="true" /> Retry
+          </button>
+          <Link to="/" className="btn btn-secondary">← Back to home</Link>
+        </div>
+      </section>
     );
   }
 
   const matchingBlocks = (data?.blocks || []) as Block[];
+  const heightData = heightCountsResult.data;
+  const heightTotal = heightData?.height_total?.aggregate?.count ?? matchingBlocks.length;
+  const finalizedTotal = heightData?.height_finalized?.aggregate?.count
+    ?? matchingBlocks.filter((sibling) => sibling.finalization_status === 'finalized').length;
+  const isHeightView = Boolean(routeHeight) && !blockHash;
+  const hasHeight = isHeightView && heightTotal > 0;
   const block = matchingBlocks[0];
-  const requestedBlock = blockHash || blockNumber;
+  const requestedBlock = blockHash || routeHeight;
 
-  if (!block) {
+  if (!block && !hasHeight) {
     return (
       <div className="status-message error">
         <strong>Block Not Found:</strong> Block {requestedBlock} was not found on the network.
       </div>
     );
   }
+
+  const deploymentCount = block?.deployments?.length ?? block?.deployment_count ?? 0;
+  const blockSize = blockSizeData?.blocks?.[0]?.block_size ?? block?.block_size;
+
+  const staleNotice = error ? (
+    <div className="data-state data-state--warning" role="status">
+      <AlertTriangle size={16} aria-hidden="true" />
+      <span>Block details could not be refreshed; showing the last loaded data.</span>
+      <button type="button" className="btn btn-secondary data-state__retry" onClick={() => void activeResult.refetch()}>
+        <RefreshCw size={14} aria-hidden="true" /> Retry
+      </button>
+    </div>
+  ) : null;
 
   const formatTimestamp = (timestamp: string | number) => formatRelativeTime(timestamp);
 
@@ -90,9 +177,17 @@ const BlockDetailPage: React.FC = () => {
     return `${address.slice(0, 20)}...${address.slice(-20)}`;
   };
 
-  const getTransactionType = (deploy: any) => {
+  const formatBlockSize = (value: string | number | null | undefined) => {
+    const size = Number(value);
+    if (!Number.isFinite(size) || size < 0) return 'N/A';
+    if (size < 1000) return `${size} B`;
+    if (size < 1_000_000) return `${(size / 1000).toFixed(2)} KB`;
+    return `${(size / 1_000_000).toFixed(2)} MB`;
+  };
+
+  const getTransactionType = (deploy: Deployment) => {
     if (deploy.deployment_type) {
-      return deploy.deployment_type;
+      return DEPLOYMENT_TYPE_LABELS[deploy.deployment_type] || deploy.deployment_type;
     }
     
     if (deploy.term) {
@@ -118,7 +213,7 @@ const BlockDetailPage: React.FC = () => {
       return {
         from: match[1],
         to: match[2],
-        amount: formatRaw(match[3], block.token_decimals)
+        amount: formatRaw(match[3], block?.token_decimals)
       };
     }
     return null;
@@ -128,36 +223,32 @@ const BlockDetailPage: React.FC = () => {
     status ? status.replace(/_/g, ' ') : 'Unknown';
   const finalizationClass = (status?: string | null) =>
     status === 'finalized' ? 'is-finalized' : status ? 'is-pending' : 'is-unknown';
-  const siblingCount = matchingBlocks.length;
-  const siblingCountLabel = siblingCount >= 100 ? '100+' : String(siblingCount);
-  const isHeightView = Boolean(blockNumber) && !blockHash;
-  const showHeightOverview = isHeightView && siblingCount > 1;
-  const currentHeight = heightInput(blockNumber || String(block.block_number));
+  const siblingCount = heightTotal;
+  const siblingCountLabel = siblingCount.toLocaleString('en-US');
+  const siblingNoun = siblingCount === 1 ? 'sibling block' : 'sibling blocks';
+  const showHeightOverview = isHeightView;
+  const currentHeight = heightInput(routeHeight || String(block?.block_number ?? ''));
   const latestHeight = heightInput(latestHeightResult.data?.blocks?.[0]?.block_number || '');
   const previousHeight = currentHeight !== null && BigInt(currentHeight) > 0n
     ? (BigInt(currentHeight) - 1n).toString() : null;
   const nextHeight = currentHeight !== null && latestHeight !== null && BigInt(currentHeight) < BigInt(latestHeight)
     ? (BigInt(currentHeight) + 1n).toString() : null;
-  const filteredSiblings = matchingBlocks.filter((sibling) => {
-    if (statusFilter === 'finalized') return sibling.finalization_status === 'finalized';
-    if (statusFilter === 'unfinalized') return sibling.finalization_status !== 'finalized';
-    return true;
-  });
+  const filteredSiblings = matchingBlocks;
 
   const heightNav = (
     <div className="height-nav">
       {previousHeight === null ? (
         <span className="height-nav__disabled">← Previous height</span>
       ) : (
-        <Link className="btn btn-secondary" to={`/block/${previousHeight}`}>← Height #{previousHeight}</Link>
+        <Link className="btn btn-secondary" to={`/height/${previousHeight}`}>← Height #{previousHeight}</Link>
       )}
       {latestHeight !== null && (
-        <Link className="height-nav__latest" to={`/block/${latestHeight}`}>Latest #{latestHeight}</Link>
+        <Link className="height-nav__latest" to={`/height/${latestHeight}`}>Latest #{latestHeight}</Link>
       )}
       {nextHeight === null ? (
         <span className="height-nav__disabled">Next height →</span>
       ) : (
-        <Link className="btn btn-secondary" to={`/block/${nextHeight}`}>Height #{nextHeight} →</Link>
+        <Link className="btn btn-secondary" to={`/height/${nextHeight}`}>Height #{nextHeight} →</Link>
       )}
     </div>
   );
@@ -180,14 +271,13 @@ const BlockDetailPage: React.FC = () => {
       : earliestTimestamp === latestTimestamp
         ? formatDate(latestTimestamp)
         : `${formatDate(earliestTimestamp)} – ${formatDate(latestTimestamp)}`;
-    const finalizedCount = matchingBlocks
-      .filter((sibling) => sibling.finalization_status === 'finalized').length;
 
     return (
       <>
+        {staleNotice}
         <nav className="page-actions">
           <Link to="/" className="btn btn-secondary">← Back to home</Link>
-          <ShareLinkButton label="Copy height link" />
+          <ShareLinkButton label="Copy link" text="Copy link" />
         </nav>
         {heightNav}
 
@@ -195,14 +285,22 @@ const BlockDetailPage: React.FC = () => {
           <header className="height-overview__head">
             <div>
               <p className="height-overview__eyebrow">Block height</p>
-              <h1 className="height-overview__title">#{blockNumber}</h1>
+              <div className="height-overview__title-row">
+                <h1 className="height-overview__title">#{routeHeight}</h1>
+                <CopyButton
+                  dataToCopy={String(routeHeight)}
+                  label={`Copy height ${routeHeight}`}
+                  iconSize={14}
+                  toastMessage={`Copied height ${routeHeight}`}
+                />
+              </div>
             </div>
-            <div className="height-overview__actions">
-              <CopyButton dataToCopy={String(blockNumber)} label="Copy height" iconSize={14} />
-              <span className="height-overview__count">
-                {siblingCountLabel} sibling blocks
-              </span>
-            </div>
+            <span
+              className="height-overview__count"
+              title="A DAG height can contain multiple sibling blocks"
+            >
+              {siblingCountLabel} {siblingNoun}
+            </span>
           </header>
 
           <p className="height-overview__hint">
@@ -212,15 +310,15 @@ const BlockDetailPage: React.FC = () => {
           <div className="height-overview__stats">
             <div className="asi-card glass">
               <p className="text-muted">Height</p>
-              <strong>#{blockNumber}</strong>
+              <strong>#{routeHeight}</strong>
             </div>
             <div className="asi-card glass">
-              <p className="text-muted">Sibling blocks</p>
+              <p className="text-muted">{siblingCount === 1 ? 'Sibling block' : 'Sibling blocks'}</p>
               <strong>{siblingCountLabel}</strong>
             </div>
             <div className="asi-card glass">
               <p className="text-muted">Finalized</p>
-              <strong>{finalizedCount} of {matchingBlocks.length}</strong>
+              <strong>{finalizedTotal} of {heightTotal}</strong>
             </div>
             <div className="asi-card glass">
               <p className="text-muted">Time range</p>
@@ -230,7 +328,7 @@ const BlockDetailPage: React.FC = () => {
 
           {matchingBlocks.length === 100 && (
             <p className="height-overview__limit">
-              Showing the first 100 blocks at this height.
+              Showing the first 100 {statusFilter === 'all' ? 'blocks' : `${statusFilter} blocks`} at this height.
             </p>
           )}
 
@@ -262,32 +360,40 @@ const BlockDetailPage: React.FC = () => {
           ) : (
             <ol className="height-overview__list">
               {filteredSiblings.map((sibling) => (
-                <li key={sibling.block_hash}>
-                  <Link
-                    className="height-sibling"
-                    to={getBlockPath(sibling.block_hash, sibling.block_number)}
-                    aria-label={`Open block ${sibling.block_hash}`}
-                  >
-                    <span className="height-sibling__hash mono" title={sibling.block_hash}>
-                      {sibling.block_hash}
-                    </span>
-                    <span className="height-sibling__meta">
-                      Proposer <span className="mono">{truncateAddress(sibling.proposer)}</span>
-                    </span>
-                    <span className="height-sibling__links">
-                      {sibling.parent_links?.length || 0} parents · {sibling.child_links?.length || 0} children
-                    </span>
-                    <span className="height-sibling__time" title={formatDate(sibling.timestamp)}>
-                      {formatTimestamp(sibling.timestamp)}
-                    </span>
-                    <span className="height-sibling__deploys">
-                      {sibling.deployment_count || 0} deploys
-                    </span>
-                    <span className={`height-sibling__status ${finalizationClass(sibling.finalization_status)}`}>
-                      {finalizationLabel(sibling.finalization_status)}
-                    </span>
-                    <ChevronRight size={18} aria-hidden="true" className="height-sibling__chevron" />
-                  </Link>
+                <li key={sibling.block_hash} className="height-sibling-item">
+                  <div className="height-sibling">
+                    <Link
+                      className="height-sibling__link"
+                      to={getBlockPath(sibling.block_hash, sibling.block_number)}
+                      aria-label={`Open block ${sibling.block_hash}`}
+                    >
+                      <span className="height-sibling__hash mono" title={sibling.block_hash}>
+                        {sibling.block_hash}
+                      </span>
+                      <span className="height-sibling__meta">
+                        Proposer <span className="mono">{truncateAddress(sibling.proposer)}</span>
+                      </span>
+                      <span className="height-sibling__links">
+                        {sibling.parent_links?.length || 0} parents · {sibling.child_links?.length || 0} children
+                      </span>
+                      <span className="height-sibling__time" title={formatDate(sibling.timestamp)}>
+                        {formatTimestamp(sibling.timestamp)}
+                      </span>
+                      <span className="height-sibling__deploys">
+                        {sibling.deployments?.length ?? sibling.deployment_count ?? 0} deploys
+                      </span>
+                      <span className={`height-sibling__status ${finalizationClass(sibling.finalization_status)}`}>
+                        {finalizationLabel(sibling.finalization_status)}
+                      </span>
+                      <ChevronRight size={18} aria-hidden="true" className="height-sibling__chevron" />
+                    </Link>
+                    <CopyButton
+                      dataToCopy={sibling.block_hash}
+                      label={`Copy block hash ${sibling.block_hash}`}
+                      iconSize={14}
+                      toastMessage="Block hash copied"
+                    />
+                  </div>
                 </li>
               ))}
             </ol>
@@ -297,12 +403,21 @@ const BlockDetailPage: React.FC = () => {
     );
   }
 
+  if (!block) {
+    return (
+      <div className="status-message error">
+        <strong>Block Not Found:</strong> Block {requestedBlock} was not found on the network.
+      </div>
+    );
+  }
+
   return (
     <>
+      {staleNotice}
       {/* Navigation */}
       <nav className="page-actions">
         <Link to="/" className="btn btn-secondary">← Back to home</Link>
-        <ShareLinkButton label="Copy block link" />
+        <ShareLinkButton label="Copy link" text="Copy link" />
       </nav>
       {heightNav}
 
@@ -421,16 +536,19 @@ const BlockDetailPage: React.FC = () => {
           <dd>{block.version || 'N/A'}</dd>
           
           <dt>Sequence Number</dt>
-          <dd>{block.seq_num || 'N/A'}</dd>
+          <dd>{block.seq_num ?? 'N/A'}</dd>
           
           <dt>Shard ID</dt>
           <dd className="mono">{block.shard_id || 'N/A'}</dd>
           
           <dt>Fault Tolerance</dt>
           <dd>{block.fault_tolerance !== undefined ? block.fault_tolerance : 'N/A'}</dd>
+
+          <dt>Block Size</dt>
+          <dd>{formatBlockSize(blockSize)}</dd>
           
           <dt>Deployment Count</dt>
-          <dd>{block.deployment_count || 0}</dd>
+          <dd>{deploymentCount}</dd>
         </dl>
       </section>
 
@@ -510,7 +628,7 @@ const BlockDetailPage: React.FC = () => {
               </tr>
             </thead>
             <tbody>
-              {block.bonds_map.map((bond: any, index: number) => (
+              {block.bonds_map.map((bond, index) => (
                 <tr key={index}>
                   <td className="mono" style={{ fontSize: '11px' }}>
                     {bond.validator}
@@ -538,7 +656,7 @@ const BlockDetailPage: React.FC = () => {
               </tr>
             </thead>
             <tbody>
-              {block.justifications.map((just: any, index: number) => (
+              {block.justifications.map((just, index) => (
                 <tr key={index}>
                   <td className="mono" style={{ fontSize: '11px' }}>
                     {just.validator ? `${just.validator.slice(0, 20)}...${just.validator.slice(-20)}` : 'N/A'}
@@ -559,11 +677,11 @@ const BlockDetailPage: React.FC = () => {
         <section className="asi-card mt-3">
           <h2>Transactions / Deployments</h2>
           <p className="text-muted mb-2">
-            {block.deployments.length} deployments in this block
+            {deploymentCount} deployments in this block
           </p>
           
           <div>
-            {block.deployments.map((deploy: any, index: number) => {
+            {block.deployments.map((deploy, index) => {
               const transactionType = getTransactionType(deploy);
               const isTransfer = transactionType === 'ASI Transfer';
               const transferDetails = isTransfer && deploy.term ? extractTransferDetails(deploy.term) : null;
@@ -632,7 +750,12 @@ const BlockDetailPage: React.FC = () => {
                         Deploy ID
                       </dt>
                       <dd className="mono" style={{ fontSize: '12px', margin: 0, wordBreak: 'break-all' }}>
-                        {deploy.deploy_id}
+                        <Link
+                          className="height-link"
+                          to={`/transaction/${encodeURIComponent(deploy.deploy_id)}`}
+                        >
+                          {deploy.deploy_id}
+                        </Link>
                       </dd>
                       
                       <dt style={{ fontSize: '13px', color: 'var(--text-tertiary)', margin: 0 }}>
@@ -654,7 +777,7 @@ const BlockDetailPage: React.FC = () => {
                         )}
                       </dd>
                       
-                      {deploy.valid_after_block_number !== undefined && (
+                      {deploy.valid_after_block_number != null && (
                         <>
                           <dt style={{ fontSize: '13px', color: 'var(--text-tertiary)', margin: 0 }}>
                             Valid After Block
@@ -672,28 +795,6 @@ const BlockDetailPage: React.FC = () => {
                           </dt>
                           <dd style={{ fontSize: '13px', margin: 0 }}>
                             {deploy.status}
-                          </dd>
-                        </>
-                      )}
-                      
-                      {deploy.seq_num !== undefined && (
-                        <>
-                          <dt style={{ fontSize: '13px', color: 'var(--text-tertiary)', margin: 0 }}>
-                            Sequence
-                          </dt>
-                          <dd style={{ fontSize: '13px', margin: 0 }}>
-                            {deploy.seq_num}
-                          </dd>
-                        </>
-                      )}
-                      
-                      {deploy.shard_id && (
-                        <>
-                          <dt style={{ fontSize: '13px', color: 'var(--text-tertiary)', margin: 0 }}>
-                            Shard ID
-                          </dt>
-                          <dd style={{ fontSize: '13px', margin: 0 }}>
-                            {deploy.shard_id}
                           </dd>
                         </>
                       )}
@@ -716,7 +817,20 @@ const BlockDetailPage: React.FC = () => {
                             Transfers
                           </dt>
                           <dd style={{ fontSize: '13px', margin: 0 }}>
-                            {deploy.transfers.length} {CURRENT_TOKEN} transfer{deploy.transfers.length > 1 ? 's' : ''}
+                            {deploy.transfers.map((transfer) => (
+                              <div key={transfer.id} style={{ marginBottom: '0.35rem' }}>
+                                <Link
+                                  className="height-link"
+                                  to={`/transaction/${encodeURIComponent(deploy.deploy_id)}?tab=transfers`}
+                                >
+                                  {truncateAddress(transfer.from_address)} → {truncateAddress(transfer.to_address)}
+                                </Link>
+                                <span className="text-muted">
+                                  {' '}
+                                  {groupThousands(formatRaw(transfer.amount_dust, transfer.token_decimals))} {CURRENT_TOKEN}
+                                </span>
+                              </div>
+                            ))}
                           </dd>
                         </>
                       )}

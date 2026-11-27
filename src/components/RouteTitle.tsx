@@ -27,7 +27,7 @@ export function routeTitle(pathname: string, search = ''): string {
 
     if (segments.length === 0) {
         if (query) return `Search: ${shortQuery(query)}`;
-        return params.get('finalized') === '1' ? 'Finalized blocks' : 'Latest blocks';
+        return params.get('finalized') === '0' ? 'Latest blocks' : 'Finalized blocks';
     }
 
     if (segments[0] === 'transaction' && segments[1]) {
@@ -38,7 +38,7 @@ export function routeTitle(pathname: string, search = ''): string {
         return `Block ${shorten(decode(segments[2]))}`;
     }
 
-    if (segments[0] === 'block' && segments[1]) {
+    if ((segments[0] === 'height' || segments[0] === 'block') && segments[1]) {
         return `Height #${decode(segments[1])}`;
     }
 
@@ -51,7 +51,9 @@ export function routeTitle(pathname: string, search = ''): string {
     }
 
     if (segments[0] === 'transactions') {
-        return params.get('tab') === 'transfers' ? 'Transfers' : 'Deployments';
+        if (params.get('tab') === 'transfers') return 'Transfers';
+        if (params.get('tab') === 'contract') return 'Contract deploys';
+        return 'All deploys';
     }
 
     const staticTitles: Record<string, string> = {
@@ -60,7 +62,6 @@ export function routeTitle(pathname: string, search = ''): string {
         '/validators': 'Validators',
         '/validator-history': 'Validator history',
         '/statistics': 'Statistics',
-        '/indexer-status': 'Indexer status',
     };
 
     return staticTitles[`/${segments[0]}`] ?? 'Page not found';

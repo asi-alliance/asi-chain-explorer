@@ -15,6 +15,21 @@ const streamId = { blocks: 'block_hash', transfers: 'id', deployments: 'deploy_i
 const streamType = { blocks: 'block', transfers: 'transfer', deployments: 'deployment' } as const;
 export interface SearchCursor { timestamp: string; id: string; type: SearchResult['type'] }
 export type SearchCheckpoints = Map<number, SearchCursor | undefined>;
+export interface SearchResultData {
+  id?: string | number;
+  block_hash?: string;
+  block_number?: string | number;
+  deploy_id?: string;
+  timestamp?: string | number;
+  [key: string]: unknown;
+}
+
+export interface SearchIndexData {
+  blocks?: SearchResultData[];
+  transfers?: SearchResultData[];
+  deployments?: SearchResultData[];
+}
+
 export interface SearchResult {
   type: 'block' | 'transfer' | 'deployment';
   id: string;
@@ -22,7 +37,7 @@ export interface SearchResult {
   description: string;
   path: string;
   timestamp: number;
-  data: any;
+  data: SearchResultData;
 }
 
 export const SEARCH_INDEX = gql`
@@ -106,30 +121,33 @@ function shortIdentifier(value: unknown, head = 10, tail = 8): string {
   return text.length <= head + tail + 1 ? text : `${text.slice(0, head)}…${text.slice(-tail)}`;
 }
 
-export function searchResults(data: any, order: 'asc' | 'desc'): SearchResult[] {
+export function searchResults(data: SearchIndexData | undefined, order: 'asc' | 'desc'): SearchResult[] {
   const results: SearchResult[] = [
-    ...(data?.blocks || []).map((b: any) => ({
-      type: 'block', id: `block:${b.block_hash}`, title: `Block #${b.block_number}`,
+    ...(data?.blocks || []).map(b => ({
+      type: 'block' as const, id: `block:${b.block_hash}`, title: `Block #${b.block_number}`,
       description: shortIdentifier(b.block_hash, 12, 8), path: getBlockPath(b.block_hash, b.block_number), timestamp: Number(b.timestamp), data: b
     })),
-    ...(data?.transfers || []).map((t: any) => ({
-      type: 'transfer', id: `transfer:${t.id}`, title: `${decimalText(t.amount_asi)} ASI Transfer`,
+    ...(data?.transfers || []).map(t => ({
+      type: 'transfer' as const, id: `transfer:${t.id}`, title: `${decimalText(t.amount_asi)} ASI Transfer`,
       description: `${shortIdentifier(t.from_address)} → ${shortIdentifier(t.to_address)} (${t.status})`,
-      path: `/transaction/${encodeURIComponent(t.deploy_id)}`, timestamp: Number(t.timestamp), data: t
+      path: `/transaction/${encodeURIComponent(String(t.deploy_id ?? ''))}`, timestamp: Number(t.timestamp), data: t
     })),
-    ...(data?.deployments || []).map((d: any) => ({
-      type: 'deployment', id: `deployment:${d.deploy_id}`, title: `Transaction ${shortIdentifier(d.deploy_id, 12, 8)}`,
+    ...(data?.deployments || []).map(d => ({
+      type: 'deployment' as const, id: `deployment:${d.deploy_id}`, title: `Transaction ${shortIdentifier(d.deploy_id, 12, 8)}`,
       description: `From ${shortIdentifier(d.deployer_address || d.deployer)}${d.errored ? ' (failed)' : ''}`,
-      path: `/transaction/${encodeURIComponent(d.deploy_id)}`, timestamp: Number(d.timestamp), data: d
+      path: `/transaction/${encodeURIComponent(String(d.deploy_id ?? ''))}`, timestamp: Number(d.timestamp), data: d
     }))
   ];
   return results.sort((a, b) => compareSearchResults(a, b, order));
 }
 
 function compareSearchResults(a: SearchResult, b: SearchResult, order: 'asc' | 'desc') {
+  const aTransferId = a.data.id === undefined || a.data.id === null ? null : String(a.data.id);
+  const bTransferId = b.data.id === undefined || b.data.id === null ? null : String(b.data.id);
   return (order === 'desc' ? b.timestamp - a.timestamp : a.timestamp - b.timestamp)
     || (a.type !== b.type ? (a.type < b.type ? -1 : 1) : a.type === 'transfer'
-      ? (BigInt(a.data.id) < BigInt(b.data.id) ? -1 : BigInt(a.data.id) > BigInt(b.data.id) ? 1 : 0)
+      ? (aTransferId === null || bTransferId === null ? 0
+        : BigInt(aTransferId) < BigInt(bTransferId) ? -1 : BigInt(aTransferId) > BigInt(bTransferId) ? 1 : 0)
       : (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
 }
 

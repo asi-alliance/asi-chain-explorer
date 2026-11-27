@@ -50,6 +50,19 @@ docker build -q --target production -t "$image-defaults" \
 # shellcheck source=scripts/lib/served-js.sh
 . "$root/scripts/lib/served-js.sh"
 
+# Docker can return from `wait` a moment before the last log lines are
+# readable, so poll briefly instead of failing a valid exit-code check.
+wait_for_log() {
+    local id=$1 message=$2 attempt
+    for attempt in $(seq 1 20); do
+        if docker logs "$id" 2>&1 | grep -q -- "$message"; then
+            return 0
+        fi
+        sleep 0.25
+    done
+    return 1
+}
+
 # expect_exit NAME MESSAGE IMAGE [ENV...]: the container must stop with MESSAGE in its log.
 expect_exit() {
     local name=$1 message=$2 tag=$3
@@ -58,7 +71,7 @@ expect_exit() {
     for pair in "$@"; do args+=(-e "$pair"); done
     id=$(docker run -d --label "$label" "${args[@]}" "$tag")
     code=$(timeout 30 docker wait "$id" || echo running)
-    if [ "$code" != running ] && [ "$code" != 0 ] && docker logs "$id" 2>&1 | grep -q -- "$message"; then
+    if [ "$code" != running ] && [ "$code" != 0 ] && wait_for_log "$id" "$message"; then
         pass "$name (exit $code)"
     else
         fail "$name (exit $code)"; docker logs "$id" 2>&1 | tail -5 >&2
@@ -94,6 +107,16 @@ expected="window.__ASI_EXPLORER_CONFIG__ = Object.freeze({\"REACT_APP_GRAPHQL_UR
 [ "$config" = "$expected" ] && pass "serves runtime endpoints in /config.js" || { fail "served /config.js"; echo "$config" >&2; }
 grep -qi '^cache-control: no-store' "$work/config-headers" && pass "/config.js is not cached" || fail "/config.js cache headers"
 curl -fsS -D "$work/index-headers" -o /dev/null "$base/"
+grep -qi '^cache-control: no-cache' "$work/index-headers" \
+    && pass "index.html revalidates in the browser" \
+    || fail "index.html cache headers"
+curl -fsS -D "$work/route-headers" -o "$work/route-body" "$base/pending"
+grep -qi '^cache-control: no-cache' "$work/route-headers" \
+    && pass "SPA routes revalidate in the browser" \
+    || fail "SPA route cache headers"
+grep -q 'src="/config.js"' "$work/route-body" \
+    && pass "SPA routes serve the entry HTML" \
+    || fail "SPA route body"
 for headers in "$work/index-headers" "$work/config-headers"; do
     grep -qiE "^content-security-policy:.*connect-src 'self' http: https: ws: wss:" "$headers" \
         && pass "browser CSP permits HTTP and WebSocket endpoints ($(basename "$headers"))" \

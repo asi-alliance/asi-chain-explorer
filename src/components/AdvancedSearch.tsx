@@ -268,7 +268,7 @@ function buildResults(data: QuickSearchData | undefined, query: string): QuickRe
     const heightResults: QuickResult[] = exactHeight === null ? [] : [{
         key: `height:${exactHeight}`,
         type: "height",
-        path: `/block/${exactHeight}`,
+        path: `/height/${exactHeight}`,
         title: `Height #${exactHeight}`,
         meta: heightMeta,
         timestamp: 0,
